@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="ASCII"?>
+<!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
+
+<spec name="Secure Shell Tunnel (over bash command line)" type="ddproto1.launcher.ExpectSSHTunnel">
+	<attribute id="host"/>
+	<attribute id="user"/>
+	<attribute id="pass"/>
+	<attribute id="pass-type"/>
+</spec>

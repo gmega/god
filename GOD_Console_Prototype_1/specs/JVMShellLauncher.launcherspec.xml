@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="ASCII"?>
+<!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
+
+<spec name="Java Virtual Machine Shell Launcher (bash syntax)" type="ddproto1.launcher.JVMShellLauncher">
+	<attribute id="main-class"/>
+	<attribute id="classpath"/>
+	<attribute id="jdwp-port"/>
+	<attribute id="vm-parameters"/>
+	<attribute id="app-parameters"/>
+	<attribute id="tunnel-closure-policy"/>
+	
+	<!-- Non XML attributes -->
+	<attribute id="tunnel-class"/>
+	<attribute id="tunnel-type"/>
+</spec>

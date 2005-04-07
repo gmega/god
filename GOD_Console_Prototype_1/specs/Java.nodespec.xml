@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ASCII"?>
+<!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
+
+<spec name="JVM Component Node" type="node">
+	<attribute id="name"/>
+	<attribute id="type"/>
+	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava.nodespec.xml),no:nop()"/>
+	<attribute id="local-agent-address"/>
+	<attribute id="local-agent-port"/>
+	
+	<!-- This refers to the yes/no attribute -->
+	<attribute id="launcher"/>
+	
+	<!-- Non XML attributes -->
+	<attribute id="launcher-class"/>
+	<attribute id="mapper-class"/>
+</spec>

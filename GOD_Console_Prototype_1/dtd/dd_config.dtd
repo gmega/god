@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='ASCII'?>
+
+<!ELEMENT dd_config (debuggee_list)>
+
+<!ELEMENT debuggee_list (debuggee+)>
+
+<!ELEMENT debuggee (launch?,sourcemapper,param*)>
+<!ATTLIST debuggee
+	name			CDATA		#REQUIRED
+	type			(Java|Cpp)	#REQUIRED
+	CORBA-enabled	(yes|no) 	#REQUIRED
+	launcher		(yes|no)    #REQUIRED
+>
+
+<!ELEMENT sourcemapper (param*)>
+<!ATTLIST sourcemapper
+	class	CDATA	#REQUIRED
+>
+
+<!ELEMENT launch (tunnel?,param*)>
+<!ATTLIST launch
+	class	CDATA			#REQUIRED
+>	
+
+<!ELEMENT tunnel (param*)>
+<!ATTLIST tunnel
+	type	(shell|connector)		#REQUIRED
+	class	CDATA					#REQUIRED
+>
+
+<!ELEMENT param EMPTY>
+<!ATTLIST param
+	key 	CDATA	#REQUIRED
+	value 	CDATA	#REQUIRED
+>

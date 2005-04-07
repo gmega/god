@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='ASCII'?>
+
+<!ELEMENT spec ((attribute|extension-attribute)+)>
+<!ATTLIST spec 
+	name	CDATA					#REQUIRED
+	type	CDATA				 	#REQUIRED 
+>
+
+<!ELEMENT attribute EMPTY>
+<!ATTLIST attribute
+	id	CDATA	#REQUIRED
+>
+
+<!ELEMENT extension-attribute EMPTY>
+<!ATTLIST extension-attribute
+	id		CDATA	#REQUIRED
+	action	CDATA	#REQUIRED
+>

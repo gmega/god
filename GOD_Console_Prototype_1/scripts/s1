@@ -1,0 +1,4 @@
+run <CORBA Server 1>
+select <CORBA Client 1>
+break Client$RunnableRequester.run():0
+run
