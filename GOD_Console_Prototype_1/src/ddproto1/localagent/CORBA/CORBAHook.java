@@ -46,7 +46,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     
     private static final String ORBHOLDER_NAME = "ddproto1.localagent.CORBA.ORBHolder";
     
-    private static final boolean DEBUG_MODE = true;
+    private static final boolean DEBUG_MODE = false;
     private static final String DUMP_DIR = "/home/giuliano/workspace/Distributed Debugger Prototype 1/runtime-gen";
     
     private Map <String, ObjectType> stubs;
