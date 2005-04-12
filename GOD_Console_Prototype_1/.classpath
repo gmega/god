@@ -9,7 +9,7 @@
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/concurrent-1.3.2.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/idl.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/jacorb.jar"/>
-	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/log4j-1.2.8.jar"/>
+	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/log4j-1.2.9.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/logkit-1.2.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/xercesImpl.jar"/>

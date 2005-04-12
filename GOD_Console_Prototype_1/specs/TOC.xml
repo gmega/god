@@ -1,0 +1,7 @@
+<configuration_toc>
+	<param key="launcher" val="launcherspec"/>
+	<param key="debuggee" val="nodespec"/>
+	<param key="sourcemapper" val="mapperspec"/>
+	<param key="tunnel" val="tunnelspec"/>
+	<attribute key="param"/>
+</configuration_toc>

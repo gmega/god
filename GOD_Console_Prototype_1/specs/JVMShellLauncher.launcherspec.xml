@@ -9,7 +9,6 @@
 	<attribute id="app-parameters"/>
 	<attribute id="tunnel-closure-policy"/>
 	
-	<!-- Non XML attributes -->
-	<attribute id="tunnel-class"/>
-	<attribute id="tunnel-type"/>
+	<child id="tunnel"/>
+	
 </spec>

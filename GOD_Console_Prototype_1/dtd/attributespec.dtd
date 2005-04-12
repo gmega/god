@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='ASCII'?>
 
-<!ELEMENT spec ((attribute|extension-attribute)+)>
+<!ELEMENT spec ((attribute|extension-attribute|child)+)>
 <!ATTLIST spec 
 	name	CDATA					#REQUIRED
 	type	CDATA				 	#REQUIRED 
@@ -16,3 +16,7 @@
 	id		CDATA	#REQUIRED
 	action	CDATA	#REQUIRED
 >
+
+<!ELEMENT child EMPTY>
+<!ATTLIST child
+	id	CDATA	#REQUIRED>
