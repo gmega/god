@@ -1,24 +1,17 @@
 /*
- * Created on Jul 27, 2004
+ * Created on Apr 13, 2005
  * 
- * Distributed Debugger Prototype 1
- * 
- * File: Configurator.java
+ * file: IConfigurator2.java
  */
-
 package ddproto1.configurator;
 
 import java.net.URL;
-import java.util.Collection;
 
-import org.xml.sax.SAXException;
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.IObjectSpecType;
 
-/**
- * @author giuliano
- *
- */
 public interface IConfigurator {
     public static final String LIST_SEPARATOR_CHAR = ";";
     
-    public Collection parseConfig(URL url) throws SAXException;
+    public IObjectSpec parseConfig(IObjectSpecType reference, URL url);
 }

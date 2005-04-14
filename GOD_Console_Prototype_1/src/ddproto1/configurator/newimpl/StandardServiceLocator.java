@@ -27,7 +27,7 @@ public class StandardServiceLocator implements IServiceLocator{
 	private Map <IConfigurable, IObjectSpec> object2spec = new WeakHashMap<IConfigurable, IObjectSpec>();
 	private Map <IObjectSpec, WeakReference<IConfigurable>> spec2object = new HashMap<IObjectSpec, WeakReference<IConfigurable>>();
 	    
-    public synchronized StandardServiceLocator getInstance(){
+    public synchronized static StandardServiceLocator getInstance(){
         return (instance == null)?instance = new StandardServiceLocator():instance;
     }
 
@@ -56,7 +56,15 @@ public class StandardServiceLocator implements IServiceLocator{
 		}
 
 		IObjectSpecType type = spec.getType();
-		String klass = type.getConcreteType();
+        
+        String klass = null;
+        
+        try{
+            klass = spec.getAttribute(IObjectSpecType.CONCRETE_TYPE_ATTRIBUTE);
+        }catch(IllegalAttributeException ex){
+            throw new IncarnationException("This specification is not incarnable.");
+        }
+        
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
 		/* Acquires a reference to the declared class. */
