@@ -1,0 +1,3 @@
+<spec name="Root element specification for DD Prototype 1" type="dd_config">
+	<child type="nodelistspec"/>
+</spec>

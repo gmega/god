@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ASCII"?>
 <!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
 
-<spec name="URL-searching Source Mapper" type="ddproto1.util.URLSourceMapper">
+<spec name="URL-searching Source Mapper" type="sourcemapper">
 	<attribute id="sourcepath"/>
 </spec>

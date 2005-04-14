@@ -7,8 +7,7 @@
 	<attribute id="local-agent-address"/>
 	<attribute id="local-agent-port"/>
 	
-	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava.nodespec.xml),no:nop()"/>
-	<extension-attribute id="launcher" action="yes:addchild(launcher),no:nop()"/>
+	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava,node),no:nop()"/>
 	
-	<child id="sourcemapper"/>
+	<child type="sourcemapper"/>
 </spec>

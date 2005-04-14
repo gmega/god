@@ -1,7 +1,11 @@
 <configuration_toc>
-	<param key="launcher" val="launcherspec"/>
-	<param key="debuggee" val="nodespec"/>
-	<param key="sourcemapper" val="mapperspec"/>
-	<param key="tunnel" val="tunnelspec"/>
-	<attribute key="param"/>
+	<element name="dd_config" spec-extension="globalspec"/>
+	<element name="debuggee_list" spec-extension="nodelistspec"/>
+	<element name="debuggee" spec-extension="nodespec"/>
+	<element name="launcher" spec-extension="launcherspec"/>
+	<element name="sourcemapper" spec-extension="mapperspec"/>
+	<element name="tunnel" spec-extension="tunnelspec"/>
+	
+	<root-element name="dd_config"/>
+	
 </configuration_toc>
