@@ -24,6 +24,8 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
+import ddproto1.configurator.util.StandardAttribute;
+import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.util.MessageHandler;
 
 public class SpecLoader implements ISpecLoader{
@@ -33,14 +35,15 @@ public class SpecLoader implements ISpecLoader{
     private static final String TYPE_ATTRIB = "type";
     private static final String NAME_ATTRIB = "name";
     private static final String CHILD_ATTRIB = "child";
-    private static final String SPEC_EXT_ATTRIB = "extension-attribute";
+    private static final String SPEC_EXT_ATTRIB = "spec-extension";
+    private static final String OPTIONAL_ATTRIB = "extension-attribute";
     private static final String PROPERTY_ATTRIB = "attribute";
     private static final String ID_ATTRIB = "id";
     private static final String ACTION_ATTRIBUTE = "action";
     private static final String ROOT_ATTRIB = "root-element";
     private static final String ELEMENT_ATTRIB = "element";
     private static final String MULTIPLICITY_ATTRIB = "multiplicity";
-    private static final String ACTION_SPLIT_CHAR = ",";
+    private static final String ACTION_SPLIT_CHAR = ";";
     private static final String TOC_FILENAME = "TOC.xml";
     
     private static final MessageHandler mh = MessageHandler.getInstance();
@@ -54,10 +57,6 @@ public class SpecLoader implements ISpecLoader{
     private List<String> specLocations;
     
     private boolean idle = true;
-    private TOCParser tParser;
-    private SpecParser sParser; 
-    
-    private String currentConcrete;
     
     public SpecLoader(List <String> specLocations, String tocLocation){
         // Locations (string form, URLs).
@@ -65,39 +64,37 @@ public class SpecLoader implements ISpecLoader{
         this.specLocations = specLocations;
         
         // TOC and spec cache
-        this.specMap = new HashMap<String, String>();
         this.loadedSpecs = new HashMap<String, IObjectSpecType>();
         
-        // State pattern variant
-        this.tParser = new TOCParser();
-        this.sParser = new SpecParser();
     }
     
-    public synchronized IObjectSpecType specForName(String concreteType, String specType)
-            throws SpecNotFoundException, IOException, SAXException {
-        
-        
+    public synchronized IObjectSpecType specForName(String concreteType,
+            String specType) throws SpecNotFoundException, IOException,
+            SAXException {
+
         Map TOC = getLoadTOC();
-        if(!TOC.containsKey(specType)) throw new SpecNotFoundException("Unknown specification type - " + specType);
+        if (!TOC.containsKey(specType))
+            throw new SpecNotFoundException("Unknown specification type - "
+                    + specType);
 
-        try{
-            String expectedName = makeExpected(concreteType,specType);
-            
-            if (loadedSpecs.containsKey(expectedName))
-                return loadedSpecs.get(concreteType);
+        String expectedName = makeExpected(concreteType, specType);
 
-            InputSource is = findAndOpen(expectedName);
-            
-            currentConcrete = concreteType;
-        
-            this.runParse(sParser, is);
-        
-            loadedSpecs.put(expectedName, sParser.clear());
-        
-            return loadedSpecs.get(expectedName);
-        }finally{
-            currentConcrete = null;
-        }
+        if (loadedSpecs.containsKey(expectedName))
+            return loadedSpecs.get(concreteType);
+
+        InputSource is = findAndOpen(expectedName);
+
+        /** We could pool those. We create them every time to be able to 
+         * do recursive spec loading.*/
+        SpecParser sParser = new SpecParser();
+        sParser.setCurrentConcrete(concreteType);
+
+        this.runParse(sParser, is);
+
+        loadedSpecs.put(expectedName, sParser.clear());
+
+        return loadedSpecs.get(expectedName);
+
     }
     
     private Map <String, String> getLoadTOC()
@@ -107,13 +104,24 @@ public class SpecLoader implements ISpecLoader{
         
         URLConnection conn = null;
         URL url = new URL(tocLocation + (tocLocation.endsWith("/")?"":"/") + TOC_FILENAME );
+     
+        try{
+            specMap = new HashMap<String, String>();
+            conn = url.openConnection();
+            InputStream is = conn.getInputStream();
+            InputSource src = new InputSource(is);
         
-        InputStream is = conn.getInputStream();
-        InputSource src = new InputSource(is);
+            TOCParser tParser = new TOCParser();
+            this.runParse(tParser, src);
         
-        this.runParse(tParser, src);
-        
-        return specMap;
+            return specMap;
+        }catch(IOException e){
+            specMap = null;
+            throw e;
+        }catch(SAXException e){
+            specMap = null;
+            throw e;
+        }
     }
     
     private void runParse(DefaultHandler dh, InputSource src)
@@ -139,6 +147,7 @@ public class SpecLoader implements ISpecLoader{
                 URL url = new URL(urlspec + (urlspec.endsWith("/")?"":"/") + cType);
                 URLConnection conn = url.openConnection();
                 target = conn.getInputStream();
+                break;
             }catch(MalformedURLException ex){ 
             }catch(IOException ex) { }
         }
@@ -151,6 +160,8 @@ public class SpecLoader implements ISpecLoader{
     
     private class TOCParser extends DefaultHandler{
 
+        private Locator locator;
+        
         /* (non-Javadoc)
          * @see org.xml.sax.helpers.DefaultHandler#endElement(java.lang.String, java.lang.String, java.lang.String)
          */
@@ -160,6 +171,11 @@ public class SpecLoader implements ISpecLoader{
             super.endElement(uri, localName, qName);
         }
 
+        @Override
+        public void setDocumentLocator(Locator locator) {
+            this.locator = locator;
+        }
+        
         /* (non-Javadoc)
          * @see org.xml.sax.helpers.DefaultHandler#startElement(java.lang.String, java.lang.String, java.lang.String, org.xml.sax.Attributes)
          */
@@ -170,6 +186,8 @@ public class SpecLoader implements ISpecLoader{
            
             if(qName.equals(ELEMENT_ATTRIB)){
                 String val = attributes.getValue(SPEC_EXT_ATTRIB);
+                if(val == null)
+                    throw new SAXParseException("All TOC entries must specify " + SPEC_EXT_ATTRIB, locator);
                 specMap.put(name, val);
             }else if(qName.equals(ROOT_ATTRIB)){
                 specMap.put(ROOT_ATTRIB, name);
@@ -202,6 +220,8 @@ public class SpecLoader implements ISpecLoader{
         
         private Locator locator;
         
+        private String currentConcrete;
+        
         private int level = -1;
 
         private SpecParser(){
@@ -209,6 +229,10 @@ public class SpecLoader implements ISpecLoader{
             actionParsers = new HashMap<String, IActionParser>();
             initDefaultLevels();
             initDefaultActionParsers();
+        }
+        
+        private void setCurrentConcrete(String currentConcrete){
+            this.currentConcrete = currentConcrete;
         }
         
         /**
@@ -224,7 +248,7 @@ public class SpecLoader implements ISpecLoader{
                         throw new SAXParseException("Expected "+ SPEC_ATTRIB +", got " + qName, locator);
                     
                     String type = attributes.getValue(TYPE_ATTRIB);
-                    current = new ObjectSpecTypeImpl(currentConcrete, type);
+                    current = new ObjectSpecTypeImpl(currentConcrete, type, SpecLoader.this);
                 }
             });
             
@@ -232,21 +256,34 @@ public class SpecLoader implements ISpecLoader{
                 public void parseAttribute(String qName, Attributes attributes) throws SAXException{
                     // Adds new attribute.
                     if(qName.equals(PROPERTY_ATTRIB)){
-                        current.addAttribute(attributes.getValue(ID_ATTRIB));
+                        /** Standard attributes are unconstrained. Current spec doesn't provide
+                         * value validation for them (though they'll certainly produce a runtime
+                         * error at some point).
+                         */
+                        try{
+                            current.addAttribute(new StandardAttribute(attributes
+                                    .getValue(ID_ATTRIB), null));
+                        }catch(DuplicateSymbolException ex){
+                            throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
+                        }
                     }
                     // Executes action strings.
-                    else if(qName.equals(SPEC_EXT_ATTRIB)){
+                    else if(qName.equals(OPTIONAL_ATTRIB)){
                         String attribute = attributes.getValue(ID_ATTRIB);
                         String actionString = attributes.getValue(ACTION_ATTRIBUTE);
                         if(actionString == null)
                             throw new SAXParseException("Action string expected.", locator);
                         
                         String [] actions = actionString.split(ACTION_SPLIT_CHAR);
-                         
+                        
+                        /** Branchable attributes are constrained. We must find out and declare the
+                         * value constraints before executing any action. */
+                        Map <String,String> opt2act = new HashMap<String,String>();
+                       
                         for(String action : actions){
                             
-                            /* I really hate doing this kind of code. I just wish I knew
-                             * how to make it more flexible and less ugly. */
+                            /* I really hate doing this kind of hard-coded parsing code. 
+                             * I just wish I knew how to make it more flexible and less ugly. */
                             String [] actionSpec = action.split(":");
                             if(actionSpec.length != 2)
                                 throw new SAXParseException("Invalid action " + action, locator);
@@ -254,14 +291,31 @@ public class SpecLoader implements ISpecLoader{
                             String option = actionSpec[0];
                             String call = actionSpec[1];
                             
+                            if(opt2act.containsKey(option))
+                                throw new SAXParseException("Cannot have two actions with the same branch condition ", locator);
+                            
+                            opt2act.put(option, call);
+                        }
+                        
+                        /** Now we build the constrained attribute */
+                        StandardAttribute stdAttr = new StandardAttribute(attribute, opt2act.keySet());
+                        try{
+                            current.addAttribute(stdAttr);
+                        }catch(DuplicateSymbolException ex){
+                            throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
+                        }
+                        
+                        for(String option : opt2act.keySet()){
+                            String call = opt2act.get(option);
+                            
                             int idx = call.indexOf('(');
                             if(idx == -1)
                                 throw new SAXParseException("Malformed action call " + call, locator);
                             
-                            String selector = call.substring(0, idx-1);
+                            String selector = call.substring(0, idx);
                             
                             if(!actionParsers.containsKey(selector))
-                                throw new SAXParseException("Unknown action " + action, locator);
+                                throw new SAXParseException("Unknown action " + selector, locator);
                             
                             String [] arguments = call.substring(idx+1, call.length()-1).split(",");
                             
@@ -313,8 +367,7 @@ public class SpecLoader implements ISpecLoader{
                     String concrete = args.get(0);
                     String spectype = args.get(1);
 
-                    current.addOptionalSet(attribute, condition, makeExpected(
-                            concrete, spectype));
+                    current.bindOptionalSet(new BranchKey(attribute, condition), concrete, spectype);
                 }
             };
 
@@ -389,7 +442,7 @@ public class SpecLoader implements ISpecLoader{
         String translation = getLoadTOC().get(spectype);
         return concrete + "." + translation + ".xml";
     }
-    
+       
     private interface AttributeParser {
         public void parseAttribute(String qName, Attributes attributes) throws SAXException;
     }

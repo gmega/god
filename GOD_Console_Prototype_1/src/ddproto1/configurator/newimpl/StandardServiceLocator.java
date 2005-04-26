@@ -14,6 +14,7 @@ import java.util.WeakHashMap;
 import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.IncarnationException;
+import ddproto1.exception.UninitializedAttributeException;
 
 public class StandardServiceLocator implements IServiceLocator{
     private static StandardServiceLocator instance;
@@ -60,7 +61,7 @@ public class StandardServiceLocator implements IServiceLocator{
         String klass = null;
         
         try{
-            klass = spec.getAttribute(IObjectSpecType.CONCRETE_TYPE_ATTRIBUTE);
+            klass = type.getConcreteType();
         }catch(IllegalAttributeException ex){
             throw new IncarnationException("This specification is not incarnable.");
         }
@@ -96,19 +97,25 @@ public class StandardServiceLocator implements IServiceLocator{
 			throw new IncarnationException(e);
 		}
 
-		/* Object initialization must be atomic */
-		type.lockForReading();
-		try {
+		/* 
+         * There will be trouble if another thread starts modifying the object type
+		 * after we've acquired the attribute set. 
+		 */
 			for (String key : type.attributeSet()) {
+                try {
+
 				iconf.setAttribute(key, spec.getAttribute(key));
+            } catch (IllegalAttributeException ex) {
+                throw new IncarnationException(
+                        "Either the object or the metaobject reports supporting "
+                                + "an attribute it does not understand (concurrent modification?)");
+            } catch(UninitializedAttributeException ex) {
+                throw new IncarnationException("Required attribute " + key
+                        + " for configurable " + type.getConcreteType()
+                        + " has not been set properly."); 
+            }
+
 			}
-		} catch (IllegalAttributeException ex) {
-			throw new IncarnationException(
-					"Either the object or the metaobject reports supporting "
-							+ "an attribute it does not understand.");
-		} finally {
-			type.unlock();
-		}
 
 		/* Updates internal tables. */
 		spec2object.put(spec, new WeakReference<IConfigurable>(iconf));

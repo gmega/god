@@ -15,6 +15,8 @@ public class IllegalAttributeException extends Exception{
      */
     private static final long serialVersionUID = 3258417209599602997L;
 
+    public IllegalAttributeException () { super(); }
+    
     public IllegalAttributeException(Exception e) { super(e); }
     
     public IllegalAttributeException(String s){ super(s); }
