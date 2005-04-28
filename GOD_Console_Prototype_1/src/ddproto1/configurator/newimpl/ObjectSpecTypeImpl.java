@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -23,48 +24,73 @@ import sun.security.krb5.internal.crypto.s;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidAttributeValueException;
+import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.util.collection.OrderedMultiMap;
 import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;
 
+/**
+ * Standard object specification type implementation. Maintains consistency between
+ * instances and base type, even if there are dynamic updates. It is <b>NOT</b> thread-safe;
+ * that is, you cannot expect for things to be consistent if you're accessing instances and
+ * modifying the base type at the same time. 
+ * 
+ * @author giuliano
+ *
+ */
 public class ObjectSpecTypeImpl implements IObjectSpecType{
 
     private String concreteType;
     private String interfaceType;
     private SpecLoader loader;
     
-    /** Static constraint storage. */
+    /** Static constraint storage (local attributes and children). */
     private Map<String, IAttribute> requiredAttributes;
     private Map<String, Integer> children;
     
-    /** Dynamic constraint storage. */
-    private Map<BranchKey, IObjectSpecType> conditionalSpecs;
-    private Map<String, BranchKey> conditionalAttributes;
+    /** Dynamic constraint storage (supertypes and their branch keys). */
+    private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
     
-    private Set <String> allAttributeKeys;
-    private Set <String> allAttributeKeysRO;
+    /** This is for a future notification channel */
+    private List <IObjectSpecType> parentList = new LinkedList<IObjectSpecType>();
     
-    /** Gutted WeakHashSet. */
+    /** Gutted WeakHashSet that keeps track of our instances. */
     private Set<WeakReference<ObjectSpecInstance>> spawn = new HashSet<WeakReference<ObjectSpecInstance>>();
     private ReferenceQueue rq = new ReferenceQueue();
 
     private ObjectSpecTypeImpl (){
-        allAttributeKeys = new HashSet<String>();
-        allAttributeKeysRO = new ReadOnlyHashSet<String>(allAttributeKeys);
         requiredAttributes = new HashMap<String, IAttribute>();
         children = new HashMap<String, Integer>();
-        conditionalSpecs = new HashMap<BranchKey, IObjectSpecType>();
-        conditionalAttributes = new HashMap<String, BranchKey>();
+        conditionalSpecs = new HashMap<BranchKey, ObjectSpecTypeImpl>();
     }
     
+    /**
+     * Constructor for class ObjectSpecTypeImpl.
+     * 
+     * @param incarnableType concrete type this spec represents (if any).
+     * @param type type of this specification.
+     * @param loader the specification loader this instance should use to locate other specifications.
+     * 
+     * @throws NullPointerException if parameter <b>type</b> or parameter <b>loader</b> is null.
+     */
     public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader){
         this();
+        if(loader == null || type == null) throw new NullPointerException();
         this.interfaceType = type;
         this.concreteType = incarnableType;
         this.loader = loader;
     }
     
+    /**
+     * Adds a certain number of children to this specification. This number will be enforced
+     * at all instances and can be modified later (check 
+     * ObjectSpecTypeImpl$ObjectSpecInstance.updateChildList() for aditional semantics).
+     * 
+     */
     public void addChild(String childtype, int multiplicity) {
+        
+        if(multiplicity < 0) throw new RuntimeException("Multiplicity must be a positive integer.");
         
         /* Dealing with twisted auto-boxing semantics. But it's cool. At
          * least cooler than manual boxing/unboxing. 
@@ -76,12 +102,22 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         children.put(childtype, existent);        
     }
 
+    /**
+     * Removes an entire children class. This change is reflected in all instances. 
+     * 
+     * Though there is support for removing just a given number of children, we currently allow
+     * only class removal because of the confusing semantics.
+     * 
+     */
     public boolean removeChild(String childtype) {
         return !(children.remove(childtype) == null);
     }
 
-    public String getConcreteType() {
-       return concreteType;
+    public String getConcreteType() 
+        throws IllegalAttributeException
+    {
+        if(concreteType == null) throw new IllegalAttributeException("This specification is not incarnable.");
+        return concreteType;
     }
     
     public String getInterfaceType(){
@@ -93,34 +129,75 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
     {
         expungeStaleEntries();
         String key = attribute.attributeKey();
-        if(requiredAttributes.containsKey(key))
+        if(this.containsAttribute(key))
             throw new DuplicateSymbolException("Attribute " + key + " already exists.");
         requiredAttributes.put(key, attribute);
-        allAttributeKeys.add(key);
     }
 
     public boolean removeAttribute(String attributeKey) 
-        throws IllegalAttributeException
     {
+        boolean removed = false;
+        
         expungeStaleEntries();
-        if(!requiredAttributes.containsKey(attributeKey)) return false;
-        requiredAttributes.remove(attributeKey);
-        return true;
+        
+        /** The attribute is ours. */
+        if(requiredAttributes.containsKey(attributeKey)){
+            requiredAttributes.remove(attributeKey);
+            return true;
+        }
+        /** Look up the chain. */
+        else{
+            for(IObjectSpecType childSpec : conditionalSpecs.values()){
+                removed |= childSpec.removeAttribute(attributeKey);
+                if(removed == true) return true;
+            }
+        }
+        return false;
     }
 
     public Set<String> attributeKeySet() {
-        return allAttributeKeysRO;
+        Set <String> fullSet = new HashSet<String>();
+        
+        fullSet.addAll(requiredAttributes.keySet());
+        
+        /** Everybody up the chain should also be included. */
+        for(IObjectSpecType childSpec : conditionalSpecs.values()){
+            fullSet.addAll(childSpec.attributeKeySet());
+        }
+        
+        return fullSet;
     }
 
     public boolean containsAttribute(String key) {
-        return requiredAttributes.containsKey(key) | conditionalAttributes.containsKey(key);
+        return containsAttribute(key, null);
     }
-
+    
+    private boolean containsAttribute(String key, Map<String, String> values){
+        /** Maybe the attribute is local */
+        if(requiredAttributes.containsKey(key))
+            return true;
+        
+        if(values == null) return false;
+        
+        /** Nope. Will have to look up down the child chain. */
+        for(BranchKey branch : conditionalSpecs.keySet()){
+            String val = values.get(branch.getKey());
+            if(val == null) continue;
+            if(val.equals(branch.getValue())){
+                ObjectSpecTypeImpl childSpec = conditionalSpecs.get(branch);
+                if(childSpec.containsAttribute(key, values)) return true;
+            }
+        }
+        
+        /** No attribute named 'key'. */
+        return false;
+    }
+    
     public IObjectSpec makeInstance() throws InstantiationException {
         return new ObjectSpecInstance();
     }
 
-    public void bindOptionalSet(BranchKey bk, String concrete, String type)
+    public void bindOptionalSupertype(BranchKey bk, String concrete, String type)
         throws IllegalAttributeException,
         InvalidAttributeValueException, SpecNotFoundException, IOException,
         SAXException
@@ -136,92 +213,67 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
                     "Cannot bind specification to non-existent attribute "
                             + key);
         
-        /** Checks out if the binding is valid */
+        /** Checks out if the binding is valid (assumption is that the attribute has already been added) */
         if (!attrib.isAssignableTo(val))
             throw new InvalidAttributeValueException("Attribute <" + key
                     + "> cannot be assigned to value <" + val + ">");
         
-        IObjectSpecType spec = loader.specForName(concrete, type);
+        ObjectSpecTypeImpl spec = loader.specForName(concrete, type);
         
         boolean undo = false;
-        List <String> undoList = new LinkedList<String>();
-                
-        try{
-            /** 
-             * Associates the optional attributes with their branch key. 
-             * This is for facilitating lookups when validating attributes. */
-            for(String attribute : spec.attributeKeySet()){
-                if(allAttributeKeys.contains(attribute))
-                    throw new IllegalAttributeException(
-                            "An attribute with key "
-                                + attribute
-                                + " already exists within the current specification scope.");
-            
-                           
-                undoList.add(attribute);
-                conditionalAttributes.put(attribute, bk);
-                allAttributeKeys.add(attribute);
-            }
         
-
-            /** Binds the branch key to the spec. */
-            conditionalSpecs.put(bk, spec);
-        }catch(IllegalAttributeException ex){
-            undo = true;
-            throw ex;
-        }catch(RuntimeException ex){
-            undo = true;
-            throw ex;
-        }finally{
-            if(undo == true){
-                for(String attribute : undoList){
-                    if(conditionalAttributes.containsKey(attribute)) conditionalAttributes.remove(attribute);
-                    allAttributeKeys.remove(attribute);
-                }
-            }
-        }
+        /** We use our private protocol to add ourselves as parents 
+         * to the newly created spec. */
+        spec.addParent(this);   
+        
+        conditionalSpecs.put(bk, spec);
     }
 
-    public void unbindOptionalSet(BranchKey bk) 
+    public void unbindOptionalSupertype(BranchKey bk) 
     {
         expungeStaleEntries();
         if(conditionalSpecs.containsKey(bk)){ conditionalSpecs.remove(bk); }
     }
     
-    private boolean containsAttribute(String key, Map <String, String> instanceVals){
-        /** Verifies if the attribute is a base attribute. */
-        if(requiredAttributes.containsKey(key)) return true;
-
-        /** Could still be a branch attribute */
-        if(conditionalAttributes.containsKey(key)){
-            /** Checks if the branch condition is satisfied */
-            BranchKey bk = conditionalAttributes.get(key);
-            String value = instanceVals.get(bk.getKey());
-            if(value == null) return false;
-            if(value.equals(bk.getValue())) return true;
-        }
-        
-        return false;
-    }
-    
-    public IAttribute getAttribute(String key) throws IllegalAttributeException{
+    public IAttribute getAttribute(String key){
         
         /** Checks if it's a base attribute */
         IAttribute attrib = requiredAttributes.get(key);
         
         if(attrib != null) return attrib;
         
-        /** It's not. Try to acquire the branch key for this attribute */
-        BranchKey bk = conditionalAttributes.get(key);
-        if(bk == null)
-            throw new IllegalAttributeException("Could not find attribute " + key);
+        for(IObjectSpecType surrogates : conditionalSpecs.values()){
+            if((attrib = surrogates.getAttribute(key)) != null) return attrib;
+        }
         
-        /** Asks the surrogate spec to get it. */
-        IObjectSpecType specType = conditionalSpecs.get(bk);
+        return null;
+    }
+    
+    private int childrenNumber(IObjectSpecType type){
+        int _realMany;
+        try{
+            Integer howMany = children.get(type.getInterfaceType());
+            _realMany = (howMany == null)?0:howMany;
+            if(_realMany == INFINITUM) return INFINITUM;
+        }catch(IllegalAttributeException ex){
+            throw new NestedRuntimeException("Unexpected condition", ex);
+        }
         
-        /** Tail recursion. We could eliminate this but I'll only go through the
-         * trouble if this proves to be too slow to bear. */
-        return specType.getAttribute(key);
+        for(ObjectSpecTypeImpl childSpec : conditionalSpecs.values()){
+            int parcel = childSpec.childrenNumber(type);
+            if(parcel == INFINITUM) return INFINITUM;
+            _realMany += parcel;
+        }
+        
+        return _realMany;
+    }
+    
+    private void addParent(IObjectSpecType parent){
+        parentList.add(parent);
+    }
+    
+    private void removeParent(IObjectSpecType parent){
+        parentList.add(parent);
     }
     
     private boolean isAssignable(String key, String val, Map<String,String> assignedVals)
@@ -242,7 +294,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
     private class ObjectSpecInstance implements IObjectSpec {
 
         private Map <String, String> attributeValues = new HashMap <String, String>();
-        private IObjectSpecType parentType;
+        private OrderedMultiMap<IObjectSpecType, IObjectSpec> children = new OrderedMultiMap<IObjectSpecType, IObjectSpec>(
+                LinkedList.class);
+        private LinkedList<IObjectSpec> plainChildren = new LinkedList <IObjectSpec>();
+        private ObjectSpecTypeImpl parentType;
         
         private ObjectSpecInstance(){
             this.parentType = ObjectSpecTypeImpl.this;
@@ -265,7 +320,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         }
         
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
-            if(!parentType.containsAttribute(key)){
+            if(!parentType.containsAttribute(key, attributeValues)){
                 if(attributeValues.containsKey(key)) attributeValues.remove(key);
                 throw new IllegalAttributeException();
             }
@@ -274,19 +329,50 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
                 throw new InvalidAttributeValueException("Cannot assign " + val + " to attribute " + key);
         }
         
+        public void addChild(IObjectSpec spec)
+            throws IllegalAttributeException
+        {
+            IObjectSpecType type = spec.getType();
+            String childType = type.getInterfaceType();
+            int allowed = childrenNumber(type);
+
+            updateChildList(spec, allowed);
+            
+            /** Checks if can add the child */
+            if(allowed != INFINITUM && children.size(type) == allowed)
+                throw new IllegalAttributeException("Maximum number reached or unsupported children type " + type.getInterfaceType());
+            
+            children.insert(type, spec, 0);
+        }
+        
         public List<IObjectSpec> getChildren() {
-            // TODO Auto-generated method stub
-            return null;
+            LinkedList <IObjectSpec> copy = new LinkedList<IObjectSpec>();
+            copy.addAll(plainChildren);
+            return plainChildren;
+        }
+        
+        
+        /**
+         * This method lazily updates the children lists according to what is 
+         * currently allowed by the specification.
+         *  
+         * @param spec
+         * @throws IllegalAttributeException
+         */
+        private void updateChildList(IObjectSpec spec, int allowed)
+            throws IllegalAttributeException
+        {
+
+            IObjectSpecType type = spec.getType();
+            int toRemove = Math.max(0, children.size(type) - allowed);
+            for (int i = 0; i < toRemove; i++) {
+                children.remove(type, 0);
+            }
         }
 
         public IObjectSpecType getType() {
             return parentType;
         }
-
-        public IObjectSpec clone() {
-            // TODO Auto-generated method stub
-            return null;
-        }
-        
     }
+    
 }

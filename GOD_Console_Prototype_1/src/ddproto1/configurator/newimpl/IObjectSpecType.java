@@ -20,7 +20,7 @@ import ddproto1.exception.NoSuchSymbolException;
  * This interface describes an object specification type. An object specification
  * type is a configurable entity that will be used for constraint checking on its
  * spawn (instances). It describes which attributes are supported by each instance
- * and allows the definition of conditional attribute sets.<BR>
+ * and allows the definition of conditional attribute-based lookup.<BR>
  * <BR>
  * Though an object specification type might be associated to an actual object type,
  * that is not necessarily true. An<b> object specification type </b>describes its
@@ -48,6 +48,7 @@ public interface IObjectSpecType {
      * @param multiplicity
      */
 	public void addChild(String childtype, int multiplicity);
+    
     /**
      * Removes a child from this specification type.
      * 
@@ -80,10 +81,9 @@ public interface IObjectSpecType {
      * Returns the instance of IAttribute associated with a given key.
      * 
      * @param key
-     * @return
-     * @throws IllegalAttributeException
+     * @return <b>null</b> if there's no attribute with key <b>key</b>
      */
-    public IAttribute getAttribute(String key) throws IllegalAttributeException;
+    public IAttribute getAttribute(String key);
     
     /**
      * Removes the attribute whose key is given by the first parameter.
@@ -91,7 +91,7 @@ public interface IObjectSpecType {
      * @param attributeKey the key to the attribute to be removed.
      * @return <b>true</b> if the attribute could be removed, <b>false</b> otherwise.
      */
-    public boolean removeAttribute(String attributeKey) throws IllegalAttributeException;
+    public boolean removeAttribute(String attributeKey);
 
     /**
      * Binds a specification to a particular value of a given attribute. This specification
@@ -106,7 +106,7 @@ public interface IObjectSpecType {
      * @throws InvalidAttributeValueException if the attribute cannot be assigned to the value
      * specified in the branch key.
      */
-    public void bindOptionalSet(BranchKey bk, String specType,
+    public void bindOptionalSupertype(BranchKey bk, String specType,
             String specConcrete) throws IllegalAttributeException,
             InvalidAttributeValueException, SpecNotFoundException, IOException,
             SAXException;
@@ -122,7 +122,7 @@ public interface IObjectSpecType {
      * @throws NoSuchSymbolException if the attribute value is not part of the valid 
      * value table for the target attribute.
      */
-    public void unbindOptionalSet(BranchKey bk)
+    public void unbindOptionalSupertype(BranchKey bk)
             throws IllegalAttributeException, InvalidAttributeValueException,
             NoSuchSymbolException;
 	

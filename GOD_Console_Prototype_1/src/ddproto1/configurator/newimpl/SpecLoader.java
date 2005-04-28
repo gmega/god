@@ -28,21 +28,9 @@ import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.util.MessageHandler;
 
-public class SpecLoader implements ISpecLoader{
+public class SpecLoader implements ISpecLoader, IAttributeConstants{
 
     // TODO: Move all this stuff to a configuration file (maybe the TOC?).
-    private static final String SPEC_ATTRIB = "spec";
-    private static final String TYPE_ATTRIB = "type";
-    private static final String NAME_ATTRIB = "name";
-    private static final String CHILD_ATTRIB = "child";
-    private static final String SPEC_EXT_ATTRIB = "spec-extension";
-    private static final String OPTIONAL_ATTRIB = "extension-attribute";
-    private static final String PROPERTY_ATTRIB = "attribute";
-    private static final String ID_ATTRIB = "id";
-    private static final String ACTION_ATTRIBUTE = "action";
-    private static final String ROOT_ATTRIB = "root-element";
-    private static final String ELEMENT_ATTRIB = "element";
-    private static final String MULTIPLICITY_ATTRIB = "multiplicity";
     private static final String ACTION_SPLIT_CHAR = ";";
     private static final String TOC_FILENAME = "TOC.xml";
     
@@ -51,7 +39,7 @@ public class SpecLoader implements ISpecLoader{
     public static final String module = "XMLMetaConfigurator -";
     
     private Map<String, String> specMap;
-    private Map<String, IObjectSpecType> loadedSpecs;
+    private Map<String, ObjectSpecTypeImpl> loadedSpecs;
     
     private String tocLocation;
     private List<String> specLocations;
@@ -64,11 +52,11 @@ public class SpecLoader implements ISpecLoader{
         this.specLocations = specLocations;
         
         // TOC and spec cache
-        this.loadedSpecs = new HashMap<String, IObjectSpecType>();
+        this.loadedSpecs = new HashMap<String, ObjectSpecTypeImpl>();
         
     }
     
-    public synchronized IObjectSpecType specForName(String concreteType,
+    public synchronized ObjectSpecTypeImpl specForName(String concreteType,
             String specType) throws SpecNotFoundException, IOException,
             SAXException {
 
@@ -212,11 +200,11 @@ public class SpecLoader implements ISpecLoader{
     
     private class SpecParser extends DefaultHandler{
 
-        private List <AttributeParser> lexStack;
+        private List <IAttributeParser> lexStack;
         
         private Map<String, IActionParser> actionParsers;
         
-        private IObjectSpecType current;
+        private ObjectSpecTypeImpl current;
         
         private Locator locator;
         
@@ -225,7 +213,7 @@ public class SpecLoader implements ISpecLoader{
         private int level = -1;
 
         private SpecParser(){
-            lexStack = new ArrayList<AttributeParser>();
+            lexStack = new ArrayList<IAttributeParser>();
             actionParsers = new HashMap<String, IActionParser>();
             initDefaultLevels();
             initDefaultActionParsers();
@@ -241,7 +229,7 @@ public class SpecLoader implements ISpecLoader{
          * it should dispatch the processing of each element. 
          */
         private void initDefaultLevels(){
-            lexStack.add(new AttributeParser(){
+            lexStack.add(new IAttributeParser(){
 
                 public void parseAttribute(String qName, Attributes attributes) throws SAXException{
                     if(!qName.equals(SPEC_ATTRIB))
@@ -252,7 +240,7 @@ public class SpecLoader implements ISpecLoader{
                 }
             });
             
-            lexStack.add(new AttributeParser(){
+            lexStack.add(new IAttributeParser(){
                 public void parseAttribute(String qName, Attributes attributes) throws SAXException{
                     // Adds new attribute.
                     if(qName.equals(PROPERTY_ATTRIB)){
@@ -356,30 +344,52 @@ public class SpecLoader implements ISpecLoader{
          */
         private void initDefaultActionParsers() {
 
-            // Adds a child.
+            // Adds a supertype.
             IActionParser loadspec = new IActionParser() {
                 public void action(String attribute, String condition,
                         String selector, List<String> args,
-                        IObjectSpecType target) throws Exception {
+                        IObjectSpecType context) throws Exception {
                     if (args.size() != 2)
                         throw new Exception("Wrong argument number for action "
                                 + selector);
                     String concrete = args.get(0);
                     String spectype = args.get(1);
 
-                    current.bindOptionalSet(new BranchKey(attribute, condition), concrete, spectype);
+                    current.bindOptionalSupertype(new BranchKey(attribute, condition), concrete, spectype);
                 }
+            };
+            
+            // Adds a child.
+            IActionParser addchild = new IActionParser(){
+
+                public void action(String attribute, String condition,
+                        String selector, List<String> args,
+                        IObjectSpecType context) throws Exception {
+                    if(args.size() != 2)
+                        throw new Exception("Wrong argument number for action " + selector);
+                    
+                    /** Gets the child type and multiplicity */
+                    String type = args.get(0);
+                    String number = args.get(1);
+
+                    /** Conversion will throw NumberFormatException if user screws up */
+                    int _number = number.equals("*")?IObjectSpecType.INFINITUM:Integer.parseInt(number);
+                    
+                    context.addChild(type, _number);
+                }
+                
             };
 
             // NO-OP.
             IActionParser nop = new IActionParser() {
                 public void action(String attribute, String condition,
                         String selector, List<String> args,
-                        IObjectSpecType target) throws Exception {
+                        IObjectSpecType context) throws Exception {
                 }
             };
 
             actionParsers.put("loadspec", loadspec);
+            actionParsers.put("addchild", addchild);
             actionParsers.put("nop", nop);
         }
         
@@ -427,10 +437,10 @@ public class SpecLoader implements ISpecLoader{
         @Override
         public void endDocument() throws SAXException { }
         
-        public IObjectSpecType clear(){
+        public ObjectSpecTypeImpl clear(){
             level = -1;
             locator = null;
-            IObjectSpecType temp = current;
+            ObjectSpecTypeImpl temp = current;
             current = null;
             return temp;
         }
@@ -440,14 +450,11 @@ public class SpecLoader implements ISpecLoader{
         throws SAXException, IOException
     {
         String translation = getLoadTOC().get(spectype);
-        return concrete + "." + translation + ".xml";
+        String expected = (concrete == null)?"":concrete + ".";
+        return expected + translation + ".xml";
     }
        
-    private interface AttributeParser {
-        public void parseAttribute(String qName, Attributes attributes) throws SAXException;
-    }
-    
     public interface IActionParser{
-        public void action(String attribute, String condition, String selector, List <String> args, IObjectSpecType target) throws Exception;
+        public void action(String attribute, String condition, String selector, List <String> args, IObjectSpecType context) throws Exception;
     }
 }

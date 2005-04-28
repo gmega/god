@@ -14,7 +14,8 @@ import ddproto1.exception.UninitializedAttributeException;
 public interface IObjectSpec {
     public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException;
     public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException;
-	public List <IObjectSpec> getChildren();
+    public void addChild(IObjectSpec child) throws IllegalAttributeException;
+    
+    public List<IObjectSpec> getChildren();
 	public IObjectSpecType getType();
-	public IObjectSpec clone();
 }

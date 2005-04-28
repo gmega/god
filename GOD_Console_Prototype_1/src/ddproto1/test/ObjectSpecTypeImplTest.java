@@ -12,6 +12,7 @@ import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IObjectSpecType;
 import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.UninitializedAttributeException;
 import junit.framework.TestCase;
 
 public class ObjectSpecTypeImplTest extends TestCase {
@@ -43,10 +44,42 @@ public class ObjectSpecTypeImplTest extends TestCase {
             corbaSpec.setAttribute("stublist", "stubby");
             corbaSpec.setAttribute("skeletonlist", "skeletonius");
             
+            System.out.println(printHierarchy(corbaSpec, ""));
+            
         }catch(Exception e){
             e.printStackTrace();
             fail();
         }
+    }
+    
+    public String printHierarchy(IObjectSpec spec, String initialSpacing){
+        
+        StringBuffer spaces = new StringBuffer();
+        
+        try{
+            spaces.append(initialSpacing + "[+]" + " ObjectSpec type: " + spec.getType().getInterfaceType() + "\n");
+        }catch(IllegalAttributeException e){ fail();}
+        
+        for(String key : spec.getType().attributeKeySet()){
+            String value = null;
+            try{
+                value = spec.getAttribute(key);
+            }catch(UninitializedAttributeException ex){
+                value = "<uninitialized>";
+            }catch(IllegalAttributeException ex){
+                fail();
+            }
+            
+            String attribute = key + ": " + value + "\n";
+            
+            spaces.append(initialSpacing + " | " + attribute);
+        }
+        
+        for(IObjectSpec child : spec.getChildren()){
+            printHierarchy(child, initialSpacing + 1);
+        }
+        
+        return spaces.toString();
     }
 
 }

@@ -91,37 +91,35 @@ public class StandardServiceLocator implements IServiceLocator{
 
 		/* Creates a new instance of the declared class. */
 		cons.setAccessible(true);
-		try {
-			iconf = (IConfigurable) cons.newInstance(new Object[] {});
-		} catch (Exception e){
-			throw new IncarnationException(e);
-		}
+        try {
+            iconf = (IConfigurable) cons.newInstance(new Object[] {});
+        } catch (Exception e) {
+            throw new IncarnationException(e);
+        }
 
-		/* 
-         * There will be trouble if another thread starts modifying the object type
-		 * after we've acquired the attribute set. 
-		 */
-			for (String key : type.attributeSet()) {
-                try {
-
-				iconf.setAttribute(key, spec.getAttribute(key));
+        /*
+         * There will be trouble if another thread starts modifying the object
+         * type after we've acquired the attribute set.
+         */
+        for (String key : type.attributeKeySet()) {
+            try {
+                iconf.setAttribute(key, spec.getAttribute(key));
             } catch (IllegalAttributeException ex) {
                 throw new IncarnationException(
                         "Either the object or the metaobject reports supporting "
                                 + "an attribute it does not understand (concurrent modification?)");
-            } catch(UninitializedAttributeException ex) {
+            } catch (UninitializedAttributeException ex) {
                 throw new IncarnationException("Required attribute " + key
-                        + " for configurable " + type.getConcreteType()
-                        + " has not been set properly."); 
+                        + " for configurable " + klass
+                        + " has not been set properly.");
             }
+        }
 
-			}
+        /* Updates internal tables. */
+        spec2object.put(spec, new WeakReference<IConfigurable>(iconf));
+        object2spec.put(iconf, spec);
 
-		/* Updates internal tables. */
-		spec2object.put(spec, new WeakReference<IConfigurable>(iconf));
-		object2spec.put(iconf, spec);
-		
-		return iconf;
+        return iconf;
 	}
 	
 	public IObjectSpec getMetaobject(Object self){
