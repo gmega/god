@@ -1,9 +1,14 @@
 <configuration_toc>
 	<element name="dd_config" spec-extension="globalspec"/>
 	<element name="debuggee_list" spec-extension="nodelistspec"/>
-	<element name="debuggee" spec-extension="nodespec"/>
+	
+	<!-- These will go as tags in the configuration file. Tags map to spec extensions. -->
+	<element name="node" spec-extension="nodespec"/>
 	<element name="launcher" spec-extension="launcherspec"/>
 	<element name="sourcemapper" spec-extension="mapperspec"/>
+	<element name="shell-tunnel" spec-extension="shtunnelspec"/>
+	
+	<!-- This is a dummy spec. For testing only -->
 	<element name="tunnel" spec-extension="tunnelspec"/>
 	
 	<root-element name="dd_config"/>
