@@ -202,7 +202,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
 
         private List <IAttributeParser> lexStack;
         
-        private Map<String, IActionParser> actionParsers;
+        private Map<String, IActionCompiler> actionParsers;
         
         private ObjectSpecTypeImpl current;
         
@@ -214,7 +214,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
 
         private SpecParser(){
             lexStack = new ArrayList<IAttributeParser>();
-            actionParsers = new HashMap<String, IActionParser>();
+            actionParsers = new HashMap<String, IActionCompiler>();
             initDefaultLevels();
             initDefaultActionParsers();
         }
@@ -312,7 +312,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
                                 for(String argument : arguments) actualArguments.add(argument);
                             
                             try{
-                                actionParsers.get(selector).action(attribute,
+                                actionParsers.get(selector).compileAction(attribute,
                                         option, selector, actualArguments,
                                         current);
                             }catch(Exception e){
@@ -345,8 +345,8 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
         private void initDefaultActionParsers() {
 
             // Adds a supertype.
-            IActionParser loadspec = new IActionParser() {
-                public void action(String attribute, String condition,
+            IActionCompiler loadspec = new IActionCompiler() {
+                public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
                     if (args.size() != 2)
@@ -360,29 +360,27 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
             };
             
             // Adds a child.
-            IActionParser addchild = new IActionParser(){
+            IActionCompiler addchild = new IActionCompiler(){
 
-                public void action(String attribute, String condition,
+                public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
                     if(args.size() != 2)
                         throw new Exception("Wrong argument number for action " + selector);
-                    
-                    /** Gets the child type and multiplicity */
+
                     String type = args.get(0);
                     String number = args.get(1);
-
-                    /** Conversion will throw NumberFormatException if user screws up */
                     int _number = number.equals("*")?IObjectSpecType.INFINITUM:Integer.parseInt(number);
                     
-                    context.addChild(type, _number);
+                    context.addOptionalChildren(new BranchKey(attribute, condition), type, _number);
+                    
                 }
                 
             };
 
             // NO-OP.
-            IActionParser nop = new IActionParser() {
-                public void action(String attribute, String condition,
+            IActionCompiler nop = new IActionCompiler() {
+                public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
                 }
@@ -454,7 +452,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
         return expected + translation + ".xml";
     }
        
-    public interface IActionParser{
-        public void action(String attribute, String condition, String selector, List <String> args, IObjectSpecType context) throws Exception;
+    public interface IActionCompiler{
+        public void compileAction(String attribute, String condition, String selector, List <String> args, IObjectSpecType context) throws Exception;
     }
 }

@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -19,15 +18,12 @@ import java.util.Set;
 
 import org.xml.sax.SAXException;
 
-import sun.security.krb5.internal.crypto.s;
-
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.UninitializedAttributeException;
 import ddproto1.util.collection.OrderedMultiMap;
-import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;
 
 /**
@@ -39,7 +35,7 @@ import ddproto1.util.collection.UnorderedMultiMap;
  * @author giuliano
  *
  */
-public class ObjectSpecTypeImpl implements IObjectSpecType{
+public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
 
     private String concreteType;
     private String interfaceType;
@@ -52,9 +48,13 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
     /** Dynamic constraint storage (supertypes and their branch keys). */
     private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
     
+    /** Optional children */
+    private UnorderedMultiMap <String, BranchKey> optionalChildren = new UnorderedMultiMap<String, BranchKey>(HashSet.class);
+    private Map <BranchKey, Integer> optionalChildrenQ = new HashMap<BranchKey, Integer>();
+        
     /** This is for a future notification channel */
     private List <IObjectSpecType> parentList = new LinkedList<IObjectSpecType>();
-    
+        
     /** Gutted WeakHashSet that keeps track of our instances. */
     private Set<WeakReference<ObjectSpecInstance>> spawn = new HashSet<WeakReference<ObjectSpecInstance>>();
     private ReferenceQueue rq = new ReferenceQueue();
@@ -90,7 +90,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
      */
     public void addChild(String childtype, int multiplicity) {
         
-        if(multiplicity < 0) throw new RuntimeException("Multiplicity must be a positive integer.");
+        checkPositive(multiplicity, "Multiplicity");
         
         /* Dealing with twisted auto-boxing semantics. But it's cool. At
          * least cooler than manual boxing/unboxing. 
@@ -101,17 +101,71 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         
         children.put(childtype, existent);        
     }
+    
+    public void addOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
+        checkPositive(multiplicity, "Multiplicity");
+        this.alterOptionalChildren(precondition, childtype, multiplicity, false);
+    }
+    
+    public boolean removeOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
+        checkPositive(multiplicity, "Multiplicity");
+        if(!optionalChildren.containsKey(childtype))return false;
+        this.alterOptionalChildren(precondition, childtype, multiplicity, true);
+        return true;
+    }
+    
+    private void alterOptionalChildren(BranchKey bk, String cType, int number, boolean remove){
+        Integer howMany = optionalChildrenQ.get(bk);
+        howMany = (howMany == null)?0:howMany;
+        
+        /** Remove an infinite number of children means remove all. */
+        if(number == INFINITUM){
+            if(remove) howMany = -15; /** Make shure this value is different from INFINITUM */
+            else howMany = INFINITUM;
+        }else{
+            howMany += number;
+        }
+        
+        /** If remanining children is positive, set it to be the number of 
+         * currently allowed children for the specific type being manipulated */
+        if(howMany > 0 || howMany == INFINITUM){
+            optionalChildren.add(cType, bk);
+            optionalChildrenQ.put(bk, howMany);
+        }
+        
+        /** Otherwise we must remove them from the optional list. */
+        else{
+            /** The only way this could fail is if the user asked to remove
+             * something that doesn't exist.*/
+            assert(optionalChildren.contains(cType, bk));
+            assert(optionalChildrenQ.containsKey(cType));
+            optionalChildren.remove(cType, bk);
+            optionalChildrenQ.remove(cType);
+        }   
+        
+    }
 
+    private void checkPositive(int val, String what){
+        if(val < 0 && val != INFINITUM) throw new RuntimeException(what + " must be a positive integer.");
+    }
+    
     /**
-     * Removes an entire children class. This change is reflected in all instances. 
-     * 
-     * Though there is support for removing just a given number of children, we currently allow
-     * only class removal because of the confusing semantics.
+     * Removes a given number of children. Children added by optional specifications
+     * will not be removed.
      * 
      */
-    public boolean removeChild(String childtype) {
-        return !(children.remove(childtype) == null);
+    public boolean removeChild(String childtype, int howMany)
+    {
+        Integer current = children.get(childtype);
+        if(current == null) return false;
+            
+        current -= howMany;
+        if(current <= 0) children.remove(childtype);
+        else children.put(childtype, current);
+            
+        return true;
     }
+
 
     public String getConcreteType() 
         throws IllegalAttributeException
@@ -172,7 +226,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         return containsAttribute(key, null);
     }
     
-    private boolean containsAttribute(String key, Map<String, String> values){
+    
+    public boolean containsAttribute(String key, Map<String, String> values){
         /** Maybe the attribute is local */
         if(requiredAttributes.containsKey(key))
             return true;
@@ -194,7 +249,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
     }
     
     public IObjectSpec makeInstance() throws InstantiationException {
-        return new ObjectSpecInstance();
+        return new ObjectSpecInstance(this, this);
     }
 
     public void bindOptionalSupertype(BranchKey bk, String concrete, String type)
@@ -228,6 +283,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         
         conditionalSpecs.put(bk, spec);
     }
+    
+    
 
     public void unbindOptionalSupertype(BranchKey bk) 
     {
@@ -249,20 +306,44 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         return null;
     }
     
-    private int childrenNumber(IObjectSpecType type){
+    public int childrenNumber(IObjectSpecType type, Map <String, String> attValues){
         int _realMany;
+        String _type;
         try{
-            Integer howMany = children.get(type.getInterfaceType());
+            _type = type.getInterfaceType();
+            Integer howMany = children.get(_type);
             _realMany = (howMany == null)?0:howMany;
+            
+            /** INFINITUM overcomes whathever result there might be. */
             if(_realMany == INFINITUM) return INFINITUM;
         }catch(IllegalAttributeException ex){
             throw new NestedRuntimeException("Unexpected condition", ex);
         }
         
+        /** First we count the required */
         for(ObjectSpecTypeImpl childSpec : conditionalSpecs.values()){
-            int parcel = childSpec.childrenNumber(type);
+            int parcel = childSpec.childrenNumber(type, attValues);
+            
+            /** INFINITUM overcomes whathever result there might be. */
             if(parcel == INFINITUM) return INFINITUM;
             _realMany += parcel;
+        }
+        
+        /** Now we count the optionals. */
+        Iterable <BranchKey>iterable = optionalChildren.getClass(_type);
+        if(iterable == null) return _realMany;
+        
+        for(BranchKey bk : iterable){
+            String bKey = bk.getKey();
+            String bVal = bk.getValue();
+            String rVal = attValues.get(bKey);
+            if(rVal == null) continue;
+            if(rVal.equals(bVal)){
+                assert(optionalChildrenQ.containsKey(bk));
+                int parcel = optionalChildrenQ.get(bk);
+                if(parcel == INFINITUM) return INFINITUM;
+                _realMany += parcel;
+            }
         }
         
         return _realMany;
@@ -297,10 +378,12 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         private OrderedMultiMap<IObjectSpecType, IObjectSpec> children = new OrderedMultiMap<IObjectSpecType, IObjectSpec>(
                 LinkedList.class);
         private LinkedList<IObjectSpec> plainChildren = new LinkedList <IObjectSpec>();
-        private ObjectSpecTypeImpl parentType;
+        private ISpecQueryProtocol internal;
+        private IObjectSpecType parentType;
         
-        private ObjectSpecInstance(){
-            this.parentType = ObjectSpecTypeImpl.this;
+        private ObjectSpecInstance(IObjectSpecType parentType, ISpecQueryProtocol internal){
+            this.internal = internal;
+            this.parentType = parentType;
         }
            
         public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
@@ -320,7 +403,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         }
         
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
-            if(!parentType.containsAttribute(key, attributeValues)){
+            if(!internal.containsAttribute(key, attributeValues)){
                 if(attributeValues.containsKey(key)) attributeValues.remove(key);
                 throw new IllegalAttributeException();
             }
@@ -334,7 +417,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
         {
             IObjectSpecType type = spec.getType();
             String childType = type.getInterfaceType();
-            int allowed = childrenNumber(type);
+            int allowed = internal.childrenNumber(type, attributeValues);
 
             updateChildList(spec, allowed);
             
@@ -343,7 +426,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
                 throw new IllegalAttributeException("Maximum number reached or unsupported children type " + type.getInterfaceType());
             
             children.insert(type, spec, 0);
+            plainChildren.add(spec);
         }
+        
         
         public List<IObjectSpec> getChildren() {
             LinkedList <IObjectSpec> copy = new LinkedList<IObjectSpec>();
@@ -366,13 +451,12 @@ public class ObjectSpecTypeImpl implements IObjectSpecType{
             IObjectSpecType type = spec.getType();
             int toRemove = Math.max(0, children.size(type) - allowed);
             for (int i = 0; i < toRemove; i++) {
-                children.remove(type, 0);
+                plainChildren.remove(children.remove(type, 0));
             }
         }
-
+        
         public IObjectSpecType getType() {
             return parentType;
         }
     }
-    
 }

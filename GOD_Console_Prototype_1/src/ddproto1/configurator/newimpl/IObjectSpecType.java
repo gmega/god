@@ -53,10 +53,15 @@ public interface IObjectSpecType {
      * Removes a child from this specification type.
      * 
      * @param childtype
-     * @return
+     * @param howMany how many children to remove.
+     * @return <b>true</b> if all children were removed successfully, <b>false</b> otherwise. 
      */
-    public boolean removeChild(String childtype);
-
+    public boolean removeChild(String childtype, int howMany);
+    
+    public void addOptionalChildren(BranchKey precondition, String childtype, int multiplicity);
+    
+    public boolean removeOptionalChildren(BranchKey precondition, String childtype, int multiplicity);
+    
     public String getInterfaceType() throws IllegalAttributeException;
     
     /** If this instance is incarnable (i.e. can be tranformed into an IConfigurable 
@@ -125,7 +130,8 @@ public interface IObjectSpecType {
     public void unbindOptionalSupertype(BranchKey bk)
             throws IllegalAttributeException, InvalidAttributeValueException,
             NoSuchSymbolException;
-	
+    
+    
     /**
      * Returns the set of all the valid attribute keys for this object type specification.
      * 
