@@ -39,6 +39,9 @@ import com.sun.jdi.request.StepRequest;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.NodeInfo;
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.IServiceLocator;
+import ddproto1.configurator.newimpl.StandardServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.AttributeTranslator;
 import ddproto1.debugger.managing.IVMThreadManager;
@@ -62,6 +65,7 @@ import ddproto1.lexer.Lexer;
 import ddproto1.lexer.Token;
 import ddproto1.sourcemapper.ISource;
 import ddproto1.sourcemapper.ISourceMapper;
+import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
 import ddproto1.util.collection.ThreadGroupIterator;
@@ -95,7 +99,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     
     private Map vmid2requests = new HashMap();
     
-    private Map <String, NodeInfo> vmid2ninfo = new HashMap <String, NodeInfo> ();
+    private Map <String, IObjectSpec> vmid2ninfo = new HashMap <String, IObjectSpec> ();
     private String currentMachine = null;
     private String prompt;
     private LinkedList <String> batch = new LinkedList <String> ();
@@ -645,59 +649,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
         mh.getStandardOutput().println(" Now launching JVM <" + vmid + ">");
 
-        NodeInfo ninfo = (NodeInfo) vmid2ninfo.get(vmid);
-        try {
-            // Checks to see if all required attributes have been set (not
-            // giving a damn about their consistency).
-            ninfo.allSet();
-
-            // Loads the specified application launcher class.
-            String launcher = ninfo.getAttribute("launcher-class");
-            String tunnel = ninfo.getAttribute(launcher + ".tunnel-class");
-
-            String cname = null;
-
-            try {
-                Class c = Class.forName(launcher);
-                IApplicationLauncher l = (IApplicationLauncher) c.newInstance();
+        IObjectSpec ninfo = vmid2ninfo.get(vmid);
+        // Checks to see if all required attributes have been set (not
+        // giving a damn about their consistency).
+        ninfo.isFullyInitialized();
+          
+        IServiceLocator locator = (IServiceLocator)Lookup.serviceRegistry().locate("service locator");
+        IObjectSpec launcherSpec = ninfo.getChildSupporting(IApplicationLauncher.class);
+        IApplicationLauncher l = (IApplicationLauncher)locator.incarnate(launcherSpec);
                 
-                // Idiossyncratic behaviour - must set tunnel-class first.
-                l.setAttribute("tunnel-class", ct.extractPrefix(tunnel, launcher));
-
-                // Passes the parameters through.
-                String[] keys = ninfo.getAttributeKeys();
-                for (int i = 0; i < keys.length; i++) {
-                    cname = keys[i];
-                    String remove;
-                    if (keys[i].startsWith(launcher)) {
-                        l.setAttribute(ct.extractPrefix(keys[i], launcher), ninfo
-                                .getAttribute(keys[i]));
-                    }
-                }
-                // Finally, launches the application.
-                l.launch();
-
-            } catch (ClassNotFoundException e) {
-                throw new ConfigException(" Launcher class " + launcher
-                        + " could not be found. Check your classpath.");
-            } catch (IllegalAccessException e) {
-                throw new ConfigException(
-                        " Could not obtain access to default constructor in class "
-                                + launcher + ". Make shure it's public.");
-
-            } catch (IllegalAttributeException e) {
-                throw new ConfigException(
-                        " Internal error! - Illegal launcher argument " + e.toString());
-
-            } catch (InstantiationException e) {
-                throw new ConfigException(e.toString());
-            }
-
-        } catch (Exception e) {
-            mh.printStackTrace(e);
-            throw new CommandException("Launch failed.");
-        }
-        
+        l.launch();
     }
     
     /**
@@ -1409,7 +1370,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     /* (non-Javadoc)
      * @see ddproto1.Debugger#addNodes()
      */
-    public void addNodes(NodeInfo[] info) throws IllegalStateException,
+    public void addNodes(List<IObjectSpec> nodeList) throws IllegalStateException,
             ConfigException {
         if (running)
             throw new IllegalStateException(module
@@ -1418,39 +1379,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         // Loads the information into VMManagers.
         // REMARK This method is very important. It's here that the gap between
         // launchers and attachers is closed.
-        for (int i = 0; i < info.length; i++) {
-            NodeInfo ninfo = info[i];
+        
+        
+        
+        for (IObjectSpec node : nodeList) {
             try {
 
                 VMManagerFactory vmf = VMManagerFactory.getInstance();
-                
-                /* REMARK This would be the ideal:
-
-                 * Assigns a GID for this node *
- 
-                ninfo.addAttribute("gid", true);
-                ninfo.setAttribute("gid", String.valueOf(i));
-                
-                 * However, because of our current configuration design,
-                 * we must know to which object we want to pass the gid 
-                 * information on to. So we must first obtain the launcher
-                 * prefix. 
-                 *  
-                */
-                String lprefix = ninfo.getAttribute("launcher-class");
-                /* Then we add the gid info under that prefix */
-                ninfo.addAttribute(lprefix + ".gid");
-                ninfo.setAttribute(lprefix + ".gid", String.valueOf(i));
-                
-                /* We also add the gid info under the "empty" prefix */
-                ninfo.addAttribute("gid");
-                ninfo.setAttribute("gid", String.valueOf(i));
-                
-                /* Now we add the global-agent IP address (our address) */
-                String addressPort = System.getProperty("global.agent.address");
-                ninfo.addAttribute(lprefix + ".global-agent-address");
-                ninfo.setAttribute(lprefix + ".global-agent-address", addressPort);
-                
+                                                
                 /* Connector arguments and VM arguments might differ from the XML-specified
                  * attribute names that have been read by the configurator. The translation
                  * is made by an IInfoCarrier decorator

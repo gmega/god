@@ -12,9 +12,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Iterator;
 
-import ddproto1.configurator.DefaultConfiguratorImpl;
 import ddproto1.configurator.IConfigurator;
-import ddproto1.configurator.NodeInfo;
 import ddproto1.interfaces.IMessageBox;
 import ddproto1.util.MessageHandler;
 import junit.framework.TestCase;

@@ -21,6 +21,8 @@ import ddproto1.interfaces.IStreamGobblerListener;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.ExternalSemaphore;
 import ddproto1.util.StreamGobbler;
+import ddproto1.util.collection.ReadOnlyHashSet;
+import ddproto1.util.traits.ConversionTrait;
 
 
 /**
@@ -67,15 +69,16 @@ public class ExpectSSHTunnel implements IShellTunnel {
 
     // String constants
     private static final String scriptname = "descssh.exp";
-    private static final String default_prompt_regexp = "(%|#|$) $";
     private static final String module = "ExpectSSHTunnel -";
     
     private static final MessageHandler mh = MessageHandler.getInstance();
 
-    // Attribute map for this Configurable
-    private static final String[] attributes = { "host", "user", "password",
-            "pass-type", "port" };
-
+    private static final Set <String> keySet = 
+        new ReadOnlyHashSet<String>(
+            ConversionTrait.getInstance().toSet(
+                    new String[] { "host", "user", "password", "pass-type",
+                            "port" }));
+    
     // Connection attributes
     private String host = null;
     private String password = null;
@@ -394,8 +397,8 @@ public class ExpectSSHTunnel implements IShellTunnel {
     /* (non-Javadoc)
      * @see ddproto1.interfaces.Configurable#getAttributeKeys()
      */
-    public String [] getAttributeKeys() {
-        return attributes;
+    public Set<String> getAttributeKeys() {
+        return keySet;
     }
 
     /* (non-Javadoc)

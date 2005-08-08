@@ -8,6 +8,9 @@
 
 package ddproto1.util.traits;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.exception.MalformedInputException;
 
@@ -178,5 +181,11 @@ public class ConversionTrait {
         if(parIdx == -1) parIdx = fullMethodName.length()+1;
         
         return fullMethodName.substring(dotIdx + 1, parIdx - 1);
+    }
+    
+    public Set <String> toSet(String [] stuff){
+        Set <String> newSet = new HashSet <String> ();
+        for(String s : stuff) newSet.add(s);
+        return newSet;
     }
 }

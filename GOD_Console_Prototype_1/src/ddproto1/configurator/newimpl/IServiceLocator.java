@@ -12,5 +12,5 @@ import ddproto1.exception.IncarnationException;
 
 public interface IServiceLocator {
     public IConfigurable incarnate(IObjectSpec ospec) throws IncarnationException;
-	public IObjectSpec getMetaobject(Object incarnation) throws NoSuchElementException;
+    public IObjectSpec getMetaobject(Object incarnation) throws NoSuchElementException;
 }

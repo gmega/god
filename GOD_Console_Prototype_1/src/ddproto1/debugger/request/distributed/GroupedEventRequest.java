@@ -4,7 +4,7 @@
  * TODO To change the template for this generated file go to
  * Window - Preferences - Java - Code Style - Code Templates
  */
-package ddproto1.debugger.managing.distributed;
+package ddproto1.debugger.request.distributed;
 
 import java.util.HashMap;
 import java.util.HashSet;

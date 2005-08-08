@@ -64,6 +64,8 @@ public interface IObjectSpecType {
     
     public String getInterfaceType() throws IllegalAttributeException;
     
+    public Class [] getSupportedInterfaces();
+    
     /** If this instance is incarnable (i.e. can be tranformed into an IConfigurable 
      * by a suitable service locator) this method will return the name of the class
      * to which this specification should be translated to. 

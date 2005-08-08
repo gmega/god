@@ -8,7 +8,9 @@
 
 package ddproto1;
 
-import ddproto1.configurator.NodeInfo;
+import java.util.List;
+
+import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.exception.ConfigException;
 import ddproto1.interfaces.IUICallback;
 
@@ -31,7 +33,7 @@ public interface IDebugger {
      * @throws IllegalStateException if mainloop is already running.
      * @throws ConfigException if the 'machines' vector contains errors.
      */
-    public void addNodes(NodeInfo[] machines) throws IllegalStateException,
+    public void addNodes(List<IObjectSpec> machines) throws IllegalStateException,
             ConfigException;
     
     /** The debugger is responsible, among other things, for providing 

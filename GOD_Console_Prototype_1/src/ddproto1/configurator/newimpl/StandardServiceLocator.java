@@ -14,6 +14,7 @@ import java.util.WeakHashMap;
 import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.IncarnationException;
+import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.UninitializedAttributeException;
 
 public class StandardServiceLocator implements IServiceLocator{
@@ -75,11 +76,24 @@ public class StandardServiceLocator implements IServiceLocator{
 		}catch(ClassNotFoundException e) {
 			throw new IncarnationException(e);
 		}
-		
+
+        /* Checks if this class implements all intended interfaces and/or inherits from all
+         * required supertypes.
+         */
 		if (!IConfigurable.class.isAssignableFrom(concreteClass))
 			throw new IncarnationException(
 					"Incarnations must implement interface ddproto1.configurator.IConfigurable");
 
+        for(Class requiredParent : spec.getType().getSupportedInterfaces()){
+            if(!requiredParent.isAssignableFrom(concreteClass)){
+                throw new IncarnationException(
+                        "Class "
+                                + concreteClass
+                                + " does not implement or inherit from required interface/class "
+                                + requiredParent);
+            }
+        }
+        
 		/* Acquires a reference to a no-arg constructor */
 		Constructor cons;
 		try {
@@ -112,6 +126,10 @@ public class StandardServiceLocator implements IServiceLocator{
                 throw new IncarnationException("Required attribute " + key
                         + " for configurable " + klass
                         + " has not been set properly.");
+            } catch(InvalidAttributeValueException ex) {
+                throw new IncarnationException("Object does not agree with specification " +
+                        "with respect to valid attribute values. This could be due to an" +
+                        " erroneous specification file.");
             }
         }
 

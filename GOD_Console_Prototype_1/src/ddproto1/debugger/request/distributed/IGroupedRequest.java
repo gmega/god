@@ -3,7 +3,7 @@
  * 
  * file: IGroupedRequest.java
  */
-package ddproto1.debugger.managing.distributed;
+package ddproto1.debugger.request.distributed;
 
 import ddproto1.debugger.request.IResolutionListener;
 

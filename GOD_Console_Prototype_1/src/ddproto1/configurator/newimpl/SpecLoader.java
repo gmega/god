@@ -28,7 +28,7 @@ import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.util.MessageHandler;
 
-public class SpecLoader implements ISpecLoader, IAttributeConstants{
+public class SpecLoader implements ISpecLoader, IConfigurationConstants{
 
     // TODO: Move all this stuff to a configuration file (maybe the TOC?).
     private static final String ACTION_SPLIT_CHAR = ";";
@@ -38,7 +38,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
     
     public static final String module = "XMLMetaConfigurator -";
     
-    private Map<String, String> specMap;
+    private Map<String, TocEntry> specMap;
     private Map<String, ObjectSpecTypeImpl> loadedSpecs;
     
     private String tocLocation;
@@ -68,7 +68,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
         String expectedName = makeExpected(concreteType, specType);
 
         if (loadedSpecs.containsKey(expectedName))
-            return loadedSpecs.get(concreteType);
+            return loadedSpecs.get(expectedName);
 
         InputSource is = findAndOpen(expectedName);
 
@@ -85,7 +85,8 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
 
     }
     
-    private Map <String, String> getLoadTOC()
+    
+    private Map <String, TocEntry> getLoadTOC()
         throws IOException, SAXException
     {
         if(specMap != null) return specMap;
@@ -94,7 +95,7 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
         URL url = new URL(tocLocation + (tocLocation.endsWith("/")?"":"/") + TOC_FILENAME );
      
         try{
-            specMap = new HashMap<String, String>();
+            specMap = new HashMap<String, TocEntry>();
             conn = url.openConnection();
             InputStream is = conn.getInputStream();
             InputSource src = new InputSource(is);
@@ -173,12 +174,17 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
             String name = attributes.getValue(NAME_ATTRIB);
            
             if(qName.equals(ELEMENT_ATTRIB)){
+                
                 String val = attributes.getValue(SPEC_EXT_ATTRIB);
                 if(val == null)
                     throw new SAXParseException("All TOC entries must specify " + SPEC_EXT_ATTRIB, locator);
-                specMap.put(name, val);
+                               
+                String intfs = attributes.getValue(INTENDED_INTF_ATTRIB);
+                
+                specMap.put(name, new TocEntry(val, intfs));
+                
             }else if(qName.equals(ROOT_ATTRIB)){
-                specMap.put(ROOT_ATTRIB, name);
+                specMap.put(ROOT_ATTRIB, new TocEntry(name, null));
             }
         }
 
@@ -187,11 +193,11 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
          */
         @Override
         public void endDocument() throws SAXException {
-            String rootElement = specMap.get(ROOT_ATTRIB);
+            TocEntry rootElement = specMap.get(ROOT_ATTRIB);
             if(rootElement == null)
                 throw new SAXException("The Table Of Contents must specify a root specification.");
             
-            if(!specMap.containsKey(rootElement))
+            if(!specMap.containsKey(rootElement.getMappedValue()))
                 throw new SAXException("The root specification " + rootElement + " could not be found among " +
                         "the specifications declared in the TOC.");
             
@@ -236,7 +242,23 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
                         throw new SAXParseException("Expected "+ SPEC_ATTRIB +", got " + qName, locator);
                     
                     String type = attributes.getValue(TYPE_ATTRIB);
-                    current = new ObjectSpecTypeImpl(currentConcrete, type, SpecLoader.this);
+                    
+                    /** Loads interfaces eagerly. */
+                    String interfaces [] = specMap.get(type).getInterfaces();
+                    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                    Class realInterfaces[] = new Class[interfaces.length];
+                    for (int i = 0; i < realInterfaces.length; i++) {
+                        try {
+                            realInterfaces[i] = cl.loadClass(interfaces[i]);
+                        } catch (ClassNotFoundException ex) {
+                            throw new SAXParseException("Type " + type
+                                    + " declares implementing interface "
+                                    + interfaces[i]
+                                    + " which could not be found. ", locator);
+                        }
+                    }
+                    
+                    current = new ObjectSpecTypeImpl(currentConcrete, type, SpecLoader.this, realInterfaces);
                 }
             });
             
@@ -447,12 +469,33 @@ public class SpecLoader implements ISpecLoader, IAttributeConstants{
     public String makeExpected(String concrete, String spectype)
         throws SAXException, IOException
     {
-        String translation = getLoadTOC().get(spectype);
+        String translation = getLoadTOC().get(spectype).getMappedValue();
         String expected = (concrete == null)?"":concrete + ".";
         return expected + translation + ".xml";
     }
        
     public interface IActionCompiler{
         public void compileAction(String attribute, String condition, String selector, List <String> args, IObjectSpecType context) throws Exception;
+    }
+    
+    private class TocEntry{
+        private String [] interfaces;
+        private String mappedValue;
+        
+        public TocEntry(String mappedValue, String supportedInterfaces){
+            if(supportedInterfaces == null)
+                interfaces = new String[0];
+            else
+                interfaces = supportedInterfaces.split(",");
+            this.mappedValue = mappedValue;
+        }
+        
+        public String [] getInterfaces(){
+            return interfaces;
+        }
+        
+        public String getMappedValue(){
+            return mappedValue;
+        }
     }
 }

@@ -8,8 +8,11 @@
 
 package ddproto1.configurator;
 
+import java.util.List;
+
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.server.IRequestHandler;
+import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.util.ByteMessage;
 
@@ -19,9 +22,9 @@ import ddproto1.util.ByteMessage;
  */
 public class InfoCarrierWrapper implements IRequestHandler {
    
-    private IInfoCarrier [] info;
+    private List<? extends IConfigurable> info;
 
-    public InfoCarrierWrapper(IInfoCarrier [] info){
+    public InfoCarrierWrapper(List<? extends IConfigurable> info){
         this.info = info;
     }
     
@@ -29,12 +32,14 @@ public class InfoCarrierWrapper implements IRequestHandler {
      * @see ddproto1.debugger.configurator.IConfigRequestHandler#handleRequest(java.lang.Integer, java.io.BufferedReader, java.io.BufferedWriter)
      */
     public ByteMessage handleRequest(Byte gid, ByteMessage req) {
-        byte vgid = gid.byteValue();
+        int vgid = gid.byteValue();
+        
+        if(vgid < 0) vgid += 256;
         
         ByteMessage ans;
         
         /* If gid is out of range, returns an error. */
-        if(vgid < 0 || vgid >= info.length){
+        if(vgid < 0 || vgid >= info.size()){
             ans = new ByteMessage(1);
             ans.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             ans.writeAt(0, DebuggerConstants.ICW_INVALID_GID);
@@ -42,7 +47,7 @@ public class InfoCarrierWrapper implements IRequestHandler {
         }
         
         /* Tries to obtain the correct property */
-        IInfoCarrier ninfo = info[vgid];
+        IConfigurable ninfo = info.get(vgid);
         try	{
             String key = new String(req.getMessage());
             String property = ninfo.getAttribute(key);
@@ -50,7 +55,7 @@ public class InfoCarrierWrapper implements IRequestHandler {
             ans.setStatus(DebuggerConstants.OK);
             return ans;
             
-        }catch(IllegalAttributeException e){
+        }catch(AttributeAccessException e){
             ans = new ByteMessage(1);
             ans.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             ans.writeAt(0, DebuggerConstants.ICW_ILLEGAL_ATTRIBUTE);

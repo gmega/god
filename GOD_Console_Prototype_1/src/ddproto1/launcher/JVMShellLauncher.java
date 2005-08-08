@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.CommException;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.IllegalAttributeException;
@@ -196,7 +197,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
     }
     
     private void passParameters(IShellTunnel t)
-    	throws IllegalAttributeException
+    	throws AttributeAccessException
     {
         Iterator it = tunnelAttributes.keySet().iterator();
         while(it.hasNext()){

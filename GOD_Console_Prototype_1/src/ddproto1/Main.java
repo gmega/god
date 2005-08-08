@@ -8,24 +8,38 @@
 package ddproto1;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
+import sun.security.krb5.internal.crypto.c;
+
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.IConfigurator;
 import ddproto1.configurator.InfoCarrierWrapper;
-import ddproto1.configurator.NodeInfo;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.SpecLoader;
+import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
+import ddproto1.debugger.managing.distributed.DefaultGUIDManager;
+import ddproto1.debugger.managing.distributed.IGUIDManager;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.debugger.server.SeparatingHandler;
 import ddproto1.debugger.server.SocketServer;
+import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
+import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.ResourceLimitReachedException;
 import ddproto1.interfaces.IMessageBox;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.util.MessageHandler;
@@ -42,10 +56,8 @@ public class Main {
     
     public final static String app = "Distributed Debugger Prototype 1";
 
-    public static final int CONFIGURATION_SERVER_MAX_THREADS = 20;
-    public static final int CONFIGURATION_SERVER_QUEUE_SIZE = 10;
+    private static final String DD_CONFIG_FILENAME = "dd_config.xml";
 
-    private static String configclass = "ddproto1.configurator.DefaultConfiguratorImpl";
     private static String debuggerclass = "ddproto1.ConsoleDebugger";
     private static String basedir =  null;
     private static IUICallback ui = null;
@@ -69,23 +81,28 @@ public class Main {
         
         // Loads classes, launches remote configuration server and debugger
         try{
-            Class config = Class.forName(configclass);
+            /** Loads the custom user interface class */
             Class debug = Class.forName(debuggerclass);
-            IConfigurator cfg = (IConfigurator)config.newInstance();
             IDebugger dbg = (IDebugger)debug.newInstance();
             ui = dbg.getUICallback();
             
+            /** Acquires the base directory of the running program */
             if(basedir == null) basedir = System.getProperty("user.dir");
             String separator = File.separator;
             if(!basedir.endsWith(separator)) basedir += separator;
-            Collection nodes = cfg.parseConfig(new URL("file://" + basedir + "dd_config.xml"));
-            NodeInfo [] ninfo = new NodeInfo[nodes.size()];
-            nodes.toArray(ninfo);
-                        
-            /* Adds node info to debugger */
-            dbg.addNodes(ninfo);
+
+            /** Creates a new XML configuration parser, assuming that all constraint
+             * specs are located in basedir/SPECS_DIR, including the TOC.
+             */
+            String url = "file://" + basedir + IConfigurationConstants.SPECS_DIR;
+            List <String> specPath = new ArrayList<String>();
+            specPath.add(url);
+            XMLConfigurationParser cfg = new XMLConfigurationParser(new SpecLoader(specPath, url));
             
-            /* Creates and adds node info to the Distributed Thread Manager */
+            /** Parses the configuration file */
+            IObjectSpec root = cfg.parseConfig(new URL("file://" + basedir + DD_CONFIG_FILENAME)); 
+            
+            /** Creates and adds node info to the Distributed Thread Manager */
             dtm = new DistributedThreadManager(dbg.getUICallback());
             VMManagerFactory vmmf = VMManagerFactory.getInstance();
             Iterator it = vmmf.machineList();
@@ -95,7 +112,7 @@ public class Main {
             /* Now that the Distributed Thread Mananger has been created, we can 
              * start the central server.
              */
-            setServer(ninfo);
+            setServer(root);
             
             /* Starts the debugger */
             dbg.mainLoop();
@@ -114,35 +131,42 @@ public class Main {
         return dtm;
     }
     
-    private static void setServer(NodeInfo [] ninfo)
-    	throws IllegalAttributeException
+    private static void setServer(IObjectSpec root)
+    	throws AttributeAccessException, UnknownHostException,
+            DuplicateSymbolException, ResourceLimitReachedException
     {
-        
-        String [] address = System.getProperty("global.agent.address").split(":");
-        if(address.length != 2){
-            throw new IllegalAttributeException("Wrong global agent address specification format. " +
-            		"Must be of the form [address]:[port]");
-        }
+
+        /** Obtains the server configuration data. */
+        String address = root.getAttribute(IConfigurationConstants.GLOBAL_AGENT_ADDRESS);
+        if(address.equals(IConfigurationConstants.AUTO)) address = InetAddress.getLocalHost().getHostAddress();
+        int port = Integer.parseInt(root.getAttribute(IConfigurationConstants.PORT));
+        int queue_size = Integer.parseInt(root.getAttribute(IConfigurationConstants.MAX_QUEUE_LENGTH));
         
         /* Sets the configuration/notification server */
-        SocketServer scs = new SocketServer(Integer.parseInt(address[1])
-                , CONFIGURATION_SERVER_MAX_THREADS,
-                CONFIGURATION_SERVER_QUEUE_SIZE);
+        SocketServer scs = new SocketServer(port, port, queue_size);
         
-        InfoCarrierWrapper icw = new InfoCarrierWrapper(ninfo);
+        List<IObjectSpec> nodeList = root.getChildrenOfType(IConfigurationConstants.NODE_LIST);
+        
+        /** We trust that the parser did the cardinality checks correctly and that there's only
+         * one node list. However, asserting that this property stands correct never hurts.
+         */
+        assert(nodeList.size() == 1);
+        
+        InfoCarrierWrapper icw = new InfoCarrierWrapper(nodeList);
         SeparatingHandler byStatus = new SeparatingHandler(DebuggerConstants.STATUS_FIELD_OFFSET);
         byStatus.registerHandler(DebuggerConstants.NOTIFICATION, dtm);
         byStatus.registerHandler(DebuggerConstants.REQUEST, icw);
         
         MessageHandler mh = MessageHandler.getInstance();
         
-        if(ninfo.length > 255){
+        if(nodeList.size() > 255){
             throw new InternalError("Cannot proceed - addressing design does not " +
             		"allow more than 255 nodes");
         }
             
+        assignInitialGUIDs(nodeList);
         
-        for(int i = 0; i < ninfo.length; i++){
+        for(int i = 0; i < nodeList.size(); i++){
             try{
                 /* REMARK We could add an address check to make sure no one
                  * is faking its gid (or something went bad along the way).
@@ -157,6 +181,24 @@ public class Main {
         sthread.start();
     }
     
+    private static void assignInitialGUIDs(List<IObjectSpec> nodeList)
+        throws DuplicateSymbolException, ResourceLimitReachedException, AttributeAccessException
+        
+    {
+        IGUIDManager guidManager = new DefaultGUIDManager(256);
+        
+        /** Since the console version won't allow you to add/remove new nodes (for now),
+         * I just toss the guid manager away once I'm done with it.
+         */
+        for(IObjectSpec node : nodeList){
+            String guid = node.getAttribute(IConfigurationConstants.GUID);
+            if(guid.equals(IConfigurationConstants.AUTO)){
+                int _guid = guidManager.leaseGUID(node);
+                node.setAttribute(IConfigurationConstants.GUID, Integer.toString(_guid));
+            }
+        }
+    }
+    
     private static void parseParameters(String[] args) {
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--help")) printUsage();
@@ -168,10 +210,7 @@ public class Main {
                     System.out.println("Error - wrong parameter format.");
                     printUsage();
                 }
-
-                if (arg.equals("configurator-class")) {
-                    configclass = spec[1];
-                } else if (arg.equals("debugger-class")) {
+                if (arg.equals("debugger-class")) {
                     debuggerclass = spec[1];
                 } else if (arg.equals("basedir")) {
                     basedir = spec[1];
@@ -210,7 +249,7 @@ public class Main {
          * must set it up. 
          * REFACTORME My idea is moving everyone to the log4j Logger.
          */
-        Logger l = Logger.getLogger("agent.global");
+        Logger.getLogger("agent.global");
         /* TODO Allow custom configuration file for global agent logger */
         BasicConfigurator.configure();
     }
@@ -218,9 +257,6 @@ public class Main {
     private static void printUsage(){
         System.out.println("Syntax: " + progname + " --op1=val1 --op2=val2 ... ");
         System.out.println("Where the opXXX are:");
-        System.out.println("   -  configurator-class: specifies a class to use");
-        System.out.println("      as configurator for this session.");
-        System.out.println("      defaults to " + configclass);
         System.out.println("   -  debugger-class: specifies the debugger class");
         System.out.println("      to use for this session.");
         System.out.println("      defaults to " + debuggerclass);

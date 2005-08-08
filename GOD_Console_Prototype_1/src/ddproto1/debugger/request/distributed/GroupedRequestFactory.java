@@ -3,7 +3,7 @@
  * 
  * file: GroupedRequestFactory.java
  */
-package ddproto1.debugger.managing.distributed;
+package ddproto1.debugger.request.distributed;
 
 import java.lang.reflect.Constructor;
 import java.util.HashMap;

@@ -30,7 +30,9 @@ import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.IInfoCarrier;
+import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.newimpl.ITranslationManager;
+import ddproto1.configurator.newimpl.ITranslator;
 import ddproto1.debugger.eventhandler.EventDispatcher;
 import ddproto1.debugger.eventhandler.DelegatingHandler;
 import ddproto1.debugger.eventhandler.IEventManager;
@@ -50,11 +52,14 @@ import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdResolutionContextImpl;
 import ddproto1.debugger.request.StdTypeImpl;
+import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.NestedRuntimeException;
+import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UnsupportedException;
 import ddproto1.sourcemapper.ISourceMapper;
+import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 
 
@@ -88,7 +93,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         
     private Set stublist;
         
-    private IInfoCarrier info;
+    private IConfigurable info;
     
     /** Creates a new VirtualMachineManager from a VirtualMachine specification
      * (VMInfo) instance. 
@@ -96,8 +101,8 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
      * @param info Virtual machine specification.
      * 
      */
-    protected VirtualMachineManager(IInfoCarrier info) 
-    	throws IllegalAttributeException
+    protected VirtualMachineManager(IConfigurable info) 
+    	throws AttributeAccessException
     {
         this.info = info;
         this.name = info.getAttribute("name");
@@ -256,7 +261,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     }
     
     public String getProperty(String key) 
-    	throws IllegalAttributeException{
+    	throws AttributeAccessException{
         
         return info.getAttribute(key);
     }
@@ -317,18 +322,24 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     }
     
     private Map setConnectorArgs()
-    	throws IllegalAttributeException
+    	throws AttributeAccessException, NoSuchSymbolException
     {
         Map def = conn.defaultArguments();
         
-        Iterator it = info.getAttributesByGroup("jdiconnector").iterator();
-        while(it.hasNext()){
-            String key = (String)it.next();
+        /** Connector arguments require translation, since their attribute names 
+         * are controlled by the JDI specification. We could */
+        ITranslationManager manager = (ITranslationManager) Lookup
+                .serviceRegistry().locate("translation manager");
+        
+        ITranslator translator = manager.translatorFor(conn.getClass(), this.getClass());
+             
+        for(String key : translator.allTranslationKeys()){
+            
             if(!def.containsKey(key))
                 throw new IllegalAttributeException(module + " Illegal connector arguments.");
             
             Connector.Argument arg = (Connector.Argument) def.get(key);
-            arg.setValue((String)info.getAttribute(key));
+            arg.setValue((String)info.getAttribute(translator.translate(key)));
         }
         
         return def;
@@ -343,7 +354,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
             public String getProperty(String pname) {
                 try{
                     return info.getAttribute(pname);
-                }catch(IllegalAttributeException e){
+                }catch(AttributeAccessException e){
                     throw new NestedRuntimeException(e.getMessage(), e);
                 }
             }

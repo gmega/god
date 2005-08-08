@@ -23,10 +23,11 @@ import org.xml.sax.ext.DefaultHandler2;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import ddproto1.configurator.IConfigurator;
+import ddproto1.exception.IllegalAttributeException;
 import ddproto1.util.MessageHandler;
 
 public class XMLConfigurationParser extends DefaultHandler2 implements
-        IConfigurator, IAttributeConstants {
+        IConfigurator, IConfigurationConstants {
 
     private static String module = "XMLConfigurationParser -";
     private static final int PARSING = 1;
@@ -58,8 +59,8 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
                             "Attributes must be enclosed into something.",
                             locator);
 
-                String key = attributes.getValue(PARAM_KEY_ATTRIB);
-                String val = attributes.getValue(PARAM_VAL_ATTRIB);
+                String key = getCheck(PARAM_KEY_ATTRIB, attributes);
+                String val = getCheck(PARAM_VAL_ATTRIB, attributes);
 
                 IObjectSpec cSpec = stack.peek();
                 try {
@@ -70,13 +71,14 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
             }
         };
 
-        parsers.put(PROPERTY_ATTRIB, propertyParser);
+        parsers.put(PARAM_ATTRIB, propertyParser);
 
         specInstanceParser = new IAttributeParser() {
             public void parseAttribute(String qName, Attributes attributes)
                     throws SAXException {
                 String specType = qName;
                 String concreteType = attributes.getValue(TYPE_ATTRIB);
+                int exclude = attributes.getIndex(TYPE_ATTRIB);
 
                 try {
                     /** Loads the specification for this item. */
@@ -85,9 +87,21 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
 
                     IObjectSpec newSpec = spec.makeInstance();
 
+                    /** The object being pushed is son of the object just below. */ 
                     if (!stack.isEmpty()) {
                         IObjectSpec scopeObject = stack.peek();
                         scopeObject.addChild(newSpec);
+                    }else{
+                        if(rootSpec != null)
+                            throw new SAXParseException("Assertion failed - cannot have two roots!", locator);
+                        rootSpec = newSpec;
+                    }
+                    
+                    /** Inserts the attributes packed into the declaration tag. */
+                    for(int i = 0; i < attributes.getLength(); i++){
+                        if(i == exclude) continue;
+                        String lName = attributes.getLocalName(i);
+                        newSpec.setAttribute(lName, attributes.getValue(i));
                     }
 
                     /** Pushes a new instance onto the stack */
@@ -110,6 +124,7 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
                 throw new IllegalStateException("Parser is busy.");
 
             state = PARSING;
+            if(rootSpec != null) throw new SAXException("Invariant check failure. Parser is damaged (please report this bug).");
         }
 
         URLConnection conn = null;
@@ -130,7 +145,9 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
 
             synchronized (this) {
                 state = IDLE;
-                return rootSpec;
+                IObjectSpec tmp = rootSpec;
+                rootSpec = null;
+                return tmp;
             }
 
         } catch (IOException e) {
@@ -176,8 +193,30 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
     @Override
     public void endElement(String uri, String localName, String qName)
             throws SAXException {
-        // TODO Auto-generated method stub
-        super.endElement(uri, localName, qName);
+        
+        
+        /** We only pop stuff if the element that's ending is found to be a specification. */
+        if(qName.equals(PARAM_ATTRIB)) return;
+        
+        /** It's a spec. Pop it. */
+        if(stack.size() == 0){
+            throw new SAXParseException("Stack size mismatch - malformed XML?", locator);
+        }
+
+        /** Asserts that the type being popped equals to the ending type. */        
+        IObjectSpec ios = stack.pop();
+        
+        String intf = null;
+        try{  
+            intf = ios.getType().getInterfaceType();
+        } catch(IllegalAttributeException e) { }
+
+        if (intf == null || !intf.equals(qName))
+            throw new SAXException(
+                    "Assertion failed - element being closed differs from expected element. This is most likely a bug.");
+        
+        /** Another verification - is the spec fully initialized? */
+        if(!ios.isFullyInitialized()) throw new SAXException("Missing attributes from specification ( " + intf + ")");
     }
 
     /*
@@ -193,5 +232,11 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
             specInstanceParser.parseAttribute(qName, attributes);
         else
             assigned.parseAttribute(qName, attributes);
+    }
+    
+    private String getCheck(String key, Attributes attribs) throws SAXException{
+        String val = attribs.getValue(key);
+        if (val == null) throw new SAXException("Parameter " + key + " must be preceded by a valid value attribute.");
+        return val;
     }
 }

@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.IInfoCarrier;
+import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.ParserException;
 import ddproto1.exception.UnsupportedException;
@@ -30,7 +30,7 @@ import ddproto1.exception.UnsupportedException;
  * 
  * @author giuliano
  */
-public class Event implements IInfoCarrier {
+public class Event implements IConfigurable {
     
     /* Make this smaller than 2 and get an access violation exception. */
     private static int START_LENGTH = 10;

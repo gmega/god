@@ -18,13 +18,15 @@ import java.util.NoSuchElementException;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
-import ddproto1.configurator.IInfoCarrier;
+import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.request.IDeferrableRequest.IPrecondition;
+import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.UnsupportedException;
@@ -57,11 +59,11 @@ public class VMManagerFactory {
         return instance;
     }
         
-    public VirtualMachineManager newVMManager(IInfoCarrier info)
-    	throws ConfigException, IllegalAttributeException
+    public VirtualMachineManager newVMManager(IConfigurable info)
+    	throws ConfigException, AttributeAccessException
     {
-        String name = info.getAttribute("name");
-        String gid = info.getAttribute("gid");
+        String name = info.getAttribute(IConfigurationConstants.NAME_ATTRIB);
+        String gid = info.getAttribute(IConfigurationConstants.GUID);
         if(vmms.containsKey(name) || gid2id.containsKey(gid))
             throw new ConfigException(
                     module

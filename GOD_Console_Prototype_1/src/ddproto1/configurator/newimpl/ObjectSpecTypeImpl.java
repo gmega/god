@@ -58,6 +58,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     /** Gutted WeakHashSet that keeps track of our instances. */
     private Set<WeakReference<ObjectSpecInstance>> spawn = new HashSet<WeakReference<ObjectSpecInstance>>();
     private ReferenceQueue rq = new ReferenceQueue();
+    
+    private Class [] intfs;
 
     private ObjectSpecTypeImpl (){
         requiredAttributes = new HashMap<String, IAttribute>();
@@ -74,7 +76,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
      * 
      * @throws NullPointerException if parameter <b>type</b> or parameter <b>loader</b> is null.
      */
-    public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader){
+    public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader, Class [] intfs){
         this();
         if(loader == null || type == null) throw new NullPointerException();
         this.interfaceType = type;
@@ -97,7 +99,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
          */ 
         Integer existent = children.get(childtype);
         if(existent != null) existent += multiplicity;
-        else existent = 0;
+        else existent = multiplicity;
         
         children.put(childtype, existent);        
     }
@@ -105,6 +107,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     public void addOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
         checkPositive(multiplicity, "Multiplicity");
         this.alterOptionalChildren(precondition, childtype, multiplicity, false);
+    }
+    
+    public Class [] getSupportedInterfaces(){
+        return intfs;
     }
     
     public boolean removeOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
@@ -232,7 +238,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         if(requiredAttributes.containsKey(key))
             return true;
         
-        if(values == null) return false;
+        if(values == null) return false; // What the heck is this?
         
         /** Nope. Will have to look up down the child chain. */
         for(BranchKey branch : conditionalSpecs.keySet()){
@@ -246,6 +252,22 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         
         /** No attribute named 'key'. */
         return false;
+    }
+    
+    public Set <String> getRestrictedKeys(Map<String,String> state){
+        Set <String> keys = new HashSet<String>();
+        keys.addAll(requiredAttributes.keySet());
+        
+        for(BranchKey branch : conditionalSpecs.keySet()){
+            String val = state.get(branch.getKey());
+            if(val == null) continue;
+            if(val.equals(branch.getValue())){
+                ObjectSpecTypeImpl childSpec = conditionalSpecs.get(branch);
+                keys.addAll(childSpec.getRestrictedKeys(state));
+            }
+        }
+        
+        return keys;
     }
     
     public IObjectSpec makeInstance() throws InstantiationException {
@@ -402,6 +424,14 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             attributeValues.put(key, val);
         }
         
+        public boolean isFullyInitialized(){
+            return this.getAttributeKeys().size() == attributeValues.size();
+        }
+        
+        public Set <String> getAttributeKeys(){
+            return internal.getRestrictedKeys(attributeValues);
+        }
+        
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
             if(!internal.containsAttribute(key, attributeValues)){
                 if(attributeValues.containsKey(key)) attributeValues.remove(key);
@@ -447,7 +477,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         private void updateChildList(IObjectSpec spec, int allowed)
             throws IllegalAttributeException
         {
-
+            /** Infinite children allowed. Nothing to update. */
+            if(allowed == INFINITUM) return; 
+            
             IObjectSpecType type = spec.getType();
             int toRemove = Math.max(0, children.size(type) - allowed);
             for (int i = 0; i < toRemove; i++) {

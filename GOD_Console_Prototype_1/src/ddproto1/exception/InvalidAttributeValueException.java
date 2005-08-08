@@ -5,16 +5,24 @@
  */
 package ddproto1.exception;
 
-public class InvalidAttributeValueException extends Exception{
+public class InvalidAttributeValueException extends AttributeAccessException{
 
-    private static final long serialVersionUID = 4049071636038760752L;
+    private static final long serialVersionUID = 8113839085172900353L;
 
     public InvalidAttributeValueException() {
         super();
+    }
+
+    public InvalidAttributeValueException(String message, Throwable cause) {
+        super(message, cause);
     }
 
     public InvalidAttributeValueException(String message) {
         super(message);
     }
 
+    public InvalidAttributeValueException(Throwable cause) {
+        super(cause);
+    }
+ 
 }
