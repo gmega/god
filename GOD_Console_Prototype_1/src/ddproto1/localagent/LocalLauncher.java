@@ -50,17 +50,8 @@ import ddproto1.localagent.client.IGlobalAgent;
  */
 public class LocalLauncher extends JavaWrapper{
     
-    private static final String module = "LocalLauncher -";
-    
-    private static final int HANDSHAKING = 0;
-    private static final int AWAITING_HANDSHAKE = 1;
-    private static final int PROCESSING = 2;
-    private static final int DISCONNECTING = 3;
-        
-    private static boolean hasGid = false;
     private static byte gid;
     private static String mainClass;
-    private static String appParameters;
     private static String loggerConfig;
     private static Logger logger = Logger.getLogger(LocalLauncher.class);
     

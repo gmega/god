@@ -10,7 +10,6 @@ import java.net.URL;
 import org.xml.sax.SAXException;
 
 import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IObjectSpecType;
 
 public interface IConfigurator {
     public static final String LIST_SEPARATOR_CHAR = ";";

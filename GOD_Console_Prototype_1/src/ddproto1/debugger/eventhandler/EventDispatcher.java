@@ -45,7 +45,6 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
     private EventQueue queue;
     private String jvmid;
     private IEventHandler handler;
-    private IVMThreadManager tm;
     private boolean connected = false;
     private boolean removing = false;
     private boolean takesNew = true;
@@ -85,7 +84,6 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
         if(!connected){
             connected = true;
             this.jvm = dc.getVMM().virtualMachine();
-            this.tm  = dc.getVMM().getThreadManager();
             this.jvmid = dc.getProperty("name");
             this.queue = jvm.eventQueue();
         }

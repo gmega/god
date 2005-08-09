@@ -49,7 +49,9 @@ public class Civic implements IConfigurable{
         }
         
         this.tires = tires;
+        this.tires.size();
         engine = _engine;
+        engine.hashCode();
         
         System.out.println(getAttribute("name") + " started. My color is " + getAttribute("color"));
     }

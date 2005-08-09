@@ -12,21 +12,18 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
-import sun.security.krb5.internal.crypto.c;
-
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.IConfigurator;
 import ddproto1.configurator.InfoCarrierWrapper;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.SpecLoader;
+import ddproto1.configurator.newimpl.StandardServiceLocator;
 import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
@@ -38,10 +35,10 @@ import ddproto1.debugger.server.SocketServer;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.DuplicateSymbolException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.ResourceLimitReachedException;
 import ddproto1.interfaces.IMessageBox;
 import ddproto1.interfaces.IUICallback;
+import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 
 /**
@@ -56,7 +53,7 @@ public class Main {
     
     public final static String app = "Distributed Debugger Prototype 1";
 
-    private static final String DD_CONFIG_FILENAME = "dd_config.xml";
+    public static final String DD_CONFIG_FILENAME = "dd_config.xml";
 
     private static String debuggerclass = "ddproto1.ConsoleDebugger";
     private static String basedir =  null;
@@ -114,6 +111,8 @@ public class Main {
              */
             setServer(root);
             
+            setServices();
+            
             /* Starts the debugger */
             dbg.mainLoop();
             
@@ -131,9 +130,14 @@ public class Main {
         return dtm;
     }
     
+    private static void setServices() throws DuplicateSymbolException{
+        Lookup.serviceRegistry().register("service locator", StandardServiceLocator.getInstance());
+    }
+    
     private static void setServer(IObjectSpec root)
     	throws AttributeAccessException, UnknownHostException,
-            DuplicateSymbolException, ResourceLimitReachedException
+            DuplicateSymbolException, ResourceLimitReachedException,
+            ClassNotFoundException
     {
 
         /** Obtains the server configuration data. */

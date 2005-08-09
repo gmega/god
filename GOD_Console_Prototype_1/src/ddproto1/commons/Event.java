@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.IInfoCarrier;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.ParserException;
 import ddproto1.exception.UnsupportedException;
@@ -30,13 +30,13 @@ import ddproto1.exception.UnsupportedException;
  * 
  * @author giuliano
  */
-public class Event implements IConfigurable {
+public class Event implements IInfoCarrier {
     
     /* Make this smaller than 2 and get an access violation exception. */
     private static int START_LENGTH = 10;
 
     private Map <String, String> attmap;
-    private String [] keys;
+    private Set<String> keys;
     private byte type;
     
     /** Produces an event from a key/value java.util.Map. Information passed onto 
@@ -51,10 +51,8 @@ public class Event implements IConfigurable {
      */
     public Event(Map <String, String> attmap, byte type){
         this.attmap = (attmap == null)?new HashMap():attmap;
-        Set <String> keySet = attmap.keySet();
-        keys = new String[keySet.size()];
-        keySet.toArray(keys);
-        
+        keys = attmap.keySet();
+                
         this.type = type;
     }
     
@@ -85,9 +83,7 @@ public class Event implements IConfigurable {
             
             this.attmap = attmap;
             Set <String> keySet = attmap.keySet();
-            String [] keys = new String[keySet.size()];
-            keySet.toArray(keys);
-            this.keys = keys;
+            this.keys = keySet;
             
         }catch(ArrayIndexOutOfBoundsException ex){
             throw new ParserException("Message does not obey the required format.");
@@ -95,13 +91,6 @@ public class Event implements IConfigurable {
 
     }
     
-    /* (non-Javadoc)
-     * @see ddproto1.configurator.IInfoCarrier#addAttribute(java.lang.String)
-     */
-    public void addAttribute(String key) throws IllegalAttributeException {
-        throw new UnsupportedException();
-    }
-
     /* (non-Javadoc)
      * @see ddproto1.configurator.IInfoCarrier#getAttribute(java.lang.String)
      */
@@ -117,16 +106,9 @@ public class Event implements IConfigurable {
     }
 
     /* (non-Javadoc)
-     * @see ddproto1.configurator.IInfoCarrier#getAttributesByGroup(java.lang.String)
-     */
-    public Set getAttributesByGroup(String group) {
-        throw new UnsupportedException();
-    }
-
-    /* (non-Javadoc)
      * @see ddproto1.configurator.IInfoCarrier#getAttributeKeys()
      */
-    public String[] getAttributeKeys() {
+    public Set<String> getAttributeKeys() {
         return keys;
     }
     

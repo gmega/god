@@ -6,13 +6,10 @@
 package ddproto1.configurator.newimpl;
 
 import java.util.List;
-import java.util.Set;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
 
 public interface IObjectSpec extends IConfigurable{
     
@@ -30,7 +27,9 @@ public interface IObjectSpec extends IConfigurable{
     
     public List<IObjectSpec> getChildren();
     
-    public List<IObjectSpec> getChildrenOfType(String type);
+    public List<IAttribute> getUnassignedAttributes();
+    
+    public List<IObjectSpec> getChildrenOfType(String type) throws ClassNotFoundException;
     
     public List<IObjectSpec> getChildrenSupporting(Class type);
     

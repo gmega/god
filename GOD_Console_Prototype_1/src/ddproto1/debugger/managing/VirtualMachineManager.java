@@ -10,17 +10,11 @@ package ddproto1.debugger.managing;
 
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import com.sun.jdi.Bootstrap;
 import com.sun.jdi.Mirror;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
-import com.sun.jdi.connect.AttachingConnector;
-import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.VMDisconnectEvent;
@@ -30,9 +24,8 @@ import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.IConfigurable;
-import ddproto1.configurator.newimpl.ITranslationManager;
-import ddproto1.configurator.newimpl.ITranslator;
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.EventDispatcher;
 import ddproto1.debugger.eventhandler.DelegatingHandler;
 import ddproto1.debugger.eventhandler.IEventManager;
@@ -77,14 +70,12 @@ import ddproto1.util.MessageHandler;
 public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     
     private static final String module = "VirtualMachineManager -";
-    private static final String connector_name = "com.sun.jdi.SocketAttach";
-    
+
     private DeferrableRequestQueue queue;
     private EventDispatcher disp = null;
     private DelegatingHandler handler;
     private ISourceMapper smapper;
     private VirtualMachine jvm;
-    private AttachingConnector conn;
     private String name;
     private String gid;
     private ThreadManager tm;
@@ -93,7 +84,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         
     private Set stublist;
         
-    private IConfigurable info;
+    private IObjectSpec info;
     
     /** Creates a new VirtualMachineManager from a VirtualMachine specification
      * (VMInfo) instance. 
@@ -101,7 +92,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
      * @param info Virtual machine specification.
      * 
      */
-    protected VirtualMachineManager(IConfigurable info) 
+    protected VirtualMachineManager(IObjectSpec info) 
     	throws AttributeAccessException
     {
         this.info = info;
@@ -142,13 +133,16 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     public void connect()
     	throws IllegalAttributeException, IOException
     {
-        conn = (AttachingConnector)findConnector(connector_name);
-        assert(conn != null);
-        
         // Attempts to attach.
         try{
-            Map argmap = setConnectorArgs();
-            jvm = conn.attach(argmap);
+            IServiceLocator locator = (IServiceLocator) Lookup
+                    .serviceRegistry().locate("service locator");
+            
+            IObjectSpec connectorSpec = info.getChildSupporting(SocketAttachWrapper.class);
+
+            SocketAttachWrapper conn = (SocketAttachWrapper)locator.incarnate(connectorSpec);
+            
+            jvm = conn.attach();
             
             /* We've reached a precondition - the VM is now connected and ready. */
             StdPreconditionImpl spi = new StdPreconditionImpl();
@@ -168,9 +162,10 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
             assembleStartHandlers();
             
         }catch(IllegalConnectorArgumentsException e){
+            throw new InternalError();
             // This will (or at least should) never happen.
         }catch(Exception e){
-            if((conn != null) && (jvm != null)){
+            if(jvm != null){
                 try{
                     jvm.dispose();
                 }catch(VMDisconnectedException ex){ }	// Just means the JVM is already dead.
@@ -199,8 +194,8 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
      */
     public String toString(){
         return "Status for Virtual Machine <" + name +">\n" +
-        	   "Connected: " + isConnected() + "\n" +
-        	   "Connector argument map: " + info.getAttributesByGroup("jdiconnector") + "\n";
+        	   "Connected: " + isConnected() + "\n";
+        	   //"Connector argument map: " + info.getAttributesByGroup("jdiconnector") + "\n";
     }
     
     /** Returns the ThreadManager for this VirtualMachine.
@@ -305,44 +300,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         }catch(Exception e){
             throw new InternalError("FATAL - Failed to register thread breakpoint.", e);
         }
-        
-        
-    }
-
-    private Connector findConnector(String conn_name) {
-        List connectors = Bootstrap.virtualMachineManager().allConnectors();
-        Iterator iter = connectors.iterator();
-        while (iter.hasNext()) {
-            Connector connector = (Connector)iter.next();
-            if (connector.name().equals(conn_name)) {
-                return connector;
-            }
-        }
-        return null;
-    }
-    
-    private Map setConnectorArgs()
-    	throws AttributeAccessException, NoSuchSymbolException
-    {
-        Map def = conn.defaultArguments();
-        
-        /** Connector arguments require translation, since their attribute names 
-         * are controlled by the JDI specification. We could */
-        ITranslationManager manager = (ITranslationManager) Lookup
-                .serviceRegistry().locate("translation manager");
-        
-        ITranslator translator = manager.translatorFor(conn.getClass(), this.getClass());
-             
-        for(String key : translator.allTranslationKeys()){
-            
-            if(!def.containsKey(key))
-                throw new IllegalAttributeException(module + " Illegal connector arguments.");
-            
-            Connector.Argument arg = (Connector.Argument) def.get(key);
-            arg.setValue((String)info.getAttribute(translator.translate(key)));
-        }
-        
-        return def;
     }
 
     private void assembleStartHandlers()
@@ -379,11 +336,9 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         
         try{
             // Configures the Source Mapper for this JVM.
-            String mapperclass = info.getAttribute("mapper-class");
-            String sourcepath = info.getAttribute(mapperclass + ".sourcepath");
-            Class mapper = Class.forName(mapperclass);
-            smapper = (ISourceMapper)mapper.newInstance();
-            smapper.addSourceLocations(sourcepath);
+            IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry().locate("service locator");
+            IObjectSpec mapperSpec = info.getChildSupporting(ISourceMapper.class);
+            smapper = (ISourceMapper)locator.incarnate(mapperSpec);
 
             /* Now the event processors - almost everything that gets done
              * by the debugger gets done at the event processor level. 

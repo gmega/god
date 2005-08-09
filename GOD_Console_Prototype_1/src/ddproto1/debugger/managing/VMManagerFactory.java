@@ -20,6 +20,7 @@ import com.sun.jdi.VirtualMachine;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
@@ -59,7 +60,7 @@ public class VMManagerFactory {
         return instance;
     }
         
-    public VirtualMachineManager newVMManager(IConfigurable info)
+    public VirtualMachineManager newVMManager(IObjectSpec info)
     	throws ConfigException, AttributeAccessException
     {
         String name = info.getAttribute(IConfigurationConstants.NAME_ATTRIB);

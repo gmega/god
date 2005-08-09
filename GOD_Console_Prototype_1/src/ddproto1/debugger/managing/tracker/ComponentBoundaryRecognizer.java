@@ -55,28 +55,21 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
     
     private static final String module = "ComponentBoundaryRecognizer -";
     
-    private static final int size = DebuggerConstants.GID_BYTES + DebuggerConstants.THREAD_LUID_BYTES;
-    
     private DistributedThreadManager dtm;
     private VirtualMachineManager parent;
     private IUICallback ui;
     private Set stublist;
-    private Set skellist;
     private ClassType taggerClass;
     
-    private static VMManagerFactory vmmf = VMManagerFactory.getInstance();
     private static MessageHandler mh = MessageHandler.getInstance();
     private static TaggerProxy tagger = TaggerProxy.getInstance();
-    private static PolicyManager pm = PolicyManager.getInstance();
     
     private static ConversionTrait fh = ConversionTrait.getInstance();
-    private static JDIMiscTrait jdim = JDIMiscTrait.getInstance();
     
     public ComponentBoundaryRecognizer(DistributedThreadManager dtm,
-            Set stublist, Set skeletonlist, IUICallback ui, VirtualMachineManager parent){
+            Set stublist, IUICallback ui, VirtualMachineManager parent){
         this.dtm = dtm;
         this.stublist = stublist;
-        this.skellist = skeletonlist;
         this.ui = ui;
         this.parent = parent;
         

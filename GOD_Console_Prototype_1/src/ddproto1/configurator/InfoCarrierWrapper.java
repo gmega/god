@@ -13,7 +13,6 @@ import java.util.List;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.server.IRequestHandler;
 import ddproto1.exception.AttributeAccessException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.util.ByteMessage;
 
 /**

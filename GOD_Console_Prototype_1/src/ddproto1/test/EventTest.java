@@ -7,6 +7,7 @@ package ddproto1.test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.commons.Event;
@@ -42,14 +43,14 @@ public class EventTest extends TestCase {
         
         Event other = new Event(_event);
         
-        String [] keys1 = evt.getAttributeKeys();
-        String [] keys2 = other.getAttributeKeys();
+        Set<String> keys1 = evt.getAttributeKeys();
+        Set<String> keys2 = other.getAttributeKeys();
         
-        assertTrue(keys1.length == keys2.length);
+        assertTrue(keys1.size() == keys2.size());
         
-        for(int i = 0; i < keys1.length; i++){
-            assertTrue(keys1[i].equals(keys2[i]));
-            assertTrue(evt.getAttribute(keys1[i]).equals(other.getAttribute(keys1[i])));
+        for(String key : keys1){
+            assertTrue(keys2.contains(key));
+            assertTrue(evt.getAttribute(key).equals(other.getAttribute(key)));
         }
     }
 }

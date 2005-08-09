@@ -27,7 +27,6 @@ import ddproto1.util.MessageHandler;
  */
 public class DeferredEventExecutor extends BasicEventProcessor {
 
-    private static final String module = "DeferredEventExecutor -";
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
     
     private DeferrableRequestQueue pending;

@@ -42,8 +42,6 @@ import ddproto1.localagent.IClassLoadingHook;
  */
 public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
 
-    private static final Random rnd = new Random(System.currentTimeMillis());
-    
     private static final String ORBHOLDER_NAME = "ddproto1.localagent.CORBA.ORBHolder";
     
     private static final boolean DEBUG_MODE = false;
@@ -51,7 +49,6 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     
     private Map <String, ObjectType> stubs;
     private Map <String, ObjectType> skeletons;
-    private Object orb = null;
     
     public CORBAHook(ObjectType [] clientSide, ObjectType [] serverSide){
         stubs = new HashMap<String, ObjectType>();

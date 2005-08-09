@@ -37,9 +37,6 @@ public class DistributedThread {
     public static final byte RUNNING = 1;
     public static final byte SUSPENDED = 2;
     
-    private static final byte FIRST_STATE = -1;
-    private static final byte FINAL_STATE = 3;
- 
     /* Global Universally Unique ID for this Distributed thread. */
     private int uuid;
     

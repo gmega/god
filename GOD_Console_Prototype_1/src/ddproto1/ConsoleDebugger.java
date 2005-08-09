@@ -14,7 +14,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,12 +37,9 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.NodeInfo;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
-import ddproto1.configurator.newimpl.StandardServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
-import ddproto1.debugger.managing.AttributeTranslator;
 import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
@@ -94,7 +90,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private Lexer l;
     
     private boolean isPromptPrinted = false;
-    private boolean globalMode = false;
     private boolean running;
     
     private Map vmid2requests = new HashMap();
@@ -407,7 +402,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
             String temp = token.text.substring(1, token.text.length() - 1);
             if(temp.equals("Global")){
-                globalMode = true;
                 mh.getStandardOutput().println("Global mode selected.");
                 currentMachine = "Global";
                 break;
@@ -653,12 +647,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         // Checks to see if all required attributes have been set (not
         // giving a damn about their consistency).
         ninfo.isFullyInitialized();
-          
-        IServiceLocator locator = (IServiceLocator)Lookup.serviceRegistry().locate("service locator");
-        IObjectSpec launcherSpec = ninfo.getChildSupporting(IApplicationLauncher.class);
-        IApplicationLauncher l = (IApplicationLauncher)locator.incarnate(launcherSpec);
+        
+        try{
+            IServiceLocator locator = (IServiceLocator)Lookup.serviceRegistry().locate("service locator");
+            IObjectSpec launcherSpec = ninfo.getChildSupporting(IApplicationLauncher.class);
+            IApplicationLauncher l = (IApplicationLauncher)locator.incarnate(launcherSpec);
                 
-        l.launch();
+            l.launch();
+        }catch(Exception e){
+            throw new CommandException(e);
+        }
     }
     
     /**
@@ -1118,9 +1116,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private ThreadReference grabSuspendedThread(String hexy, VirtualMachineManager vmm)
     	throws CommandException
     {
-        VirtualMachine jvm = vmm.virtualMachine();
-        IVMThreadManager tm = vmm.getThreadManager();
-
         ThreadReference target = null;
         
         String stats;
@@ -1260,8 +1255,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         ThreadGroupIterator it = new ThreadGroupIterator(vm.topLevelThreadGroups());
         ConversionTrait sh = ConversionTrait.getInstance();
         
-        ThreadGroupReference last = null;
-
         while(it.hasNext()){
             ThreadGroupReference tgr = (ThreadGroupReference)it.next();
             if(tgr == null) continue;
@@ -1387,24 +1380,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
                 VMManagerFactory vmf = VMManagerFactory.getInstance();
                                                 
-                /* Connector arguments and VM arguments might differ from the XML-specified
-                 * attribute names that have been read by the configurator. The translation
-                 * is made by an IInfoCarrier decorator
-                 */
-                String curdir = System.getProperty("user.dir");
-                URL info2vminfo = new URL("file://" + curdir + "/specs/ManagingTranslator.properties"); 
-                VirtualMachineManager vmm = vmf.newVMManager(new AttributeTranslator(info2vminfo, ninfo));
-
                 /*
                  * This will create filter that calls us back whenever a
                  * suspending event is produced.
                  */
-                String mname = ninfo.getAttribute("name");
+                String mname = node.getAttribute("name");
                 Set <Integer> filters = new HashSet <Integer> ();
                 filters.add(new Integer(EventRequest.SUSPEND_ALL));
                 filters.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
                 
-                vmid2ninfo.put(mname, ninfo);
+                vmid2ninfo.put(mname, node);
 
             } catch (IllegalAttributeException e) {
                 throw new InternalError(

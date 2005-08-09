@@ -86,7 +86,6 @@ public class DeferrableRequestQueue {
     }
 	    
     private String vmid;
-    private int duplicatePolicy;
     
     private DeferrableRequestQueue() { 
         reset();

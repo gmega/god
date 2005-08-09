@@ -28,8 +28,6 @@ import ddproto1.util.PolicyManager;
  */
 public class DeferrableExceptionRequest implements IDeferrableRequest{
 
-    private String vmid;
-    private String targetException;
     private boolean caught;
     private boolean uncaught;
     
@@ -49,8 +47,6 @@ public class DeferrableExceptionRequest implements IDeferrableRequest{
     }
         
     public DeferrableExceptionRequest(String vmid, String target, boolean caught, boolean uncaught) {
-        this.targetException = target;
-        this.vmid = vmid;
         this.caught = caught;
         this.uncaught = uncaught;
         

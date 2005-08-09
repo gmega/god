@@ -72,8 +72,6 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     private boolean oneShot = false;
     private boolean resolved = false;
     private boolean end = false;
-    private Integer thread_ID;
-    
     private Location presetLocation;
     
     private int line_no;

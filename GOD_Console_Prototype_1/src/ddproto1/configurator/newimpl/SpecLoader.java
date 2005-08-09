@@ -12,8 +12,10 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
@@ -244,12 +246,21 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                     String type = attributes.getValue(TYPE_ATTRIB);
                     
                     /** Loads interfaces eagerly. */
+                    if (!specMap.containsKey(type))
+                        throw new SAXParseException(
+                                "Spec file for concrete type "
+                                        + ((currentConcrete == null)?"<not a concrete type>":currentConcrete)
+                                        + " declares to be of dettached type "
+                                        + type
+                                        + " but this type is not declared in the TOC.",
+                                locator);
+                    
                     String interfaces [] = specMap.get(type).getInterfaces();
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                    Class realInterfaces[] = new Class[interfaces.length];
-                    for (int i = 0; i < realInterfaces.length; i++) {
+                    Set <Class> realInterfaces = new HashSet<Class>();
+                    for (int i = 0; i < interfaces.length; i++) {
                         try {
-                            realInterfaces[i] = cl.loadClass(interfaces[i]);
+                            realInterfaces.add(cl.loadClass(interfaces[i]));
                         } catch (ClassNotFoundException ex) {
                             throw new SAXParseException("Type " + type
                                     + " declares implementing interface "
@@ -381,23 +392,24 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                 }
             };
             
-            // Adds a child.
+            // Adds children.
             IActionCompiler addchild = new IActionCompiler(){
 
                 public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
-                    if(args.size() != 2)
+                    
+                    if((args.size() % 2) != 0)
                         throw new Exception("Wrong argument number for action " + selector);
 
-                    String type = args.get(0);
-                    String number = args.get(1);
-                    int _number = number.equals("*")?IObjectSpecType.INFINITUM:Integer.parseInt(number);
+                    for(int i = 0; i < args.size(); i += 2){
+                        String type = args.get(0);
+                        String number = args.get(1);
+                        int _number = number.equals("*")?IObjectSpecType.INFINITUM:Integer.parseInt(number);
                     
-                    context.addOptionalChildren(new BranchKey(attribute, condition), type, _number);
-                    
+                        context.addOptionalChildren(new BranchKey(attribute, condition), type, _number);
+                    }
                 }
-                
             };
 
             // NO-OP.
@@ -409,7 +421,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             };
 
             actionParsers.put("loadspec", loadspec);
-            actionParsers.put("addchild", addchild);
+            actionParsers.put("addchildren", addchild);
             actionParsers.put("nop", nop);
         }
         

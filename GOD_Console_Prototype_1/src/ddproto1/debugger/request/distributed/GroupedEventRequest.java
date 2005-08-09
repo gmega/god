@@ -30,13 +30,11 @@ public class GroupedEventRequest implements EventRequest, IGroupedRequest{
     private static final MessageHandler mh = MessageHandler.getInstance();
     
     private Set resolved;
-    private Map unresolved;
     private boolean enabled = false;
     private int suspendPolicy = -1;
     
     public GroupedEventRequest(Map reqlist){
         resolved = new HashSet();
-        unresolved = new HashMap(reqlist);
     }
     
 	/* (non-Javadoc)

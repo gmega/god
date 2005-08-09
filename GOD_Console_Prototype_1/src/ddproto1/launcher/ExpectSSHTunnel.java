@@ -88,13 +88,11 @@ public class ExpectSSHTunnel implements IShellTunnel {
 
     // Result lists
     private List <String> result_oup;
-    private List <String> result_err;
     
     // Shell input
     private BufferedWriter stdin;
     
     // Misc
-    private String lastError;
     private int state;
     private Process shell;
 
@@ -105,7 +103,6 @@ public class ExpectSSHTunnel implements IShellTunnel {
     public ExpectSSHTunnel(){
         // This is required for opening.
         result_oup = new LinkedList<String>();
-        result_err = new LinkedList<String>();
         sema = new ExternalSemaphore(0, this);
     }
     
@@ -421,13 +418,5 @@ public class ExpectSSHTunnel implements IShellTunnel {
     
     public int getState(){
         return state;
-    }
-    
-    public Set getAttributesByGroup(String prefix){
-        throw new UnsupportedException(); 
-    }
-    
-    public void addAttribute(String key){
-        throw new UnsupportedException();
     }
 }

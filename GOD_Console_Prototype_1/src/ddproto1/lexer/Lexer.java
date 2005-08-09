@@ -240,7 +240,6 @@ public class Lexer {
 
   /* error codes */
   final private static int YY_UNKNOWN_ERROR = 0;
-  final private static int YY_ILLEGAL_STATE = 1;
   final private static int YY_NO_MATCH = 2;
   final private static int YY_PUSHBACK_2BIG = 3;
 
@@ -297,7 +296,6 @@ public class Lexer {
   private int yyline;
 
   /** the number of characters up to the start of the matched text */
-  private int yychar;
 
   /**
    * the number of characters from the last newline up to the start of the 
@@ -308,7 +306,6 @@ public class Lexer {
   /** 
    * yy_atBOL == true <=> the scanner is currently at the beginning of a line
    */
-  private boolean yy_atBOL = true;
 
   /** yy_atEOF == true <=> the scanner is at the EOF */
   private boolean yy_atEOF;
@@ -463,11 +460,10 @@ public class Lexer {
   final public void yyreset(java.io.Reader reader) throws java.io.IOException {
     yyclose();
     yy_reader = reader;
-    yy_atBOL  = true;
     yy_atEOF  = false;
     yy_endRead = yy_startRead = 0;
     yy_currentPos = yy_markedPos = yy_pushbackPos = 0;
-    yyline = yychar = yycolumn = 0;
+    yyline = yycolumn = 0;
     yy_lexical_state = YYINITIAL;
   }
 

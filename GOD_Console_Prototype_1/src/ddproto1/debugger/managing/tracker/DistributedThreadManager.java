@@ -59,7 +59,6 @@ import ddproto1.util.traits.JDIMiscTrait;
 public class DistributedThreadManager implements IRequestHandler {
     
     private static MessageHandler mh = MessageHandler.getInstance();
-    private static VMManagerFactory vmmf = VMManagerFactory.getInstance();
     
     private static ConversionTrait fmh = ConversionTrait.getInstance();
     private static JDIMiscTrait jmt = JDIMiscTrait.getInstance();
@@ -71,8 +70,7 @@ public class DistributedThreadManager implements IRequestHandler {
     private LockingHashMap <Integer, Integer> threads2dthreads;
     
     private IUICallback ui;
-    private IJDIEventProcessor processor;
-    
+
     public DistributedThreadManager(IUICallback ui){ 
         nodes = new HashMap<Byte, Node>();
         dthreads = new LockingHashMap<Integer, DistributedThread>(true);
@@ -113,8 +111,7 @@ public class DistributedThreadManager implements IRequestHandler {
             while(st.hasMoreTokens())
                 skelclasses.add(st.nextToken());
             
-            spec.cbr = new ComponentBoundaryRecognizer(this, stubclasses,
-                    skelclasses, ui, vmm);
+            spec.cbr = new ComponentBoundaryRecognizer(this, stubclasses, ui, vmm);
                         
             spec.gid = gid;
             spec.vmm = vmm;

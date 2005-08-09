@@ -15,6 +15,7 @@ import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.util.collection.ReadOnlyHashSet;
 
 /**
  * This interface describes an object specification type. An object specification
@@ -64,7 +65,7 @@ public interface IObjectSpecType {
     
     public String getInterfaceType() throws IllegalAttributeException;
     
-    public Class [] getSupportedInterfaces();
+    public ReadOnlyHashSet<Class> getSupportedInterfaces();
     
     /** If this instance is incarnable (i.e. can be tranformed into an IConfigurable 
      * by a suitable service locator) this method will return the name of the class

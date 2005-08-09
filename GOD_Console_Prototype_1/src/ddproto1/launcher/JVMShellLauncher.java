@@ -5,10 +5,13 @@
 package ddproto1.launcher;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.CommException;
 import ddproto1.exception.ConfigException;
@@ -16,7 +19,9 @@ import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.LauncherException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.UnsupportedException;
+import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
+import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.traits.ConversionTrait;
 
 
@@ -30,7 +35,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
     private String classpath;
     private String mainclass;
     private String jvmport;
-    private String tunnelclass;
     private String ttype;
     private String vmParameters = "";
     private String gid;
@@ -39,26 +43,29 @@ public class JVMShellLauncher implements IApplicationLauncher {
     
     private Boolean block;
       
-    private Map <String, String> tunnelAttributes = new HashMap<String, String>();
-    
     private static final String module = "JVMShellLauncher -";
     
-    private static final String [] attributes = {"main-class", "jdwp-port", "classpath", "tunnel-class", "vm-parameters", "gid", "global-agent-address"};
+    private static final Set<String> attributes = new ReadOnlyHashSet<String>(
+            ConversionTrait.getInstance().toSet(
+                    new String[] { "main-class", "jdwp-port", "classpath",
+                            "vm-parameters", "gid", "global-agent-address" }));
     
     /* (non-Javadoc)
      * @see ddproto1.interfaces.ApplicationLauncher#launch()
      */
     public void launch() throws CommException, LauncherException, ConfigException {
         try{
-            if((classpath == null) || (mainclass == null) || (jvmport == null)
-                    || (tunnelclass == null) || (gid == null) || (appParameters == null) 
+            if ((classpath == null) || (mainclass == null) || (jvmport == null)
+                    || (gid == null) || (appParameters == null)
                     || (block == null))
                 throw new ConfigException(module + " Required launcher parameter is missing.");
             
-            Class c = Class.forName(tunnelclass);
+            IServiceLocator locator = (IServiceLocator) Lookup
+                    .serviceRegistry().locate("service locator");
             
-            IShellTunnel sht = (IShellTunnel)c.newInstance();
-            passParameters(sht);
+            IObjectSpec thisSpec = locator.getMetaobject(this);
+            IObjectSpec shtSpec = thisSpec.getChildSupporting(IShellTunnel.class);
+            IShellTunnel sht = (IShellTunnel)locator.incarnate(shtSpec);
             
             /* Remove all line breaks */
             /* This is REALLY ugly. We have a particular pattern for processing strings
@@ -121,8 +128,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
             mainclass = value;
         }else if(key.equals("classpath")){
             classpath = value;
-        }else if(key.equals("tunnel-class")){
-            tunnelclass = value;
         }else if(key.equals("tunnel-type")){
             if(!value.equals("shell"))
                 throw new IllegalAttributeException(module + " This launcher requires a shell tunnel.");
@@ -146,15 +151,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
                 throw new IllegalAttributeException(module + "Tunnel closure policy can be either launch-and-close or wait-until-dead");
             }
     	}else{
-            if((tunnelclass == null) || !(key.startsWith(tunnelclass))){
-                throw new IllegalAttributeException(module + " Unrecognized attribute "+ key +" (is tunnel-class unset?).");
-            } else {
-                ConversionTrait sh = ConversionTrait.getInstance();
-                key = sh.extractPrefix(key, tunnelclass);
-                tunnelAttributes.put(key, value);
-            }
+    	    throw new IllegalAttributeException(module + " Unrecognized attribute "+ key +" (is tunnel-class unset?).");
         }
-        
     }
 
     /* (non-Javadoc)
@@ -165,8 +163,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
             return mainclass;
         }else if(key.equals("classpath")){
             return classpath;
-        }else if(key.equals("tunnel-class")){
-            return tunnelclass;
         }else if(key.equals("tunnel-type")){
             return ttype;
         }else if(key.equals("jdwp-port")){
@@ -178,13 +174,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
     	}else if(key.equals("global-agent-address")){
     	    return globalAddress;
     	}else{
-            if((tunnelclass == null) || !(key.startsWith(tunnelclass))){
-                throw new IllegalAttributeException(module + " Unrecognized attribute "+ key +" (is tunnel-class unset?).");
-            } else {
-                ConversionTrait sh = ConversionTrait.getInstance();
-                key = sh.extractPrefix(key, tunnelclass);
-                return (String)tunnelAttributes.get(key);
-            }
+    	    throw new IllegalAttributeException(module + " Unrecognized attribute "+ key +" (is tunnel-class unset?).");
         }
 
     }
@@ -192,18 +182,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
     /* (non-Javadoc)
      * @see ddproto1.interfaces.Configurable#getAttributeKeys()
      */
-    public String[] getAttributeKeys() {
+    public Set<String> getAttributeKeys() {
         return attributes;
-    }
-    
-    private void passParameters(IShellTunnel t)
-    	throws AttributeAccessException
-    {
-        Iterator it = tunnelAttributes.keySet().iterator();
-        while(it.hasNext()){
-            String key = (String)it.next();
-            t.setAttribute(key, (String)tunnelAttributes.get(key));
-        }
     }
     
     private void wrap(Exception e)
@@ -216,14 +196,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
         throw new LauncherException(e.toString());
     }
 
-    public Set getAttributesByGroup(String prefix){
-        throw new UnsupportedException(); 
-    }
-
-    public void addAttribute(String prefix){
-        throw new UnsupportedException(); 
-    }
-    
     private class CommandAndClose implements Runnable{
         private IShellTunnel ish;
         private String cmd;

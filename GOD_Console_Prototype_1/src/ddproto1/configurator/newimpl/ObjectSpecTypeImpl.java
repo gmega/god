@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -18,12 +19,14 @@ import java.util.Set;
 
 import org.xml.sax.SAXException;
 
+import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.UninitializedAttributeException;
 import ddproto1.util.collection.OrderedMultiMap;
+import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;
 
 /**
@@ -59,7 +62,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     private Set<WeakReference<ObjectSpecInstance>> spawn = new HashSet<WeakReference<ObjectSpecInstance>>();
     private ReferenceQueue rq = new ReferenceQueue();
     
-    private Class [] intfs;
+    private ReadOnlyHashSet<Class> intfs;
 
     private ObjectSpecTypeImpl (){
         requiredAttributes = new HashMap<String, IAttribute>();
@@ -76,9 +79,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
      * 
      * @throws NullPointerException if parameter <b>type</b> or parameter <b>loader</b> is null.
      */
-    public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader, Class [] intfs){
+    public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader, Set<Class> intfs){
         this();
         if(loader == null || type == null) throw new NullPointerException();
+        this.intfs = new ReadOnlyHashSet<Class>(intfs);
         this.interfaceType = type;
         this.concreteType = incarnableType;
         this.loader = loader;
@@ -109,7 +113,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         this.alterOptionalChildren(precondition, childtype, multiplicity, false);
     }
     
-    public Class [] getSupportedInterfaces(){
+    public ReadOnlyHashSet <Class> getSupportedInterfaces(){
         return intfs;
     }
     
@@ -297,8 +301,6 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         
         ObjectSpecTypeImpl spec = loader.specForName(concrete, type);
         
-        boolean undo = false;
-        
         /** We use our private protocol to add ourselves as parents 
          * to the newly created spec. */
         spec.addParent(this);   
@@ -435,7 +437,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
             if(!internal.containsAttribute(key, attributeValues)){
                 if(attributeValues.containsKey(key)) attributeValues.remove(key);
-                throw new IllegalAttributeException();
+                throw new IllegalAttributeException("Illegal attribute " + key
+                        + ". Specification instance type - <"
+                        + parentType.getConcreteType() + ", "
+                        + parentType.getInterfaceType() + ">");
             }
             
             if(val != null && !isAssignable(key, val, attributeValues))
@@ -463,7 +468,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         public List<IObjectSpec> getChildren() {
             LinkedList <IObjectSpec> copy = new LinkedList<IObjectSpec>();
             copy.addAll(plainChildren);
-            return plainChildren;
+            return copy;
         }
         
         
@@ -489,6 +494,40 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         
         public IObjectSpecType getType() {
             return parentType;
+        }
+
+        public List<IObjectSpec> getChildrenOfType(String type) 
+            throws ClassNotFoundException
+        {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            Class theClass = cl.loadClass(type);
+            
+            return this.getChildrenSupporting(theClass);
+        }
+
+        public List<IObjectSpec> getChildrenSupporting(Class type) {
+            /**
+             * We could index the children by supported interface using a MultiMap, 
+             * but keeping the index would be more trouble than it's worth.
+             */
+            List <IObjectSpec> desiredChildren = new ArrayList<IObjectSpec>();
+            for(IObjectSpec child : plainChildren){
+                if(child.getType().getSupportedInterfaces().contains(type))
+                    desiredChildren.add(child);
+            }
+            return desiredChildren;
+        }
+
+        public IObjectSpec getChildSupporting(Class type) throws AmbiguousSymbolException {
+            List<IObjectSpec> children = this.getChildrenSupporting(type);
+            if (children.size() > 1)
+                throw new AmbiguousSymbolException(
+                        "There is more than one children supporting interface/class "
+                                + type
+                                + ". Use getChildrenSupporting(Class type) instead."); 
+            
+            if(children.size() == 0) return null;
+            return children.get(0);
         }
     }
 }

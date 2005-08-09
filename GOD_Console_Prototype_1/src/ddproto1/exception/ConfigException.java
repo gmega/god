@@ -19,4 +19,7 @@ public class ConfigException extends NestedException{
     private static final long serialVersionUID = 3832904372890711857L;
     public ConfigException(String s) { super(s); }
     public ConfigException(List   s) { super(s); }
+    public ConfigException(String s, Exception e) {
+        super(s, e);
+    }
 }

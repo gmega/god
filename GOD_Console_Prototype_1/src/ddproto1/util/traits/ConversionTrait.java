@@ -36,19 +36,6 @@ public class ConversionTrait {
         return instance;
     }
     
-    public String extractPrefix(String s, String prefix){
-        if(!s.startsWith(prefix))
-            return s;
-        
-        s = s.replaceFirst(prefix, "");
-        if(s.startsWith("->"))
-            s = s.replaceFirst("->", "");
-        else if(s.startsWith("."))
-            s = s.replaceFirst(".", "");
-        
-        return s;
-    }
-    
     public String long2Hex(long num){
         return toHex(num);
     }
