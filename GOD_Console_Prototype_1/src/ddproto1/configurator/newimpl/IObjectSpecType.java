@@ -41,7 +41,7 @@ public interface IObjectSpecType {
     /** Defines the name of the attribute where the concrete-type will be stored (if any) */
 	public static final String CONCRETE_TYPE_ATTRIBUTE = "concrete-type";
     
-    public static final int INFINITUM = -1;
+    public static final int INFINITUM = Integer.MAX_VALUE;
 	
     /** Adds a child to this specification type.
      * 

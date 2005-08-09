@@ -1,0 +1,3 @@
+<spec name="Test list" type="model-list">
+	<child type="vehicle" multiplicity="infinite"/>
+</spec>

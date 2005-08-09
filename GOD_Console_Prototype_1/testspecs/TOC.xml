@@ -1,0 +1,14 @@
+<configuration_toc>
+	<element name="configuration" spec-extension="globalspec"/>
+	<element name="model-list" spec-extension="mlistspec"/>
+	
+	<!-- These will go as tags in the configuration file. Tags map to spec extensions. -->
+	<element name="vehicle" spec-extension="vehiclespec"/>
+	<element name="engine" spec-extension="enginespec"/>
+	<element name="transmission" spec-extension="transmissionspec"/>
+	<element name="stick" spec-extension="stickspec"/>
+	<element name="tire" spec-extension="tirespec"/>
+
+	<root-element name="configuration"/>
+	
+</configuration_toc>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<configuration>
+	<model-list>
+		<!-- Configures Jonatas the Civic -->
+		<vehicle name="Jonatas" type="ddproto1.configurator.ioc.testclasses.Civic">
+			<!-- License plate and color are required -->
+			<param key="license-plate" value="DDR-2662"/>
+			<param key="color" value="deep red"/>
+			
+			<!-- Every vehicle has an engine -->
+			<engine type="ddproto1.configurator.ioc.testclasses.Engine">
+				<param key="capacity" value="2.0"/>
+				<param key="valves-per-cylinder" value="4"/>
+				
+				<!-- Transmission can be manual or automatic -->
+				<transmission type="ddproto1.configurator.ioc.testclasses.GearBox" shifting="manual">
+					<param key="shifts" value="5"/>
+				
+					<!-- If it's manual, it requires a stick -->
+					<stick type="ddproto1.configurator.ioc.testclasses.Stick">
+						<param key="ball-type" value="fishbowl"/>
+						<param key="stick-body-material" value="chromium"/>
+					</stick>
+				</transmission>
+				
+			</engine>
+			
+			<!-- Now the tires - It's already obvious that we must somehow provide 
+				alias support for component configurations -->
+			<tire type="ddproto1.configurator.ioc.testclasses.Tire">
+				<param key="weather-type" value="rain"/>
+				<param key="size" value="16 inch"/>
+				<param key="speed-category" value="H"/>
+				<param key="brand" value="Continental"/>
+			</tire>
+			
+			<tire type="ddproto1.configurator.ioc.testclasses.Tire">
+				<param key="weather-type" value="rain"/>
+				<param key="size" value="16 inch"/>
+				<param key="speed-category" value="H"/>
+				<param key="brand" value="Continental"/>
+			</tire>			
+			
+			<tire type="ddproto1.configurator.ioc.testclasses.Tire">
+				<param key="weather-type" value="rain"/>
+				<param key="size" value="16 inch"/>
+				<param key="speed-category" value="H"/>
+				<param key="brand" value="Continental"/>
+			</tire>			
+			
+			<tire type="ddproto1.configurator.ioc.testclasses.Tire">
+				<param key="weather-type" value="rain"/>
+				<param key="size" value="16 inch"/>
+				<param key="speed-category" value="H"/>
+				<param key="brand" value="Continental"/>
+			</tire>			
+			
+		</vehicle>
+	</model-list>
+</configuration>

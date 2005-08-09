@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="ASCII"?>
 
-<!-- Please make the path for the DTDs point to a location that's atcually meaningful. 
-	If you're using Crimson I don't think this will work (Crimson has a problem with 
-	DTDs and relative paths. -->
-<!DOCTYPE dd_config SYSTEM "dtd/dd_config.dtd">
+<!-- No longer using doctypes or DTDs since I've developed my own validation scheme -->
 
-	<!--Example configuration file for GOD Core Prototype 1 (was Distributed Debugger Prototype 1)-->
+<!-- Example configuration file for GOD Core Prototype 1 (was Distributed Debugger Prototype 1) -->
 <dd_config>
 	<!-- Each entry in the debugee list correspond to an individual node setup -->
-	<debuggee_list>
+	<node-list>
 		<!-- "name" is used to identify the node and should be unique. 
 			 "type" is either Java or C++. As of now we only support Java, so don't bother. 
+			 "guid" can be either an integer between 0 and 254 or "auto". It should default
+			 to "auto", but my validation scheme doesn't support defaults yet.
 			 "CORBA-enabled" should be "yes" if your application uses CORBA (and 
  			 therefore is distributed) and "no" if it doesn't (enabled remote 
 			 debugging only).
@@ -22,7 +21,7 @@
 			 specs/Java.nodespec.xml. The list of additional attributes for
 			 CORBA-enabled nodes can be found at specs/CORBAJava.nodespec.xml
 		-->
-		<debuggee name="Node 1" type="Java" CORBA-enabled="yes" launcher="yes">
+		<node name="Node 1" type="Java" guid="auto" CORBA-enabled="yes" launcher="yes">
 			<!-- If launcher = "yes", you must specify a launcher class which 
 				 supports interface ddproto1.launcher.IApplicationLauncher. We
 				 currently make available class JVMShellLauncher, capable of 
@@ -30,7 +29,7 @@
 				 
 				 The list of required attributes for JVMShellLaunchers can be
 				 found at specs/JVMShellLauncher.launcherspec.xml-->
-			<launch class="ddproto1.launcher.JVMShellLauncher">
+			<launcher class="ddproto1.launcher.JVMShellLauncher">
 				<!-- As said before, JVMShellLauncher requires a shell tunnel, 
 					which is a class that implements interface 
 					ddproto1.launcher.IShellTunnel. We currently support remote
@@ -39,12 +38,12 @@
 					
 					The list of required attributes for ExpectSSHTunnels can be 
 					found at specs/ExpectSSHTunnel.tunnelspec.xml -->
-				<tunnel type="shell" class="ddproto1.launcher.ExpectSSHTunnel">
+				<shell-tunnel class="ddproto1.launcher.ExpectSSHTunnel">
 					<param key="host" value="localhost:22"/>
 					<param key="user" value="dduser"/>
 					<param key="pass" value="dduser"/>
 					<param key="pass-type" value="plain"/>
-				</tunnel>
+				</shell-tunnel>
 				
 				<!-- Defines whether we'll keep the tunnel open and make the remote application's
 					I/O (stdin, stdout, stderr and remote X interfaces) available locally (wait-until-dead)
@@ -68,14 +67,14 @@
 					
 				<!-- Application parameters -->
 				<param key="app-parameters" value=""/>
-			</launch>
+			</launcher>
 			
 			<!-- Every node requires a source mapper, who should implement interface 
 				ddproto1.sourcemapper.ISourceMapper. As usual, the list of attributes
 				required by URLSourceMappers can be found at specs/URLSourceMapper.mapperspec.xml -->
-			<sourcemapper class="ddproto1.sourcemapper.URLSourceMapper">
+			<source-mapper class="ddproto1.sourcemapper.URLSourceMapper">
 				<param key="sourcepath" value="file:///home/dduser/sources"/>
-			</sourcemapper>
+			</source-mapper>
 			
 			<!--"stublist" says which classes are stubs. 
 				"skeletonlist" says which classes are servants. I know, it should be servantlist - but I'm just
@@ -94,6 +93,6 @@
 				"host" at the tunnel configuration. . --> 
 			<param key="local-agent-address" value="localhost"/>
 			<param key="local-agent-port" value="2005"/>
-		</debuggee>
-   </debuggee_list>
+		</node>
+   </node-list>
 </dd_config>

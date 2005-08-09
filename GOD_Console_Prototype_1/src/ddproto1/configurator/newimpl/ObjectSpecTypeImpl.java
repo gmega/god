@@ -46,7 +46,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     
     /** Static constraint storage (local attributes and children). */
     private Map<String, IAttribute> requiredAttributes;
-    private Map<String, Integer> children;
+    private Map<String, IntegerInterval> children;
     
     /** Dynamic constraint storage (supertypes and their branch keys). */
     private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
@@ -66,7 +66,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
 
     private ObjectSpecTypeImpl (){
         requiredAttributes = new HashMap<String, IAttribute>();
-        children = new HashMap<String, Integer>();
+        children = new HashMap<String, IntegerInterval>();
         conditionalSpecs = new HashMap<BranchKey, ObjectSpecTypeImpl>();
     }
     
@@ -94,22 +94,13 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
      * ObjectSpecTypeImpl$ObjectSpecInstance.updateChildList() for aditional semantics).
      * 
      */
-    public void addChild(String childtype, int multiplicity) {
-        
-        checkPositive(multiplicity, "Multiplicity");
-        
-        /* Dealing with twisted auto-boxing semantics. But it's cool. At
-         * least cooler than manual boxing/unboxing. 
-         */ 
-        Integer existent = children.get(childtype);
-        if(existent != null) existent += multiplicity;
-        else existent = multiplicity;
-        
-        children.put(childtype, existent);        
+    public void addChildConstraint(String childtype, int min, int max) {
+        checkMinMax(min, max);
+        children.put(childtype, new IntegerInterval(min, max));        
     }
     
-    public void addOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
-        checkPositive(multiplicity, "Multiplicity");
+    public void addOptionalChildrenConstraint(BranchKey precondition, String childtype, int min, int max){
+        checkMinMax(min, max);
         this.alterOptionalChildren(precondition, childtype, multiplicity, false);
     }
     
@@ -117,10 +108,21 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         return intfs;
     }
     
-    public boolean removeOptionalChildren(BranchKey precondition, String childtype, int multiplicity){
-        checkPositive(multiplicity, "Multiplicity");
+    public boolean removeOptionalChildrenConstraint(BranchKey precondition, String childtype){
         if(!optionalChildren.containsKey(childtype))return false;
         this.alterOptionalChildren(precondition, childtype, multiplicity, true);
+        return true;
+    }
+    
+    /**
+     * Removes a given number of children. Children added by optional specifications
+     * will not be removed.
+     * 
+     */
+    public boolean removeChildConstraint(String childtype)
+    {
+        if(!children.containsKey(childtype)) return false;
+        children.remove(childtype);
         return true;
     }
     
@@ -155,28 +157,11 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         
     }
 
-    private void checkPositive(int val, String what){
-        if(val < 0 && val != INFINITUM) throw new RuntimeException(what + " must be a positive integer.");
+    private void checkMinMax(int min, int max){
+        if(min < 0 || max < 0) throw new RuntimeException("The number of allowed children must be a positive integer.");
+        if(min < max) throw new RuntimeException("Maximum number of allowed children must be at least as large as the minimum.");
     }
     
-    /**
-     * Removes a given number of children. Children added by optional specifications
-     * will not be removed.
-     * 
-     */
-    public boolean removeChild(String childtype, int howMany)
-    {
-        Integer current = children.get(childtype);
-        if(current == null) return false;
-            
-        current -= howMany;
-        if(current <= 0) children.remove(childtype);
-        else children.put(childtype, current);
-            
-        return true;
-    }
-
-
     public String getConcreteType() 
         throws IllegalAttributeException
     {
@@ -528,6 +513,24 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             
             if(children.size() == 0) return null;
             return children.get(0);
+        }
+    }
+    
+    private class IntegerInterval{
+        private int min;
+        private int max;
+        
+        public IntegerInterval(int min, int max){
+            this.min = min;
+            this.max = max;
+        }
+        
+        public int getMin(){
+            return min;
+        }
+        
+        public int getMax(){
+            return max;
         }
     }
 }

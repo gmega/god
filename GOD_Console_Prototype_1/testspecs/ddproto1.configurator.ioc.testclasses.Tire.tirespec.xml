@@ -1,0 +1,6 @@
+<spec name="Tire" type="tire">
+	<attribute id="weather-type"/>
+	<attribute id="size"/>
+	<attribute id="speed-category"/>
+	<attribute id="brand"/>
+</spec>

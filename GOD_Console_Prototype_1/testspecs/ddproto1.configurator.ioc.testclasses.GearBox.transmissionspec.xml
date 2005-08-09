@@ -1,0 +1,4 @@
+<spec name="Gear box" type="transmission">
+	<attribute id="shifts"/>
+	<extension-attribute id="shifting" action="manual:addchild(stick,1);automatic:nop()"/>
+</spec>

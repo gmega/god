@@ -1,0 +1,4 @@
+<spec name="Gear box" type="stick">
+	<attribute id="ball-type"/>
+	<attribute id="stick-body-material"/>
+</spec>

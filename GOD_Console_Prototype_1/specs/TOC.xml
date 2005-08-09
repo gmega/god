@@ -1,12 +1,33 @@
 <configuration_toc>
 	<element name="dd_config" spec-extension="globalspec"/>
-	<element name="debuggee_list" spec-extension="nodelistspec"/>
+	<element name="node-list" spec-extension="nodelistspec"/>
 	
 	<!-- These will go as tags in the configuration file. Tags map to spec extensions. -->
 	<element name="node" spec-extension="nodespec"/>
-	<element name="launcher" spec-extension="launcherspec"/>
-	<element name="sourcemapper" spec-extension="mapperspec"/>
-	<element name="shell-tunnel" spec-extension="shtunnelspec"/>
+	
+	<!-- Three part element specifications are for incarnable elements -->
+	<!-- The "name" element dictates that sections with id "name" specify
+		an instance of this element.
+		The "spec-extension" element is used for mapping into configuration 
+		descriptors for this element type. 
+		The "intended-interface" is a comma-separated list of interfaces
+		this element should specify.
+		-->
+	<element name="launcher"   
+			spec-extension="launcherspec" 
+			intended-interfaces="ddproto1.launcher.IApplicationLauncher"/>
+	
+	<element name="source-mapper" 
+			spec-extension="mapperspec"
+			intended-interfaces="ddproto1.sourcemapper.ISourceMapper"/>
+	
+	<element name="shell-tunnel" 
+			spec-extension="shtunnelspec"
+			intended-interfaces="ddproto1.launcher.IShellLauncher"/>
+	
+	<element name="attaching-connector"
+			spec-extension="jdiconnector"
+			intended-interfaces="ddproto1.debugger.managing.SocketAttachWrapper"/>
 	
 	<!-- This is a dummy spec. For testing only -->
 	<element name="tunnel" spec-extension="tunnelspec"/>

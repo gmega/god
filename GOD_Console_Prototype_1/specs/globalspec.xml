@@ -1,3 +1,7 @@
 <spec name="Root element specification for DD Prototype 1" type="dd_config">
-	<child type="nodelistspec"/>
+	<attribute id = "thread-pool-size"/>
+	<attribute id = "port"/>
+	<attribute id = "connection-queue-size"/>
+	<attribute id = "global-agent-address"/>
+	<child type="node-list"/>
 </spec>

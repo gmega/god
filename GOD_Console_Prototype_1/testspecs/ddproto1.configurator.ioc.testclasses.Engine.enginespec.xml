@@ -1,0 +1,5 @@
+<spec name="Engine" type="engine">
+	<attribute id="capacity"/>
+	<attribute id="valves-per-cylinder"/>
+	<child type="transmission"/>
+</spec>

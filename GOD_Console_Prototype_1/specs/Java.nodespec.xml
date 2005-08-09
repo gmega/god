@@ -4,11 +4,11 @@
 <spec name="JVM Component Node" type="node">
 	<attribute id="name"/>
 	<attribute id="type"/>
-	<attribute id="local-agent-address"/>
-	<attribute id="local-agent-port"/>
+	<attribute id="guid"/>
 	
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava,node);no:nop()"/>
-	<extension-attribute id="launcher" action="yes:addchild(launcher,1);no:nop()"/>
+	<extension-attribute id="launcher" action="yes:addchildren(launcher,1,attaching-connector,1);no:nop()"/>
 	
-	<child type="sourcemapper"/>
+	<child type="source-mapper"/>
+	<child type="attaching-connector"/>
 </spec>

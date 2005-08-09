@@ -1,0 +1,8 @@
+<spec name="Honda Civic" type="vehicle">
+	<attribute id="license-plate"/>
+	<attribute id="color"/>
+	<attribute id="name"/>
+
+	<child type="engine"/>
+	<child type="tire" multiplicity="4"/>
+</spec>
