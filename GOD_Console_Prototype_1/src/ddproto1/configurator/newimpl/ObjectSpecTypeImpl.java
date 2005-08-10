@@ -51,9 +51,18 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     /** Dynamic constraint storage (supertypes and their branch keys). */
     private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
     
-    /** Optional children */
+    /** Optional children maps.
+     * 
+     * The first map relates the optional children types to their branch keys.
+     * It's used for easily determining which branch keys are satisfied for a given
+     * child type.
+     * The second map relates branch keys to maps of child types, which in turn map
+     * to the actual constraints. That way you can easily know which constraint is 
+     * associated to a given child type under some branch key. 
+     * 
+     * */
     private UnorderedMultiMap <String, BranchKey> optionalChildren = new UnorderedMultiMap<String, BranchKey>(HashSet.class);
-    private Map <BranchKey, Integer> optionalChildrenQ = new HashMap<BranchKey, Integer>();
+    private Map <BranchKey, Map<String, IntegerInterval>> optionalChildrenQ = new HashMap<BranchKey, Map<String, IntegerInterval>>();
         
     /** This is for a future notification channel */
     private List <IObjectSpecType> parentList = new LinkedList<IObjectSpecType>();
@@ -99,9 +108,26 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         children.put(childtype, new IntegerInterval(min, max));        
     }
     
+    
     public void addOptionalChildrenConstraint(BranchKey precondition, String childtype, int min, int max){
         checkMinMax(min, max);
-        this.alterOptionalChildren(precondition, childtype, multiplicity, false);
+        /** Adding an optional constraint involves two steps 
+         * 1) Inserting the branch key that enables the constraint into the branch key 
+         * mappings for the child type that's being constrained. */
+        optionalChildren.add(childtype, precondition);
+        /** 2) Inserting the actual constraint into the branch-key-to-child-type map */
+        Map<String, IntegerInterval> constraints = optionalChildrenQ.get(childtype);
+        if(constraints == null){
+            constraints = new HashMap<String, IntegerInterval>();
+            optionalChildrenQ.put(precondition, constraints);
+        }
+        
+        /** NOTE! Adding a second constraint for the same precondition and under
+         * the same childtype replaces the older constraint. That's because it doesn't
+         * make any sense to specify two intervals for cardinality check for the same
+         * child type. 
+         */
+        constraints.put(childtype, new IntegerInterval(min, max));
     }
     
     public ReadOnlyHashSet <Class> getSupportedInterfaces(){
@@ -109,8 +135,18 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     }
     
     public boolean removeOptionalChildrenConstraint(BranchKey precondition, String childtype){
-        if(!optionalChildren.containsKey(childtype))return false;
-        this.alterOptionalChildren(precondition, childtype, multiplicity, true);
+        /** 1) First remove the branch key from the child type brach key list */
+        if(!optionalChildren.containsKey(childtype)) return false;
+        optionalChildren.remove(childtype, precondition);
+        /** 2) Now removes the interval associated to that child type under the 
+         * mappings of the branch key index. Note that if there was a branch key
+         * to be removed in (1), then there must be a child-type-to-interval mapping
+         * to remove here. 
+         */
+        Map<String, IntegerInterval> constraints = optionalChildrenQ.get(precondition);
+        if(constraints == null) throw new InternalError("Internal assertion failure");
+        if(constraints.containsKey(childtype)) constraints.remove(childtype);
+        if(constraints.isEmpty()) optionalChildrenQ.remove(precondition);
         return true;
     }
     
@@ -126,37 +162,6 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         return true;
     }
     
-    private void alterOptionalChildren(BranchKey bk, String cType, int number, boolean remove){
-        Integer howMany = optionalChildrenQ.get(bk);
-        howMany = (howMany == null)?0:howMany;
-        
-        /** Remove an infinite number of children means remove all. */
-        if(number == INFINITUM){
-            if(remove) howMany = -15; /** Make shure this value is different from INFINITUM */
-            else howMany = INFINITUM;
-        }else{
-            howMany += number;
-        }
-        
-        /** If remanining children is positive, set it to be the number of 
-         * currently allowed children for the specific type being manipulated */
-        if(howMany > 0 || howMany == INFINITUM){
-            optionalChildren.add(cType, bk);
-            optionalChildrenQ.put(bk, howMany);
-        }
-        
-        /** Otherwise we must remove them from the optional list. */
-        else{
-            /** The only way this could fail is if the user asked to remove
-             * something that doesn't exist.*/
-            assert(optionalChildren.contains(cType, bk));
-            assert(optionalChildrenQ.containsKey(cType));
-            optionalChildren.remove(cType, bk);
-            optionalChildrenQ.remove(cType);
-        }   
-        
-    }
-
     private void checkMinMax(int min, int max){
         if(min < 0 || max < 0) throw new RuntimeException("The number of allowed children must be a positive integer.");
         if(min < max) throw new RuntimeException("Maximum number of allowed children must be at least as large as the minimum.");
@@ -315,47 +320,57 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         return null;
     }
     
-    public int childrenNumber(IObjectSpecType type, Map <String, String> attValues){
-        int _realMany;
-        String _type;
+    public IntegerInterval computeResultingChildrenConstraints(
+            IObjectSpecType type, Map<String, String> attValues) {
+        
+        int min = 0, max = 0;
+        String xmlType;
+                
         try{
-            _type = type.getInterfaceType();
-            Integer howMany = children.get(_type);
-            _realMany = (howMany == null)?0:howMany;
-            
-            /** INFINITUM overcomes whathever result there might be. */
-            if(_realMany == INFINITUM) return INFINITUM;
+            xmlType = type.getInterfaceType();
         }catch(IllegalAttributeException ex){
             throw new NestedRuntimeException("Unexpected condition", ex);
         }
         
-        /** First we count the required */
-        for(ObjectSpecTypeImpl childSpec : conditionalSpecs.values()){
-            int parcel = childSpec.childrenNumber(type, attValues);
-            
-            /** INFINITUM overcomes whathever result there might be. */
-            if(parcel == INFINITUM) return INFINITUM;
-            _realMany += parcel;
+        /** First, our own children. */
+        IntegerInterval our = children.get(type);
+        if(our != null){
+            min += our.getMin();
+            max += our.getMax();
         }
         
-        /** Now we count the optionals. */
-        Iterable <BranchKey>iterable = optionalChildren.getClass(_type);
-        if(iterable == null) return _realMany;
+        /** Second, the optional supertype children */
+        for (BranchKey bk : conditionalSpecs.keySet()) {
+            /** Is the branch key satisfied? */
+            if (!bk.isSatisfiedBy(attValues))
+                continue;
+            /** Well, it is. */
+            ObjectSpecTypeImpl superType = conditionalSpecs.get(bk);
+            IntegerInterval superConstraints = superType
+                    .computeResultingChildrenConstraints(type, attValues);
+            
+            min += superConstraints.getMin();
+            max += superConstraints.getMax();
+        }
+        
+        /** And third, the optional children */
+        Iterable <BranchKey>iterable = optionalChildren.getClass(xmlType);
+        
+        /** No optional children of this type. */
+        if(iterable == null) return new IntegerInterval(min, max); 
         
         for(BranchKey bk : iterable){
-            String bKey = bk.getKey();
-            String bVal = bk.getValue();
-            String rVal = attValues.get(bKey);
-            if(rVal == null) continue;
-            if(rVal.equals(bVal)){
-                assert(optionalChildrenQ.containsKey(bk));
-                int parcel = optionalChildrenQ.get(bk);
-                if(parcel == INFINITUM) return INFINITUM;
-                _realMany += parcel;
-            }
+            if(!bk.isSatisfiedBy(attValues)) continue;
+            assert(optionalChildrenQ.containsKey(bk));
+            Map<String, IntegerInterval> part = optionalChildrenQ.get(bk);
+            assert(part != null);
+            IntegerInterval optionalInterval = part.get(xmlType);
+            if(optionalInterval == null) continue;
+            min += optionalInterval.getMin();
+            max += optionalInterval.getMax();
         }
         
-        return _realMany;
+        return new IntegerInterval(min, max);
     }
     
     private void addParent(IObjectSpecType parent){
@@ -436,10 +451,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             throws IllegalAttributeException
         {
             IObjectSpecType type = spec.getType();
-            String childType = type.getInterfaceType();
-            int allowed = internal.childrenNumber(type, attributeValues);
-
-            updateChildList(spec, allowed);
+            IIntegerInterval constraint = internal.childrenNumber(type, attributeValues);
+            int allowed = constraint.getMax();
+            updateChildList(spec, constraint.getMax());
             
             /** Checks if can add the child */
             if(allowed != INFINITUM && children.size(type) == allowed)
@@ -516,7 +530,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
     }
     
-    private class IntegerInterval{
+    private class IntegerInterval implements IIntegerInterval{
         private int min;
         private int max;
         

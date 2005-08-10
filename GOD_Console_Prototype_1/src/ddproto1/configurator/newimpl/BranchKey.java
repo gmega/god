@@ -5,6 +5,8 @@
  */
 package ddproto1.configurator.newimpl;
 
+import java.util.Map;
+
 public class BranchKey{
     private String key;
     private String val;
@@ -20,6 +22,13 @@ public class BranchKey{
     public String getKey() { return key; }
     
     public String getValue() { return val; }
+    
+    public boolean isSatisfiedBy(Map<String, String> valueMap){
+        String value = valueMap.get(key);
+        if(value == null) return false;
+        if(value.equals(val)) return true;
+        return false;
+    }
     
     public int hashCode(){
         return hashCode;
