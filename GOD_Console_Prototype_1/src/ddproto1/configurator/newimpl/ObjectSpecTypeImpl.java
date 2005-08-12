@@ -373,6 +373,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         return new IntegerInterval(min, max);
     }
     
+    public Map<IObjectSpecType, IntegerInterval> allChildrenConstraints(){
+        
+    }
+    
     private void addParent(IObjectSpecType parent){
         parentList.add(parent);
     }
@@ -399,8 +403,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     private class ObjectSpecInstance implements IObjectSpec {
 
         private Map <String, String> attributeValues = new HashMap <String, String>();
+        
         private OrderedMultiMap<IObjectSpecType, IObjectSpec> children = new OrderedMultiMap<IObjectSpecType, IObjectSpec>(
                 LinkedList.class);
+        
         private LinkedList<IObjectSpec> plainChildren = new LinkedList <IObjectSpec>();
         private ISpecQueryProtocol internal;
         private IObjectSpecType parentType;
@@ -427,21 +433,41 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
         
         public boolean isFullyInitialized(){
-            return this.getAttributeKeys().size() == attributeValues.size();
+            return (this.getUnassignedAttributes().size() == 0) && (this.getMissingChildren().size() == 0);
+        }
+        
+        public List<String> getUnassignedAttributeKeys(){
+            Set<String> allKeys = internal.getRestrictedKeys(attributeValues);
+            List<String> missing = new LinkedList<String>();
+            for(String key : allKeys){
+                if(checkPurgeKey(key) && !attributeValues.containsKey(key)) missing.add(key);
+            }
+            
+            return missing;
+        }
+        
+        public Map<IObjectSpecType, Integer> getMissingChildren(){
+            
         }
         
         public Set <String> getAttributeKeys(){
             return internal.getRestrictedKeys(attributeValues);
         }
         
-        private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
+        private boolean checkPurgeKey(String key){
             if(!internal.containsAttribute(key, attributeValues)){
                 if(attributeValues.containsKey(key)) attributeValues.remove(key);
+                return false;
+            }
+            return true;
+        }
+        
+        private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
+            if(!this.checkPurgeKey(key))
                 throw new IllegalAttributeException("Illegal attribute " + key
                         + ". Specification instance type - <"
                         + parentType.getConcreteType() + ", "
                         + parentType.getInterfaceType() + ">");
-            }
             
             if(val != null && !isAssignable(key, val, attributeValues))
                 throw new InvalidAttributeValueException("Cannot assign " + val + " to attribute " + key);
@@ -451,7 +477,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             throws IllegalAttributeException
         {
             IObjectSpecType type = spec.getType();
-            IIntegerInterval constraint = internal.childrenNumber(type, attributeValues);
+            IIntegerInterval constraint = internal.computeResultingChildrenConstraints(type, attributeValues);
             int allowed = constraint.getMax();
             updateChildList(spec, constraint.getMax());
             

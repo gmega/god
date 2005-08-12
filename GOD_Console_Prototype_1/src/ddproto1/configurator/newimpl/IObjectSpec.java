@@ -6,6 +6,7 @@
 package ddproto1.configurator.newimpl;
 
 import java.util.List;
+import java.util.Map;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
@@ -25,10 +26,25 @@ public interface IObjectSpec extends IConfigurable{
      */
     public boolean isFullyInitialized();
     
+    /**
+     * Returns a list of all required attributes that have not been assigned for this
+     * object spec instance.
+     * 
+     * @return
+     */
+    public List<String> getUnassignedAttributes();
+    
+    /**
+     * Returns a map that relates missing children to the ammount of children required.
+     * This ammount is positive if the minimum cardinality constraint hasn't been reached and 
+     * negative if the maximum cardinality constraint has been overflown.
+     * 
+     * @return
+     */
+    public Map<IObjectSpecType, Integer> getMissingChildren();
+        
     public List<IObjectSpec> getChildren();
-    
-    public List<IAttribute> getUnassignedAttributes();
-    
+        
     public List<IObjectSpec> getChildrenOfType(String type) throws ClassNotFoundException;
     
     public List<IObjectSpec> getChildrenSupporting(Class type);

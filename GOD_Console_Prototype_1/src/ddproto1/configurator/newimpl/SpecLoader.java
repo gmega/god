@@ -364,7 +364,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         else if(multiplicity.equals("infinite")) howMany = IObjectSpecType.INFINITUM;
                         else howMany = Integer.parseInt(multiplicity);
                         
-                        current.addChild(type, howMany);                        
+                        current.addChildConstraint(type, howMany);                        
                     }else{
                         throw new SAXParseException("Unexpected symbol.", locator);
                     }

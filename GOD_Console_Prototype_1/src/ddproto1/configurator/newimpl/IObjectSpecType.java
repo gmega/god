@@ -48,20 +48,23 @@ public interface IObjectSpecType {
      * @param childtype
      * @param multiplicity
      */
-	public void addChild(String childtype, int multiplicity);
+	public void addChildConstraint(String childtype, int min, int max);
     
     /**
-     * Removes a child from this specification type.
+     * Removes a child from this specification type. Removes its associated cardinality
+     * constraints as well. Note that this doesn't mean that this specification type won't
+     * be accepting children of this type, as there may be an optional supertype which 
+     * may accept them.
      * 
      * @param childtype
      * @param howMany how many children to remove.
      * @return <b>true</b> if all children were removed successfully, <b>false</b> otherwise. 
      */
-    public boolean removeChild(String childtype, int howMany);
+    public boolean removeChildConstraint(String childtype);
     
-    public void addOptionalChildren(BranchKey precondition, String childtype, int multiplicity);
+    public void addOptionalChildrenConstraint(BranchKey precondition, String childtype, int min, int max);
     
-    public boolean removeOptionalChildren(BranchKey precondition, String childtype, int multiplicity);
+    public boolean removeOptionalChildrenConstraint(BranchKey precondition, String childtype);
     
     public String getInterfaceType() throws IllegalAttributeException;
     
