@@ -5,6 +5,11 @@
  */
 package ddproto1.configurator.newimpl;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import ddproto1.util.collection.ReadOnlyHashSet;
+
 /**
  * This interface represents the interface that should be exposed by an attribute.
  * An important part of the attribute interface contract is that <b>attributes must  
@@ -13,6 +18,10 @@ package ddproto1.configurator.newimpl;
  * @author giuliano
  */
 public interface IAttribute {
+    
+    public static final ReadOnlyHashSet<String> ANY = new ReadOnlyHashSet<String>(
+            new HashSet<String>());
+    
     /**
      * Returns the key that identifies this attribute. Keys
      * should be unique inside the scope of a given specification.
@@ -29,4 +38,6 @@ public interface IAttribute {
      * @return the decision
      */
     public boolean isAssignableTo(String val);
+    
+    public Set<String> acceptableValues();    
 }

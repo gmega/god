@@ -62,7 +62,9 @@ public interface IObjectSpecType {
      */
     public boolean removeChildConstraint(String childtype);
     
-    public void addOptionalChildrenConstraint(BranchKey precondition, String childtype, int min, int max);
+    public void addOptionalChildrenConstraint(BranchKey precondition,
+            String childtype, int min, int max)
+            throws InvalidAttributeValueException, IllegalAttributeException;
     
     public boolean removeOptionalChildrenConstraint(BranchKey precondition, String childtype);
     

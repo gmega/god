@@ -15,27 +15,67 @@ import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.UninitializedAttributeException;
 import junit.framework.TestCase;
 
-public class ObjectSpecTypeImplTest extends TestCase {
+public class BaseObjectSpecTypeImplTest extends TestCase {
 
-    public ObjectSpecTypeImplTest() {
+    public BaseObjectSpecTypeImplTest() {
         super();
         // TODO Auto-generated constructor stub
     }
     
-    public void testAll(){
+    public void testBase(){
         try{
             String toc = "file:///home/giuliano/workspace/GOD Console Prototype 1/specs";
             List <String> locations = new LinkedList<String>();
             locations.add(toc);
             SpecLoader loader = new SpecLoader(locations, toc);
         
+            /** Loads the node list specification, the java node specification
+             * and the shell tunnel specification.
+             */
+            IObjectSpecType nodeListSpec = loader.specForName(null,"node-list");
             IObjectSpecType javaNode = loader.specForName("Java", "node");
             IObjectSpecType sshtunnel = loader.specForName("ddproto1.launcher.JVMShellLauncher", "launcher");
+            
+            /** Creates three nodes and one node list. */
             IObjectSpec normalSpec = javaNode.makeInstance();
             IObjectSpec corbaSpec = javaNode.makeInstance();
+            IObjectSpec garbySpec = javaNode.makeInstance();
+            IObjectSpec nodeList = nodeListSpec.makeInstance();
             
+            /** Modify the node list cardinality constraint for children of type
+             * 'node' so that it's valid only if has more than one children and less
+             * than three.
+             */
+            nodeList.getType().addChildConstraint(javaNode.getInterfaceType(), 1, 2);
+            /** Should return false */
+            assertFalse(nodeList.validate());
+            nodeList.addChild(normalSpec);
+            /** Should return true */
+            assertTrue(nodeList.validate());
+            nodeList.addChild(corbaSpec);
+            /** Should return true again*/
+            assertTrue(nodeList.validate());
+            /** Should not allow */
+            try{
+                nodeList.addChild(garbySpec);
+                fail();
+            }catch(IllegalAttributeException ex){ }
+            
+            /** Modify cardinality constraint to allow one more child of type 'node'*/
+            nodeList.getType().addChildConstraint(javaNode.getInterfaceType(), 1, 3);
+            /** Now it should allow us to add another child */
+            nodeList.addChild(garbySpec);
+            /** And should pass validation */
+            assertTrue(nodeList.validate());
+            /** Modify cardinality constraint once more */
+            nodeList.getType().addChildConstraint(nodeListSpec.getInterfaceType(), 1, 2);
+            /** Should invalidate our nodelist instance */
+            assertFalse(nodeList.validate());
+            
+            /** Now does some testing with optional attributes */
             IObjectSpec launcherSpec = sshtunnel.makeInstance();
             
+            /** Sets an optional attribute to two distinct values */
             normalSpec.setAttribute("CORBA-enabled", "no");
             normalSpec.setAttribute("launcher", "yes");
             corbaSpec.setAttribute("CORBA-enabled", "yes");
@@ -47,6 +87,12 @@ public class ObjectSpecTypeImplTest extends TestCase {
             }catch(IllegalAttributeException e) { }
 
             normalSpec.addChild(launcherSpec);
+
+            /** Testing the constraints never hurts. */
+            try{
+                corbaSpec.addChild(launcherSpec.getType().makeInstance());
+                fail();
+            }catch(IllegalAttributeException e){ }
             
             try{
                 corbaSpec.addChild(launcherSpec);

@@ -359,18 +359,23 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         String type = attributes.getValue(TYPE_ATTRIB);
                         String multiplicity = attributes.getValue(MULTIPLICITY_ATTRIB);
                         
-                        int howMany;
-                        if(multiplicity == null) howMany = 1;
-                        else if(multiplicity.equals("infinite")) howMany = IObjectSpecType.INFINITUM;
-                        else howMany = Integer.parseInt(multiplicity);
+                        int min = 0, max = IObjectSpecType.INFINITUM;
                         
-                        current.addChildConstraint(type, howMany);                        
+                        if(multiplicity != null){
+                            IIntegerInterval range = SpecLoader.this.intervalFromString(multiplicity, locator);
+                            min = range.getMin();
+                            max = range.getMax();
+                        }
+
+                        current.addChildConstraint(type, min, max);                        
                     }else{
                         throw new SAXParseException("Unexpected symbol.", locator);
                     }
                 }
             });
         }
+
+
         
         /**
          * New actions can be added here.
@@ -393,21 +398,26 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             };
             
             // Adds children.
-            IActionCompiler addchild = new IActionCompiler(){
+            IActionCompiler addchild = new IActionCompiler() {
 
                 public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
-                    
-                    if((args.size() % 2) != 0)
-                        throw new Exception("Wrong argument number for action " + selector);
 
-                    for(int i = 0; i < args.size(); i += 2){
+                    if ((args.size() % 2) != 0)
+                        throw new Exception("Wrong argument number for action "
+                                + selector);
+
+                    for (int i = 0; i < args.size(); i += 2) {
                         String type = args.get(0);
                         String number = args.get(1);
-                        int _number = number.equals("*")?IObjectSpecType.INFINITUM:Integer.parseInt(number);
-                    
-                        context.addOptionalChildren(new BranchKey(attribute, condition), type, _number);
+
+                        IIntegerInterval range = SpecLoader.this
+                                .intervalFromString(number, locator);
+
+                        context.addOptionalChildrenConstraint(new BranchKey(
+                                attribute, condition), type, range.getMin(),
+                                range.getMax());
                     }
                 }
             };
@@ -424,7 +434,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             actionParsers.put("addchildren", addchild);
             actionParsers.put("nop", nop);
         }
-        
+
         /* (non-Javadoc)
          * @see org.xml.sax.helpers.DefaultHandler#setDocumentLocator(org.xml.sax.Locator)
          */
@@ -477,6 +487,37 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             return temp;
         }
     }
+    
+    private IIntegerInterval intervalFromString(String multiplicity, Locator locator)
+            throws SAXParseException {
+
+        int min = 0, max = IObjectSpecType.INFINITUM;
+
+        String ranges[] = multiplicity.split("\\.\\.\\.");
+        try {
+            if (ranges.length == 1) {
+                min = max = ranges[0].equals("*") ? IObjectSpecType.INFINITUM
+                        : Integer.parseInt(ranges[0]);
+            } else {
+                if (ranges[0].equals("*"))
+                    throw new SAXParseException(
+                            "Minimum value cannot be infinite.", locator);
+                min = Integer.parseInt(ranges[0]);
+                max = ranges[1].equals("*") ? IObjectSpecType.INFINITUM
+                        : Integer.parseInt(ranges[1]);
+            }
+        } catch (NumberFormatException ex) {
+            throw new SAXParseException("Invalid cardinality constraint specification.", locator);
+        }
+
+        if (max < min)
+            throw new SAXParseException(
+                    "Minimum value must be less or equal than the maximum value",
+                    locator);
+
+        return new IntegerIntervalImpl(min, max);
+    }
+
     
     public String makeExpected(String concrete, String spectype)
         throws SAXException, IOException

@@ -8,16 +8,18 @@ package ddproto1.configurator.util;
 import java.util.Set;
 
 import ddproto1.configurator.newimpl.IAttribute;
+import ddproto1.util.collection.ReadOnlyHashSet;
 
 public class StandardAttribute implements IAttribute{
     
-    private Set <String> values;
+    private ReadOnlyHashSet <String> values;
     private String key;
     private int hashCode;
         
     public StandardAttribute(String key, Set <String> constrainedValues){
         this.key = key;
-        this.values = constrainedValues;
+        this.values = (constrainedValues == ANY) ? ANY
+                : new ReadOnlyHashSet<String>(constrainedValues);
     }
 
     public String attributeKey() {
@@ -27,6 +29,10 @@ public class StandardAttribute implements IAttribute{
     public boolean isAssignableTo(String value){
         if(values == null) return true;
         return values.contains(value);
+    }
+    
+    public ReadOnlyHashSet<String> acceptableValues(){
+        return values;
     }
     
     public int hashCode(){

@@ -12,15 +12,19 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.InfoCarrierWrapper;
+import ddproto1.configurator.newimpl.BranchKey;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.newimpl.IIntegerInterval;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.newimpl.StandardServiceLocator;
@@ -75,6 +79,10 @@ public class Main {
         // Parses parameters and sets I/O functions
         parseParameters(args);
         setIO();
+        
+        Map <String, Integer> optionalChildrenQ = new HashMap<String, Integer>();
+        
+        int b = optionalChildrenQ.get(new Object());
         
         // Loads classes, launches remote configuration server and debugger
         try{

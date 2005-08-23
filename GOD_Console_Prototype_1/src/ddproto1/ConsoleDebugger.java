@@ -646,7 +646,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         IObjectSpec ninfo = vmid2ninfo.get(vmid);
         // Checks to see if all required attributes have been set (not
         // giving a damn about their consistency).
-        ninfo.isFullyInitialized();
+        ninfo.validate();
         
         try{
             IServiceLocator locator = (IServiceLocator)Lookup.serviceRegistry().locate("service locator");
