@@ -1,0 +1,2 @@
+- Test multiple optional children of different types for same brach key precondition.
+- Test cardinality constraint checking.
