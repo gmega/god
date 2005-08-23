@@ -3,5 +3,5 @@
 	<attribute id = "port"/>
 	<attribute id = "connection-queue-size"/>
 	<attribute id = "global-agent-address"/>
-	<child type="node-list"/>
+	<child type="node-list" multiplicity="1"/>
 </spec>

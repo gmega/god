@@ -9,6 +9,6 @@
 	<attribute id="app-parameters"/>
 	<attribute id="tunnel-closure-policy"/>
 	
-	<child type="shell-tunnel"/>
+	<child type="shell-tunnel" multiplicity="1"/>
 	
 </spec>

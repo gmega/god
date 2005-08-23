@@ -9,6 +9,5 @@
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava,node);no:nop()"/>
 	<extension-attribute id="launcher" action="yes:addchildren(launcher,1,attaching-connector,1);no:nop()"/>
 	
-	<child type="source-mapper"/>
-	<child type="attaching-connector"/>
+	<child type="source-mapper" multiplicity="1"/>
 </spec>
