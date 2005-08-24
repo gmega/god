@@ -85,6 +85,7 @@ public class XMLParserTest extends TestCase {
         }catch(Exception e){
             mh.getErrorOutput().println(e.getMessage());
             mh.printStackTrace(e);
+            fail();
         }
  
     }

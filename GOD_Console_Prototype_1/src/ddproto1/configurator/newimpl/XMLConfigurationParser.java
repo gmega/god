@@ -216,7 +216,8 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
                     "Assertion failed - element being closed differs from expected element. This is most likely a bug.");
         
         /** Another verification - is the spec fully initialized? */
-        if(!ios.validate()) throw new SAXException("Missing attributes from specification (" + intf + ")");
+        if(!ios.validate()) throw new SAXException("Missing attributes " + ios.getUnassignedAttributeKeys() + " from specification (" + intf + ")");
+        
     }
 
     /*

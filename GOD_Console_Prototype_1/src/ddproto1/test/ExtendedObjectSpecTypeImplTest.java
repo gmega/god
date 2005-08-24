@@ -8,6 +8,7 @@ package ddproto1.test;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import ddproto1.configurator.newimpl.BranchKey;
@@ -25,7 +26,7 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
     
     public void testExtended(){
         try{
-            String toc = "file:///home/giuliano/workspace/GOD Console Prototype 1/specs";
+            String toc = "file://" + System.getProperty("user.dir") + "/specs";
             List <String> locations = new LinkedList<String>();
             locations.add(toc);
             SpecLoader loader = new SpecLoader(locations, toc);
@@ -93,6 +94,7 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             assertFalse(theList.validate());
             
             /** Should accept these children. */
+            assertTrue(theList.getMissingChildren().get(javaNode.getInterfaceType()) == 1);
             theList.addChild(normalSpec);
             theList.addChild(sshTunnel);
             
@@ -102,6 +104,26 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             /** These should also be accepted. */
             theList.addChild(garbySpec);
             theList.addChild(corbaSpec);
+            
+            /** Removing an attribute should remove all the branch keys associated with it. */
+            nodeListSpec.removeAttribute("sample-attribute");
+            
+            /** Should validate to false, since the children are leftovers. */
+            assertFalse(theList.validate());
+            
+            /** Missing children should evaluate to negative numbers, since the 
+             * allowed range is 0...0 */
+            assertTrue(theList.getMissingChildren().get(javaNode.getInterfaceType()) == -3);
+            assertTrue(theList.getMissingChildren().get(sshTunnelSpec.getInterfaceType()) == -1);
+            
+            /** Adding the attribute back and rebinding the optionals should make the instance
+             * valid once more.
+             */
+            nodeListSpec.addAttribute(attribute);
+            nodeListSpec.addOptionalChildrenConstraint(new BranchKey("sample-attribute", "yup"), javaNode.getInterfaceType(), 1, 3);
+            nodeListSpec.addOptionalChildrenConstraint(new BranchKey("sample-attribute", "yup"), sshTunnelSpec.getInterfaceType(), 1, 1);
+
+            assertTrue(theList.validate());
                 
         }catch(Exception e){
             e.printStackTrace();

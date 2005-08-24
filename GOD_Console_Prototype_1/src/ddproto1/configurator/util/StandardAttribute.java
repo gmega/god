@@ -27,7 +27,7 @@ public class StandardAttribute implements IAttribute{
     }
 
     public boolean isAssignableTo(String value){
-        if(values == null) return true;
+        if(values == ANY) return true;
         return values.contains(value);
     }
     

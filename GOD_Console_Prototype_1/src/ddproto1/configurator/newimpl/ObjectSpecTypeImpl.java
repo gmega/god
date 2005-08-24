@@ -49,6 +49,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     private Map<String, IAttribute> requiredAttributes;
     private Map<String, IIntegerInterval> children;
     
+    /** Stores all branch keys bound to a given attribute. */
+    private UnorderedMultiMap<String, BranchKey> attributeBranches = new UnorderedMultiMap<String, BranchKey>(HashSet.class);
+    
     /** Dynamic constraint storage (supertypes and their branch keys). */
     private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
     
@@ -129,13 +132,18 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             constraints = new HashMap<String, IIntegerInterval>();
             optionalChildrenQ.put(precondition, constraints);
         }
-        
+
         /** NOTE! Adding a second constraint for the same precondition and under
          * the same childtype replaces the older constraint. That's because it doesn't
          * make any sense to specify two intervals for cardinality check for the same
          * child type. 
          */
         constraints.put(childtype, new IntegerIntervalImpl(min, max));
+        
+        /** Register this branch key as belonging to the attribute under it's key. 
+         * We don't have to worry with duplicates because we're using a multimap with
+         * sets. */
+        attributeBranches.add(precondition.getKey(), precondition);
     }
     
     public ReadOnlyHashSet <Class> getSupportedInterfaces(){
@@ -156,6 +164,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         if(constraints == null) throw new InternalError("Internal assertion failure");
         if(constraints.containsKey(childtype)) constraints.remove(childtype);
         if(constraints.isEmpty()) optionalChildrenQ.remove(precondition);
+        checkPurgeBranchKey(precondition);
         return true;
     }
     
@@ -207,8 +216,40 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         /** The attribute is ours. */
         if(requiredAttributes.containsKey(attributeKey)){
             requiredAttributes.remove(attributeKey);
-            /** All branch keys that depend on this attribute must be invalidated. */
             
+            /** All branch keys that depend on this attribute must be invalidated.
+             * This include removing all supertypes and optional children that 
+             * depend on them. 
+             * We can traverse the branch-key-to-constraint map to find out which 
+             * children types are bound under this particular branch key.          */
+            
+            assert(attributeBranches.containsKey(attributeKey));
+            for(BranchKey bk : attributeBranches.getClass(attributeKey)){
+            	Map<String, IIntegerInterval> constraints = optionalChildrenQ.get(bk);
+            	
+            	boolean something = false;
+ 
+            	/** Unbinds optional children */
+            	if(constraints != null){
+            		for(String childType : constraints.keySet()){
+            			optionalChildren.remove(childType, bk);
+            		}
+            		optionalChildrenQ.remove(bk);
+            		something = true;
+            	}
+            	
+            	/** Unbinds optional supertypes */
+            	if(conditionalSpecs.containsKey(bk)){
+            		conditionalSpecs.remove(bk);
+            		something = true;
+            	}
+            	
+            	/** This branch key should either unbind supertypes or children, 
+            	 * otherwise it should not be in the branch list for this attribute
+            	 * on the first place.
+            	 */
+            	assert(something);
+            }
             
             return true;
         }
@@ -311,15 +352,20 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
          * to the newly created spec. */
         spec.addParent(this);   
         
+        attributeBranches.add(bk.getKey(), bk);
         conditionalSpecs.put(bk, spec);
     }
     
-    
-
     public void unbindOptionalSupertype(BranchKey bk) 
     {
         expungeStaleEntries();
         if(conditionalSpecs.containsKey(bk)){ conditionalSpecs.remove(bk); }
+        checkPurgeBranchKey(bk);
+    }
+    
+    private void checkPurgeBranchKey(BranchKey bk){
+    	if(optionalChildrenQ.containsKey(bk) || conditionalSpecs.containsKey(bk)) return;
+    	attributeBranches.remove(bk.getKey(), bk);
     }
     
     public IAttribute getAttribute(String key){
@@ -521,7 +567,18 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
         
         public Map<String, Integer> getMissingChildren(){
+        	
+        	/** All children starts as a projection of all supported children types, 
+        	 * collected from required and optional children and supertypes.
+        	 */
             Set<String> allChildren = internal.allSupportedChildrenTypes(attributeValues);
+            
+            /** But we must also add the children we already have, since we might hold children
+             * that are no longer supported by the type we belong to (because we support dynamic
+             * changes to types).
+             */
+            allChildren.addAll(children.keySet());
+                        
             Map<String, Integer> childrenStats = new HashMap<String, Integer>();
             
             /** For each of the supported children, get their cardinalities and test

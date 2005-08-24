@@ -144,7 +144,10 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         }
         
         if(target == null)
-            throw new SpecNotFoundException(cType);
+            throw new SpecNotFoundException(cType
+					+ ". Should this section have a "
+					+ IConfigurationConstants.TYPE_ATTRIB + 
+					" attribute?");
         
         return new InputSource(target);
     }
@@ -280,10 +283,12 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         /** Standard attributes are unconstrained. Current spec doesn't provide
                          * value validation for them (though they'll certainly produce a runtime
                          * error at some point).
+                         * 
+                         * TODO - add value constraining to non-optional attributes.
                          */
                         try{
                             current.addAttribute(new StandardAttribute(attributes
-                                    .getValue(ID_ATTRIB), null));
+                                    .getValue(ID_ATTRIB), IAttribute.ANY));
                         }catch(DuplicateSymbolException ex){
                             throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
                         }
@@ -409,8 +414,8 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                                 + selector);
 
                     for (int i = 0; i < args.size(); i += 2) {
-                        String type = args.get(0);
-                        String number = args.get(1);
+                        String type = args.get(i);
+                        String number = args.get(i+1);
 
                         IIntegerInterval range = SpecLoader.this
                                 .intervalFromString(number, locator);
