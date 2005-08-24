@@ -1,2 +1,3 @@
 - Test multiple optional children of different types for same brach key precondition.
 - Test cardinality constraint checking.
+- Add an incarnable attribute to the specs. Validate incarnable attribute against type attribute in the configuration file.
