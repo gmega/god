@@ -80,10 +80,6 @@ public class Main {
         parseParameters(args);
         setIO();
         
-        Map <String, Integer> optionalChildrenQ = new HashMap<String, Integer>();
-        
-        int b = optionalChildrenQ.get(new Object());
-        
         // Loads classes, launches remote configuration server and debugger
         try{
             /** Loads the custom user interface class */
@@ -209,7 +205,11 @@ public class Main {
                 node.setAttribute(IConfigurationConstants.GUID, Integer.toString(_guid));
             }
         }
+        
+        
     }
+    
+    private void lixo(){ }
     
     private static void parseParameters(String[] args) {
         for (int i = 0; i < args.length; i++) {

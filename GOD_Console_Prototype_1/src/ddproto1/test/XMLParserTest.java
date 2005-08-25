@@ -79,7 +79,7 @@ public class XMLParserTest extends TestCase {
             IObjectSpec root = cfg.parseConfig(new URL("file://" + basedir + Main.DD_CONFIG_FILENAME)); 
         
             System.out.println(" -- Info Summary --");
-            this.printHierarchy(root, "","");
+            mh.getStandardOutput().print(this.stringHierarchy(root, "",""));
             
 
         }catch(Exception e){
@@ -90,12 +90,12 @@ public class XMLParserTest extends TestCase {
  
     }
     
-    public String printHierarchy(IObjectSpec spec, String initialSpacing, String fLine){
+    public String stringHierarchy(IObjectSpec spec, String initialSpacing, String fLine){
         
         StringBuffer spaces = new StringBuffer();
         
         try{
-            if(fLine != null) { spaces.append(fLine); fLine = null; }
+            if(fLine != null) { spaces.append(fLine); fLine = fLine + "-+--"; }
             else spaces.append(initialSpacing);
             spaces.append("[+]" + " ObjectSpec type: " + spec.getType().getInterfaceType() + "\n");
         }catch(IllegalAttributeException e){ fail();}
@@ -116,10 +116,10 @@ public class XMLParserTest extends TestCase {
         }
         
         for(IObjectSpec child : spec.getChildren()){
-            spaces.append(printHierarchy(child, initialSpacing + " |  ", "[+]-"));
+            spaces.append(stringHierarchy(child, initialSpacing + " |  ", fLine));
         }
         
-        spaces.append(initialSpacing + " |> \n");
+        spaces.append(initialSpacing + " \n");
         
         return spaces.toString();
     }
