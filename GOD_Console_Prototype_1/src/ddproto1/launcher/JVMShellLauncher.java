@@ -45,11 +45,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
       
     private static final String module = "JVMShellLauncher -";
     
-    private static final Set<String> attributes = new ReadOnlyHashSet<String>(
-            ConversionTrait.getInstance().toSet(
-                    new String[] { "main-class", "jdwp-port", "classpath",
-                            "vm-parameters", "gid", "global-agent-address" }));
-    
     /* (non-Javadoc)
      * @see ddproto1.interfaces.ApplicationLauncher#launch()
      */
@@ -179,13 +174,6 @@ public class JVMShellLauncher implements IApplicationLauncher {
 
     }
 
-    /* (non-Javadoc)
-     * @see ddproto1.interfaces.Configurable#getAttributeKeys()
-     */
-    public Set<String> getAttributeKeys() {
-        return attributes;
-    }
-    
     private void wrap(Exception e)
     	throws LauncherException
     {

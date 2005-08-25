@@ -11,7 +11,6 @@ import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.UninitializedAttributeException;
 
 public interface IInfoCarrier {
-    public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException;
     /**
      * Returns the current attribute key set. Might change with time.  
      * 

@@ -36,6 +36,7 @@ import ddproto1.debugger.managing.distributed.IGUIDManager;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.debugger.server.SeparatingHandler;
 import ddproto1.debugger.server.SocketServer;
+import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.DuplicateSymbolException;
@@ -102,20 +103,23 @@ public class Main {
             
             /** Parses the configuration file */
             IObjectSpec root = cfg.parseConfig(new URL("file://" + basedir + DD_CONFIG_FILENAME)); 
+            IObjectSpec nodeList = root.getChildOfType(IConfigurationConstants.NODE_LIST);           
+            
+            assignInitialGUIDs(nodeList.getChildren());
+            
+            setBasicServices();
             
             /** Creates and adds node info to the Distributed Thread Manager */
             dtm = new DistributedThreadManager(dbg.getUICallback());
             VMManagerFactory vmmf = VMManagerFactory.getInstance();
-            Iterator it = vmmf.machineList();
-            while(it.hasNext())
-                dtm.registerNode((VirtualMachineManager)it.next());
+            
+            for(IObjectSpec node : nodeList.getChildren())
+                dtm.registerNode(vmmf.newVMManager(node));
             
             /* Now that the Distributed Thread Mananger has been created, we can 
              * start the central server.
              */
             setServer(root);
-            
-            setServices();
             
             /* Starts the debugger */
             dbg.mainLoop();
@@ -134,14 +138,14 @@ public class Main {
         return dtm;
     }
     
-    private static void setServices() throws DuplicateSymbolException{
+    private static void setBasicServices() throws DuplicateSymbolException{
         Lookup.serviceRegistry().register("service locator", StandardServiceLocator.getInstance());
     }
     
     private static void setServer(IObjectSpec root)
     	throws AttributeAccessException, UnknownHostException,
             DuplicateSymbolException, ResourceLimitReachedException,
-            ClassNotFoundException
+            ClassNotFoundException, AmbiguousSymbolException
     {
 
         /** Obtains the server configuration data. */
@@ -153,33 +157,26 @@ public class Main {
         /* Sets the configuration/notification server */
         SocketServer scs = new SocketServer(port, port, queue_size);
         
-        List<IObjectSpec> nodeList = root.getChildrenOfType(IConfigurationConstants.NODE_LIST);
+        IObjectSpec nodeList = root.getChildOfType(IConfigurationConstants.NODE_LIST);
         
         /** We trust that the parser did the cardinality checks correctly and that there's only
          * one node list. However, asserting that this property stands correct never hurts.
          */
-        assert(nodeList.size() == 1);
         
-        InfoCarrierWrapper icw = new InfoCarrierWrapper(nodeList);
+        InfoCarrierWrapper icw = new InfoCarrierWrapper(nodeList.getChildren());
         SeparatingHandler byStatus = new SeparatingHandler(DebuggerConstants.STATUS_FIELD_OFFSET);
         byStatus.registerHandler(DebuggerConstants.NOTIFICATION, dtm);
         byStatus.registerHandler(DebuggerConstants.REQUEST, icw);
         
         MessageHandler mh = MessageHandler.getInstance();
         
-        if(nodeList.size() > 255){
-            throw new InternalError("Cannot proceed - addressing design does not " +
-            		"allow more than 255 nodes");
-        }
-            
-        assignInitialGUIDs(nodeList);
-        
-        for(int i = 0; i < nodeList.size(); i++){
+        for(IObjectSpec node : nodeList.getChildren()){
             try{
                 /* REMARK We could add an address check to make sure no one
                  * is faking its gid (or something went bad along the way).
                  */
-                scs.registerNode(new Byte((byte)i), byStatus);
+                scs.registerNode(new Byte(node
+                        .getAttribute(IConfigurationConstants.GUID)), byStatus);
             }catch(ConfigException e){
                 mh.printStackTrace(e);
             }
@@ -193,6 +190,11 @@ public class Main {
         throws DuplicateSymbolException, ResourceLimitReachedException, AttributeAccessException
         
     {
+        if(nodeList.size() > 256){
+            throw new InternalError("Cannot proceed - addressing design does not " +
+                    "allow more than 255 nodes");
+        }
+        
         IGUIDManager guidManager = new DefaultGUIDManager(256);
         
         /** Since the console version won't allow you to add/remove new nodes (for now),
@@ -208,8 +210,6 @@ public class Main {
         
         
     }
-    
-    private void lixo(){ }
     
     private static void parseParameters(String[] args) {
         for (int i = 0; i < args.length; i++) {

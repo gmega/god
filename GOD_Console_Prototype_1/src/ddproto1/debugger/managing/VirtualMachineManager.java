@@ -24,6 +24,8 @@ import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.EventDispatcher;
@@ -48,8 +50,10 @@ import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
+import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.exception.UninitializedAttributeException;
 import ddproto1.exception.UnsupportedException;
 import ddproto1.sourcemapper.ISourceMapper;
 import ddproto1.util.Lookup;
@@ -67,7 +71,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
+public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfigurable{
     
     private static final String module = "VirtualMachineManager -";
 
@@ -76,33 +80,23 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     private DelegatingHandler handler;
     private ISourceMapper smapper;
     private VirtualMachine jvm;
-    private String name;
-    private String gid;
     private ThreadManager tm;
     
     private IJDIEventProcessor next;
-        
-    private Set stublist;
-        
-    private IObjectSpec info;
     
-    /** Creates a new VirtualMachineManager from a VirtualMachine specification
-     * (VMInfo) instance. 
+    private String name;
+    private String gid;
+        
+    /** Creates a new VirtualMachineManager.
      * 
      * @param info Virtual machine specification.
      * 
      */
-    protected VirtualMachineManager(IObjectSpec info) 
+    protected VirtualMachineManager() 
     	throws AttributeAccessException
     {
-        this.info = info;
-        this.name = info.getAttribute("name");
-        this.gid = info.getAttribute("gid");
         this.handler = new DelegatingHandler();
         this.disp = new EventDispatcher(handler);
-        
-        // FIXME Nested patterns will generate duplicate precondition notifications. 
-        queue = new DeferrableRequestQueue(name, DeferrableRequestQueue.WARN_DUPLICATES);
         
         /*TODO When code hits beta, enable the disallow duplicates. */
         //queue = new DeferrableRequestQueue(name, DeferrableRequestQueue.DISALLOW_DUPLICATES);
@@ -138,7 +132,9 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
             IServiceLocator locator = (IServiceLocator) Lookup
                     .serviceRegistry().locate("service locator");
             
-            IObjectSpec connectorSpec = info.getChildSupporting(SocketAttachWrapper.class);
+            IObjectSpec self = this.acquireMetaObject();
+            
+            IObjectSpec connectorSpec = self.getChildSupporting(SocketAttachWrapper.class);
 
             SocketAttachWrapper conn = (SocketAttachWrapper)locator.incarnate(connectorSpec);
             
@@ -255,10 +251,22 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         return gid;
     }
     
-    public String getProperty(String key) 
-    	throws AttributeAccessException{
+    public String getAttribute(String key) 
+    	throws IllegalAttributeException, UninitializedAttributeException{
         
-        return info.getAttribute(key);
+        return this.acquireMetaObject().getAttribute(key);
+            
+    }
+    
+    private IObjectSpec acquireMetaObject(){
+        try{
+            IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry()
+                .locate("service locator");
+        
+            return locator.getMetaobject(this);
+        }catch(NoSuchSymbolException ex){
+            throw new NestedRuntimeException("This VirtualMachineManager has not been incarnated by a meta object.");
+        }
     }
     
     private void setDefaultRequests(){
@@ -305,12 +313,13 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
     private void assembleStartHandlers()
     	throws Exception
     {
+        final IObjectSpec self = this.acquireMetaObject();
         
         IDebugContext dc = new IDebugContext(){
 
             public String getProperty(String pname) {
                 try{
-                    return info.getAttribute(pname);
+                    return self.getAttribute(pname);
                 }catch(AttributeAccessException e){
                     throw new NestedRuntimeException(e.getMessage(), e);
                 }
@@ -337,7 +346,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
         try{
             // Configures the Source Mapper for this JVM.
             IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry().locate("service locator");
-            IObjectSpec mapperSpec = info.getChildSupporting(ISourceMapper.class);
+            IObjectSpec mapperSpec = self.getChildSupporting(ISourceMapper.class);
             smapper = (ISourceMapper)locator.incarnate(mapperSpec);
 
             /* Now the event processors - almost everything that gets done
@@ -486,5 +495,18 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror{
      */
     public void enable(boolean status) {
         throw new UnsupportedException("enable is not supported by " + module);
+    }
+
+    public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
+        if(key.equals(IConfigurationConstants.NAME_ATTRIB)){
+            name = val;
+            queue = new DeferrableRequestQueue(name, DeferrableRequestQueue.ALLOW_DUPLICATES);
+        } else if(key.equals(IConfigurationConstants.GUID)){
+            gid = val;
+        }
+//        } else if(key.equals("launcher")){ 
+//        } else {
+//            throw new IllegalAttributeException("Unknown attribute " + key);
+//        }
     }
 }

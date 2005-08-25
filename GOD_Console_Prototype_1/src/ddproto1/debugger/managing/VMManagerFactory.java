@@ -21,6 +21,7 @@ import com.sun.jdi.VirtualMachine;
 import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
@@ -30,7 +31,10 @@ import ddproto1.debugger.request.IDeferrableRequest.IPrecondition;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.IncarnationException;
+import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UnsupportedException;
+import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 
 /**
@@ -60,18 +64,30 @@ public class VMManagerFactory {
         return instance;
     }
         
-    public VirtualMachineManager newVMManager(IObjectSpec info)
-    	throws ConfigException, AttributeAccessException
+    public VirtualMachineManager newVMManager(IObjectSpec vmmspec)
+    	throws ConfigException, AttributeAccessException, IncarnationException
     {
-        String name = info.getAttribute(IConfigurationConstants.NAME_ATTRIB);
-        String gid = info.getAttribute(IConfigurationConstants.GUID);
+        String name = vmmspec.getAttribute(IConfigurationConstants.NAME_ATTRIB);
+        String gid = vmmspec.getAttribute(IConfigurationConstants.GUID);
+        
         if(vmms.containsKey(name) || gid2id.containsKey(gid))
             throw new ConfigException(
                     module
                             + " Cannot instantiate: there's either a VM bound already bound under the Global ID (GID) "
                             + gid + " or named " + name);
-               
-        VirtualMachineManager vmm = new VirtualMachineManager(info);
+            
+        IServiceLocator locator;
+        
+        try{
+            locator = (IServiceLocator) Lookup.serviceRegistry()
+                .locate("service locator");
+            
+        }catch(NoSuchSymbolException ex){
+            throw new ConfigException("No service locator has been configured.", ex);
+        }
+        
+        VirtualMachineManager vmm = (VirtualMachineManager)locator.incarnate(vmmspec);
+        
         vmms.put(name, vmm);
         gid2id.put(new Byte(gid), name);
 
@@ -101,8 +117,8 @@ public class VMManagerFactory {
         return((VirtualMachineManager)vmms.get(gid2id.get(gid)));
     }
     
-    public Iterator machineList(){
-        return vmms.values().iterator();
+    public Iterable<VirtualMachineManager> machineList(){
+        return vmms.values();
     }
     
     public Byte getGidByVM(VirtualMachine vm){

@@ -97,14 +97,14 @@ public class StandardServiceLocator implements IServiceLocator{
 		/* Acquires a reference to a no-arg constructor */
 		Constructor cons;
 		try {
-			cons = concreteClass.getConstructor(new Class[] {});
+			cons = concreteClass.getDeclaredConstructor(new Class[] {});
+            if(!cons.isAccessible()) cons.setAccessible(true);
 		} catch (NoSuchMethodException e) {
 			throw new IncarnationException(
-					"Incarnations must have a public default constructor.");
+					"Incarnations must have a default constructor.");
 		}
 
 		/* Creates a new instance of the declared class. */
-		cons.setAccessible(true);
         try {
             iconf = (IConfigurable) cons.newInstance(new Object[] {});
         } catch (Exception e) {
@@ -121,7 +121,7 @@ public class StandardServiceLocator implements IServiceLocator{
             } catch (IllegalAttributeException ex) {
                 throw new IncarnationException(
                         "Either the object or the metaobject reports supporting "
-                                + "an attribute it does not understand (concurrent modification?)");
+                                + "an attribute ( " + key + " ) it does not understand (concurrent modification?)");
             } catch (UninitializedAttributeException ex) {
                 throw new IncarnationException("Required attribute " + key
                         + " for configurable " + klass

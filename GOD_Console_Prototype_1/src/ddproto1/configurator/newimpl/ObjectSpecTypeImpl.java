@@ -513,6 +513,16 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
     }
     
+    public String toString(){
+        StringBuffer asString = new StringBuffer();
+        asString.append("<");
+        asString.append((concreteType == null)?"<non-incarnable>":concreteType);
+        asString.append(", ");
+        asString.append((interfaceType == null)?"<unknown type>":interfaceType);
+        asString.append(">");
+        return asString.toString();
+    }
+    
     private class ObjectSpecInstance implements IObjectSpec {
 
         private Map <String, String> attributeValues = new HashMap <String, String>();
@@ -615,11 +625,13 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
         
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
-            if(!this.checkPurgeKey(key))
-                throw new IllegalAttributeException("Illegal attribute " + key
-                        + ". Specification instance type - <"
-                        + parentType.getConcreteType() + ", "
-                        + parentType.getInterfaceType() + ">");
+            if(!this.checkPurgeKey(key)){
+                
+                String concrete;
+                
+                throw new IllegalAttributeException("Illegal attribute '" + key
+                        + "'. Specification instance type - " + parentType);
+            }
             
             if(val != null && !isAssignable(key, val, attributeValues))
                 throw new InvalidAttributeValueException("Cannot assign " + val + " to attribute " + key);
@@ -660,7 +672,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             return parentType;
         }
 
-        public List<IObjectSpec> getChildrenOfType(String type) 
+        public List<IObjectSpec> getChildrenSupporting(String type) 
             throws ClassNotFoundException
         {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
@@ -681,6 +693,36 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             }
             return desiredChildren;
         }
+        
+        public List<IObjectSpec> getChildrenOfType(String type){
+            List<IObjectSpec> desiredChildren = new ArrayList<IObjectSpec>();
+            for(IObjectSpec child : plainChildren){
+                try{
+                    if(child.getType().getInterfaceType().equals(type))
+                        desiredChildren.add(child);
+                }
+                /** If the child doesn't declare an interface type than its
+                 * interface type can't be what we're looking for.
+                 */
+                catch(IllegalAttributeException ex){ }
+            }
+            return desiredChildren;
+        }
+        
+        public IObjectSpec getChildOfType(String type)
+            throws AmbiguousSymbolException
+        {
+            List<IObjectSpec> childList = this.getChildrenOfType(type);
+            if (childList.size() > 1)
+                throw new AmbiguousSymbolException(
+                        "There is more than one children supporting interface/class "
+                                + type
+                                + ". Use getChildOfType(String type) instead.");
+            
+            if(childList.size() == 0) return null;
+            return childList.get(0);
+        }
+        
 
         public IObjectSpec getChildSupporting(Class type) throws AmbiguousSymbolException {
             List<IObjectSpec> children = this.getChildrenSupporting(type);

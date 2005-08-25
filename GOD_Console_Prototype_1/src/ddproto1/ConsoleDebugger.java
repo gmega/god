@@ -37,6 +37,7 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
@@ -760,15 +761,13 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                         
         } else {
 
-            // Lists machines and their status.
-            Iterator it = vmmf.machineList();
-
             mh
                     .getStandardOutput()
                     .println(
                             "The following JVM nodes have been configured (but not necessarily launched):");
-            for (int i = 0; it.hasNext(); i++) {
-                VirtualMachineManager vmm = (VirtualMachineManager) it.next();
+            int i = 0;
+            for (VirtualMachineManager vmm : vmmf.machineList()) {
+                i++;
                 mh.getStandardOutput().println(i + " - " + vmm.getName());
             }
         }
@@ -1146,10 +1145,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     
     private void shutdown(int mode) {
         mh.getStandardOutput().println("\nNow shutting down...");
-        Iterator it = VMManagerFactory.getInstance().machineList();
         int mustdo = vmid2ninfo.size(), done = 0;
-        while(it.hasNext()){
-            VirtualMachineManager vmm = (VirtualMachineManager)it.next();
+        for(VirtualMachineManager vmm : VMManagerFactory.getInstance().machineList()){
             mh.getStandardOutput().print(((mode == Token.EXIT)?"Severing connection with ":"Terminating JVM ") + vmm.getName() + "... ");
             try{
                 VirtualMachine vm = vmm.virtualMachine();
@@ -1192,9 +1189,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     "       only registered threads will be shown:");
 
             /* First the regular threads. */
-            Iterator it = vmmf.machineList();
-            while (it.hasNext()) {
-                VirtualMachineManager vmm = (VirtualMachineManager) it.next();
+            for(VirtualMachineManager vmm : vmmf.machineList()) {
                 IVMThreadManager tm;
                 try{
                     tm = vmm.getThreadManager();
@@ -1230,7 +1225,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             }
 
             /* Now the truly distributed threads */
-            it = dtm.getThreadIDList();
+            Iterator it = dtm.getThreadIDList();
             while(it.hasNext()){
                 Integer dt_uuid = (Integer)it.next();
                 DistributedThread dt = (DistributedThread)dtm.getByUUID(dt_uuid);
@@ -1384,7 +1379,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                  * This will create filter that calls us back whenever a
                  * suspending event is produced.
                  */
-                String mname = node.getAttribute("name");
+                String mname = node.getAttribute(IConfigurationConstants.NAME_ATTRIB);
                 Set <Integer> filters = new HashSet <Integer> ();
                 filters.add(new Integer(EventRequest.SUSPEND_ALL));
                 filters.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));

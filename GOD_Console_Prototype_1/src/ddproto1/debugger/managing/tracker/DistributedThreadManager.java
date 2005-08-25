@@ -99,8 +99,8 @@ public class DistributedThreadManager implements IRequestHandler {
             /* Obtains the stublist (or gets an exception if this node
              * doesn't define it).
              */
-            String stublist = vmm.getProperty("stublist");
-            String skellist = vmm.getProperty("skeletonlist");
+            String stublist = vmm.getAttribute("stublist");
+            String skellist = vmm.getAttribute("skeletonlist");
             Set <String> stubclasses = new HashSet<String> ();
             Set <String> skelclasses = new HashSet<String> ();
             StringTokenizer st = new StringTokenizer(stublist, IConfigurator.LIST_SEPARATOR_CHAR);

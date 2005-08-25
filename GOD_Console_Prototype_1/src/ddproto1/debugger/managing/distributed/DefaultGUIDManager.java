@@ -33,6 +33,7 @@ public class DefaultGUIDManager implements IGUIDManager{
            if(guid_array[k] == false){
                lease_table.put(o, k);
                guid_array[k] = true;
+               break;
            }
         }
         

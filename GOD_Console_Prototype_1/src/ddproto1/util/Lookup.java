@@ -16,7 +16,7 @@ public class Lookup implements IServiceRegistry {
     private static IServiceRegistry instance;
 
     public static IServiceRegistry serviceRegistry() {
-        return (instance == null) ? (new Lookup()) : instance;
+        return (instance == null) ? (instance = new Lookup()) : instance;
     }
 
     private Map<String, Object> registry = new HashMap<String, Object>();
