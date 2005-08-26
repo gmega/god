@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="ASCII"?>
 <!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
 
-<spec name="JVM Component Node" type="node">
+<spec name="Java Node" type="node">
 	<attribute id="name"/>
-	<attribute id="type"/>
-	<attribute id="guid"/>
+	<attribute id="guid" default-value="auto"/>
 	
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava,node);no:nop()"/>
 	<extension-attribute id="launcher" action="yes:addchildren(launcher,1,attaching-connector,1);no:nop()"/>
