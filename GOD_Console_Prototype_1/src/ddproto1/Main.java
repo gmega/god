@@ -109,6 +109,9 @@ public class Main {
             
             setBasicServices();
             
+            /** Pass the node list to the debugger interface. */
+            dbg.addNodes(nodeList.getChildren());
+            
             /** Creates and adds node info to the Distributed Thread Manager */
             dtm = new DistributedThreadManager(dbg.getUICallback());
             VMManagerFactory vmmf = VMManagerFactory.getInstance();
