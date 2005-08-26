@@ -19,13 +19,16 @@ import java.util.Set;
 
 import org.xml.sax.SAXException;
 
+import ddproto1.configurator.IReadableConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NestedRuntimeException;
+import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.UnsupportedException;
 import ddproto1.util.collection.OrderedMultiMap;
 import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;
@@ -523,7 +526,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         return asString.toString();
     }
     
-    private class ObjectSpecInstance implements IObjectSpec {
+    private class ObjectSpecInstance implements IObjectSpec, IContextSearchable,  Cloneable {
 
         private Map <String, String> attributeValues = new HashMap <String, String>();
         
@@ -534,9 +537,25 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         private ISpecQueryProtocol internal;
         private IObjectSpecType parentType;
         
+        private Set<IObjectSpec> parentSet = new HashSet<IObjectSpec>();
+        
         private ObjectSpecInstance(IObjectSpecType parentType, ISpecQueryProtocol internal){
             this.internal = internal;
             this.parentType = parentType;
+        }
+        
+        public void addAsParent(IObjectSpec parent) throws DuplicateSymbolException{
+        	if(parentSet.contains(parent)) throw new DuplicateSymbolException("You cannot add a parent twice.");
+        	parentSet.add(parent);
+        }
+        
+        public void removeParent(IObjectSpec parent) throws NoSuchSymbolException{
+        	if(!parentSet.contains(parent)) throw new NoSuchSymbolException("You cannot remove a parent that does not exist.");
+        	parentSet.remove(parent);
+        }
+        
+        public IReadableConfigurable getLexicalContext(){
+        	return null;
         }
            
         public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
@@ -547,7 +566,14 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             }catch(InvalidAttributeValueException ex) { }
             
             if(!attributeValues.containsKey(key)) throw new UninitializedAttributeException();
-            return attributeValues.get(key);
+            String value = attributeValues.get(key);
+            
+            /** Common value, just return the string. */
+            if(value != IObjectSpec.CONTEXT_VALUE) return value;
+            
+            /** CONTEXT_VALUE means we should infer the attribute's value 
+             * from our parent's lexical scopes.
+             */
         }
 
         public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
@@ -633,6 +659,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                         + "'. Specification instance type - " + parentType);
             }
             
+            /** Context value is always valid. */
+            if(val == IObjectSpec.CONTEXT_VALUE) return;
+            
             if(val != null && !isAssignable(key, val, attributeValues))
                 throw new InvalidAttributeValueException("Cannot assign " + val + " to attribute " + key);
         }
@@ -647,7 +676,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             /** Checks if can add the child */
             if(allowed != INFINITUM && children.size(type) >= allowed)
                 throw new IllegalAttributeException("Maximum number reached or unsupported children type " + type);
-            
+                                    
             children.insert(type, spec, 0);
             plainChildren.add(spec);
         }
@@ -735,5 +764,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             if(children.size() == 0) return null;
             return children.get(0);
         }
+        
+        public Object clone(){
+        	throw new UnsupportedOperationException("Cloneable not available yet.");
+        }
     }
+    
 }

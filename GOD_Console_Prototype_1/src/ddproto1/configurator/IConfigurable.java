@@ -8,15 +8,11 @@
 
 package ddproto1.configurator;
 
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
-
 /**
  * @author giuliano
  *
  */
-public interface IConfigurable {
-    public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException;
-    public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException;
+public interface IConfigurable extends IReadableConfigurable, IWritableConfigurable{
+    
+    
 }

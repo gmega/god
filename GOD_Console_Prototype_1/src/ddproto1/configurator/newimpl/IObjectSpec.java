@@ -11,6 +11,7 @@ import java.util.Set;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
+import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 
 /**
@@ -27,6 +28,8 @@ import ddproto1.exception.IllegalAttributeException;
  */
 public interface IObjectSpec extends IConfigurable{
 
+	public static final String CONTEXT_VALUE = "#context";
+	
     /**
      * Adds a child object specification to the current specification. 
      * 
@@ -104,4 +107,5 @@ public interface IObjectSpec extends IConfigurable{
      * @return
      */
     public Map<String, Integer> getMissingChildren();
+    
 }
