@@ -6,7 +6,6 @@
 package ddproto1.configurator.newimpl;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 
 import org.xml.sax.SAXException;

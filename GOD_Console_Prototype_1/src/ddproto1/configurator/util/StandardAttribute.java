@@ -8,18 +8,35 @@ package ddproto1.configurator.util;
 import java.util.Set;
 
 import ddproto1.configurator.newimpl.IAttribute;
+import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.util.collection.ReadOnlyHashSet;
 
 public class StandardAttribute implements IAttribute{
     
     private ReadOnlyHashSet <String> values;
     private String key;
+    private String defaultValue;
     private int hashCode;
         
-    public StandardAttribute(String key, Set <String> constrainedValues){
+    public StandardAttribute(String key, String defaultValue, Set <String> constrainedValues)
+        throws InvalidAttributeValueException
+    {
         this.key = key;
+        
         this.values = (constrainedValues == ANY) ? ANY
                 : new ReadOnlyHashSet<String>(constrainedValues);
+        
+        if(defaultValue == null) return;
+        
+        /** There's a default value. We must test if it's valid or not. 
+         * CONTEXT_VALUE deferrs the test because we cannot know which 
+         * value that'll be.*/
+        if(defaultValue != IObjectSpec.CONTEXT_VALUE && values != ANY && !values.contains(defaultValue))
+            throw new InvalidAttributeValueException("Default value cannot be assigned because " +
+                    "the specified value constraints conflict with it.");
+        
+        this.defaultValue = defaultValue;
     }
 
     public String attributeKey() {
@@ -33,6 +50,10 @@ public class StandardAttribute implements IAttribute{
     
     public ReadOnlyHashSet<String> acceptableValues(){
         return values;
+    }
+
+    public String defaultValue(){
+        return defaultValue;
     }
     
     public int hashCode(){

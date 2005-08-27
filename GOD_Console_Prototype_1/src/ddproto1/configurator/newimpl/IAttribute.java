@@ -31,6 +31,21 @@ public interface IAttribute {
     public String attributeKey();
     
     /**
+     * Returns the default value for this attribute or null if there's no 
+     * default value. 
+     * 
+     * The expression:
+     *  
+     *      attribute.isAssignableTo(attribute.defaultValue())
+     *      
+     * should always evaluate to true.
+     * 
+     * 
+     * @return
+     */
+    public String defaultValue();
+    
+    /**
      * Answers whether this attribute can accept the String val as its
      * value or not.
      * 

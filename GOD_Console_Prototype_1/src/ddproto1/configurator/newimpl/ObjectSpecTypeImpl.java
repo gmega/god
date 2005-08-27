@@ -241,7 +241,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
              * We can traverse the branch-key-to-constraint map to find out which 
              * children types are bound under this particular branch key.          */
             
-            assert(attributeBranches.containsKey(attributeKey));
+            if(!attributeBranches.containsKey(attributeKey)) return true;
             for(BranchKey bk : attributeBranches.getClass(attributeKey)){
             	Map<String, IIntegerInterval> constraints = optionalChildrenQ.get(bk);
             	
@@ -582,8 +582,21 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                 checkPurge(key, null);
             }catch(InvalidAttributeValueException ex) { }
             
-            if(!attributeValues.containsKey(key)) throw new UninitializedAttributeException();
-            String value = attributeValues.get(key);
+            String value;
+            
+            /** Attribute is undefined. We must check wether there is a default value or not. */
+            if(!attributeValues.containsKey(key)) {
+                /** It's okay to do an unchecked 'get' because checkPurge already
+                 * checked the key's validity in the context of our attribute values.
+                 */
+                IAttribute attribute = internal.getAttribute(key);
+                value = attribute.defaultValue();
+                if(value == null) throw new UninitializedAttributeException();
+                /** Lazily assigns the default value. */
+                attributeValues.put(key, value);
+            }else{
+                value = attributeValues.get(key);
+            }
             
             /** Common value, just return the string. */
             if(value != IObjectSpec.CONTEXT_VALUE) return value;
@@ -595,6 +608,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
              */
             for(IObjectSpec parent : lookupStrategy.iterableWithRoot(this)){
                 try{
+                    /** This could cascade to other searches, but the value must
+                     * eventually be reached.
+                     */
                     value = parent.getAttribute(key);
                 }
                 /** Exception means this parent doesn't define our attribute. */
@@ -604,6 +620,17 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             }
             
             if(value == null) throw new IllegalAttributeException("Attribute " + key + " could not be found." );
+
+            /** If the value extracted from context violates assignment constraints, 
+             * throws an exception.
+             */
+            IAttribute attribute = internal.getAttribute(key);
+            if(!attribute.isAssignableTo(value))
+                throw new IllegalAttributeException("The value '" + value
+                        + "' extracted from context does not "
+                        + "match any of the values "
+                        + attribute.acceptableValues()
+                        + " declared for attribute " + attribute.attributeKey());
             
             return value;
         }

@@ -28,15 +28,13 @@ import org.xml.sax.helpers.XMLReaderFactory;
 
 import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
-import ddproto1.util.MessageHandler;
+import ddproto1.exception.InvalidAttributeValueException;
 
 public class SpecLoader implements ISpecLoader, IConfigurationConstants{
 
     // TODO: Move all this stuff to a configuration file (maybe the TOC?).
     private static final String ACTION_SPLIT_CHAR = ";";
     private static final String TOC_FILENAME = "TOC.xml";
-    
-    private static final MessageHandler mh = MessageHandler.getInstance();
     
     public static final String module = "XMLMetaConfigurator -";
     
@@ -45,8 +43,6 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
     
     private String tocLocation;
     private List<String> specLocations;
-    
-    private boolean idle = true;
     
     public SpecLoader(List <String> specLocations, String tocLocation){
         // Locations (string form, URLs).
@@ -234,6 +230,21 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             this.currentConcrete = currentConcrete;
         }
         
+        private IAttribute createConstrainedAttribute(String id, String defaultValue, Set<String> constraints)
+            throws SAXParseException
+        {
+            try{
+                if (defaultValue != null
+                        && defaultValue.equals(IObjectSpec.CONTEXT_VALUE))
+                    defaultValue = IObjectSpec.CONTEXT_VALUE;
+                return new StandardAttribute(id, defaultValue, IAttribute.ANY);
+            }catch(InvalidAttributeValueException ex){
+                throw new SAXParseException(
+                        "You cannot assign a default value that is not valid for the attribute.",
+                        locator, ex);
+            }
+        }
+        
         /**
          * If you modify the specs spec, here's where you should modify things as well.
          * The parser uses an array of subparsers to determine to which piece of code 
@@ -279,6 +290,9 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             lexStack.add(new IAttributeParser(){
                 public void parseAttribute(String qName, Attributes attributes) throws SAXException{
                     // Adds new attribute.
+                    /** All attribute kinds may have default values. We try to extract them here. */
+                    String defaultValue = attributes.getValue(DEFAULT_VALUE_ATTRIB);
+                    
                     if(qName.equals(PROPERTY_ATTRIB)){
                         /** Standard attributes are unconstrained. Current spec doesn't provide
                          * value validation for them (though they'll certainly produce a runtime
@@ -287,10 +301,14 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                          * TODO - add value constraining to non-optional attributes.
                          */
                         try{
-                            current.addAttribute(new StandardAttribute(attributes
-                                    .getValue(ID_ATTRIB), IAttribute.ANY));
+                            current.addAttribute(SpecParser.this
+                                    .createConstrainedAttribute(attributes
+                                            .getValue(ID_ATTRIB), defaultValue,
+                                            IAttribute.ANY));
                         }catch(DuplicateSymbolException ex){
-                            throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
+                            throw new SAXParseException(
+                                    "Duplicate attribute detected while loading specification.",
+                                    locator, ex);
                         }
                     }
                     // Executes action strings.
@@ -324,9 +342,18 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         }
                         
                         /** Now we build the constrained attribute */
-                        StandardAttribute stdAttr = new StandardAttribute(attribute, opt2act.keySet());
                         try{
-                            current.addAttribute(stdAttr);
+                            /** TODO remove this constraint. Optional attributes
+                             * cannot have default values because the lazy assignment
+                             * policy for default values would create unexpected behavior.
+                             */
+                            if(defaultValue != null) throw new SAXParseException("Extension attributes " +
+                                    "cannot have default values.", locator);
+                                
+                            current.addAttribute(SpecParser.this
+                                    .createConstrainedAttribute(attributes
+                                            .getValue(ID_ATTRIB), defaultValue,
+                                            IAttribute.ANY));
                         }catch(DuplicateSymbolException ex){
                             throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
                         }

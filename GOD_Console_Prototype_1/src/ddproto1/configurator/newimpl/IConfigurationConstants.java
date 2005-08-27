@@ -23,6 +23,7 @@ public interface IConfigurationConstants {
     public static final String ELEMENT_ATTRIB = "element";
     public static final String MULTIPLICITY_ATTRIB = "multiplicity";
     public static final String INTENDED_INTF_ATTRIB = "intended-interfaces";
+    public static final String DEFAULT_VALUE_ATTRIB = "default-value";
         
     public static final String PARAM_ATTRIB = "param";
     public static final String PARAM_KEY_ATTRIB = "key";

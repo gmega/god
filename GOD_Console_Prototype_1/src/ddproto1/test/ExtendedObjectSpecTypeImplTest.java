@@ -19,6 +19,7 @@ import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.UninitializedAttributeException;
 import junit.framework.TestCase;
 
@@ -54,9 +55,21 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             Set <String>attributeValues = new HashSet<String>();
             attributeValues.add("yup");  // Possible attribute values.
             attributeValues.add("nope"); //
-            IAttribute attribute = new StandardAttribute("sample-attribute", attributeValues);
+            
+            /** Tries to create an illegal attribute by setting an unallowed default value. 
+             * Should fail.
+             */
+            try{
+                IAttribute attribute = new StandardAttribute("sample-attribute", "frenzy", attributeValues);
+                fail();
+            }catch(InvalidAttributeValueException ex){ }
+            
+            IAttribute attribute = new StandardAttribute("sample-attribute", "nope", attributeValues);
             
             nodeListSpec.addAttribute(attribute);
+            
+            /** This attribute should default to 'nope'. */
+            assertTrue(theList.getAttribute("sample-attribute").equals("nope"));
             
             /** Binds two optional children with different cardinalities under one branch key. */
             
@@ -105,8 +118,8 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             theList.addChild(garbySpec);
             theList.addChild(corbaSpec);
             
-            /** Test context attributes. */
-            garbySpec.getType().addAttribute(attribute);
+            /** Test context attributes (pretty simplistic test actually). */
+            garbySpec.getType().addAttribute(new StandardAttribute("sample-attribute", null, attributeValues));
             
             try{
                 garbySpec.getAttribute("sample-attribute");
@@ -141,6 +154,14 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             nodeListSpec.addOptionalChildrenConstraint(new BranchKey("sample-attribute", "yup"), sshTunnelSpec.getInterfaceType(), 1, 1);
 
             assertTrue(theList.validate());
+            
+            /** Now we test default context attributes. */
+            garbySpec.getType().removeAttribute("sample-attribute");
+            garbySpec.getType().addAttribute(new StandardAttribute("sample-attribute", IObjectSpec.CONTEXT_VALUE, attributeValues));
+            
+            assertTrue(garbySpec.getAttribute("sample-attribute").equals(
+                    theList.getAttribute("sample-attribute")));
+
                 
         }catch(Exception e){
             e.printStackTrace();
