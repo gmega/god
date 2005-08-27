@@ -44,6 +44,8 @@ import ddproto1.util.collection.UnorderedMultiMap;
  */
 public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
 
+    private static final IAttributeLookupAlgorithm DEFAULT_LOOKUP_STRATEGY = new DFSAttributeLookup();
+    
     private String concreteType;
     private String interfaceType;
     private SpecLoader loader;
@@ -57,6 +59,9 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     
     /** Dynamic constraint storage (supertypes and their branch keys). */
     private Map<BranchKey, ObjectSpecTypeImpl> conditionalSpecs;
+    
+    /** Attribute lookup algorithm. */
+    IAttributeLookupAlgorithm lookupStrategy;
     
     /** Optional children maps.
      * 
@@ -85,6 +90,11 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         children = new HashMap<String, IIntegerInterval>();
         conditionalSpecs = new HashMap<BranchKey, ObjectSpecTypeImpl>();
     }
+       
+    public ObjectSpecTypeImpl(String incarnableType, String type,
+            SpecLoader loader, Set<Class> intfs){
+        this(incarnableType, type, loader, intfs, null);
+    }
     
     /**
      * Constructor for class ObjectSpecTypeImpl.
@@ -95,13 +105,18 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
      * 
      * @throws NullPointerException if parameter <b>type</b> or parameter <b>loader</b> is null.
      */
-    public ObjectSpecTypeImpl(String incarnableType, String type, SpecLoader loader, Set<Class> intfs){
+    public ObjectSpecTypeImpl(String incarnableType, String type,
+            SpecLoader loader, Set<Class> intfs,
+            IAttributeLookupAlgorithm lookupStrategy) {
         this();
-        if(loader == null || type == null) throw new NullPointerException();
+        if (loader == null || type == null)
+            throw new NullPointerException();
         this.intfs = new ReadOnlyHashSet<Class>(intfs);
         this.interfaceType = type;
         this.concreteType = incarnableType;
         this.loader = loader;
+        if (lookupStrategy == null)
+            this.lookupStrategy = ObjectSpecTypeImpl.DEFAULT_LOOKUP_STRATEGY;
     }
     
     /**
@@ -322,7 +337,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     }
     
     public IObjectSpec makeInstance() throws InstantiationException {
-        return new ObjectSpecInstance(this, this);
+        return new ObjectSpecInstance(this, this, lookupStrategy);
     }
     
     private void validateBranchKey(BranchKey bk) throws IllegalAttributeException, InvalidAttributeValueException{
@@ -536,12 +551,14 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         private LinkedList<IObjectSpec> plainChildren = new LinkedList <IObjectSpec>();
         private ISpecQueryProtocol internal;
         private IObjectSpecType parentType;
+        private IAttributeLookupAlgorithm lookupStrategy;
         
         private Set<IObjectSpec> parentSet = new HashSet<IObjectSpec>();
         
-        private ObjectSpecInstance(IObjectSpecType parentType, ISpecQueryProtocol internal){
+        private ObjectSpecInstance(IObjectSpecType parentType, ISpecQueryProtocol internal, IAttributeLookupAlgorithm algorithm){
             this.internal = internal;
             this.parentType = parentType;
+            this.lookupStrategy = algorithm;
         }
         
         public void addAsParent(IObjectSpec parent) throws DuplicateSymbolException{
@@ -554,8 +571,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         	parentSet.remove(parent);
         }
         
-        public IReadableConfigurable getLexicalContext(){
-        	return null;
+        public Set<IObjectSpec> getAllParents(){
+            return parentSet;
         }
            
         public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
@@ -571,10 +588,27 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             /** Common value, just return the string. */
             if(value != IObjectSpec.CONTEXT_VALUE) return value;
             
+            value = null;
+            
             /** CONTEXT_VALUE means we should infer the attribute's value 
              * from our parent's lexical scopes.
              */
+            for(IObjectSpec parent : lookupStrategy.iterableWithRoot(this)){
+                try{
+                    value = parent.getAttribute(key);
+                }
+                /** Exception means this parent doesn't define our attribute. */
+                catch(IllegalAttributeException ex) { }
+                
+                break;
+            }
+            
+            if(value == null) throw new IllegalAttributeException("Attribute " + key + " could not be found." );
+            
+            return value;
         }
+        
+        
 
         public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
             checkPurge(key, val);
@@ -679,6 +713,16 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                                     
             children.insert(type, spec, 0);
             plainChildren.add(spec);
+            
+            /** Is this child context searchable? */
+            if(spec instanceof IContextSearchable){
+                IContextSearchable searchableChild = (IContextSearchable) spec;
+                try{
+                    searchableChild.addAsParent(this);
+                }catch(DuplicateSymbolException ex){
+                    throw new IllegalAttributeException(ex.getMessage(), ex);
+                }
+            }
         }
         
         public boolean removeChild(IObjectSpec spec) throws IllegalAttributeException{

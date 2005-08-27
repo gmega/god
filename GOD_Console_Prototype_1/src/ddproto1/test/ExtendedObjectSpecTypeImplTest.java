@@ -36,7 +36,7 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
              */
             IObjectSpecType nodeListSpec = loader.specForName(null,"node-list");
             IObjectSpec theList = nodeListSpec.makeInstance();
-            IObjectSpecType javaNode = loader.specForName("Java", "node");
+            IObjectSpecType javaNode = loader.specForName("ddproto1.debugger.managing.VirtualMachineManager", "node");
             IObjectSpec nodeOne = javaNode.makeInstance();
             
             IObjectSpecType sshTunnelSpec = loader.specForName("ddproto1.launcher.JVMShellLauncher", "launcher");
@@ -104,6 +104,23 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             /** These should also be accepted. */
             theList.addChild(garbySpec);
             theList.addChild(corbaSpec);
+            
+            /** Test context attributes. */
+            garbySpec.getType().addAttribute(attribute);
+            
+            try{
+                garbySpec.getAttribute("sample-attribute");
+                fail();
+            }catch(UninitializedAttributeException ex){ }
+            
+            garbySpec.setAttribute("sample-attribute", IObjectSpec.CONTEXT_VALUE);
+            
+            /** The node spec context contains all of its parents. That means that
+             * the linearization algorithm must eventually reach the node list and
+             * return the value set there.
+             */
+            assertTrue(garbySpec.getAttribute("sample-attribute").equals(
+                    theList.getAttribute("sample-attribute")));
             
             /** Removing an attribute should remove all the branch keys associated with it. */
             nodeListSpec.removeAttribute("sample-attribute");
