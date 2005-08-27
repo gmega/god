@@ -657,7 +657,14 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             Set<String> allKeys = internal.getRestrictedKeys(attributeValues);
             List<String> missing = new LinkedList<String>();
             for(String key : allKeys){
-                if(checkPurgeKey(key) && !attributeValues.containsKey(key)) missing.add(key);
+                if(checkPurgeKey(key) && !attributeValues.containsKey(key)){
+                    /** Might be an uninitialized default attribute. */
+                    IAttribute attribute = internal.getAttribute(key);
+                    String value = attribute.defaultValue();
+                    /** Lazily assigns the default value. */
+                    if(value != null) attributeValues.put(key, value);
+                    else missing.add(key);
+                }
             }
             
             return missing;
