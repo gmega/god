@@ -94,6 +94,8 @@ public class SocketAttachWrapper implements IConfigurable{
                         
             String tKey = attributes.get(key);
             
+            if(tKey == null) continue;
+            
             if (!def.containsKey(tKey))
                 throw new InternalError(" Illegal connector arguments.");
 

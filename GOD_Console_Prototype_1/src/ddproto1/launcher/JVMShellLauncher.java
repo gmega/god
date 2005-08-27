@@ -131,7 +131,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
             jvmport = value;
         }else if(key.equals("vm-parameters")){
             vmParameters = value;        
-        }else if(key.equals("gid")){
+        }else if(key.equals("guid")){
             gid = value;
     	}else if(key.equals("global-agent-address")){
             globalAddress = value;

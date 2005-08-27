@@ -22,6 +22,7 @@ import java.util.StringTokenizer;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
 
+import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.IConfigurator;
 import ddproto1.util.MessageHandler;
 
@@ -35,7 +36,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class URLSourceMapper implements ISourceMapper{
+public class URLSourceMapper implements ISourceMapper, IConfigurable{
 
     // I don't know if url separators are system-dependent.
     private static final String separator = "/";
