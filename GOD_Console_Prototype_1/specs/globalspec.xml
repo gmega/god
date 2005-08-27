@@ -2,6 +2,6 @@
 	<attribute id = "thread-pool-size"/>
 	<attribute id = "port"/>
 	<attribute id = "connection-queue-size"/>
-	<attribute id = "global-agent-address"/>
+	<attribute id = "global-agent-address" default-value="auto"/>
 	<child type="node-list" multiplicity="1"/>
 </spec>

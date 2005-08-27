@@ -17,7 +17,7 @@
 		and that would cause the launcher to try to infer the value of attribute
 		CORBA-enabled from the context of its parent.
 	-->
-	<attribute id="gid" default-value="#context"/>
+	<attribute id="guid" default-value="#context"/>
 		
 	<child type="shell-tunnel" multiplicity="1"/>
 </spec>
