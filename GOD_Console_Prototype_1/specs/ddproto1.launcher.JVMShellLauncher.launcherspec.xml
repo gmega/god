@@ -5,6 +5,8 @@
 	<attribute id="main-class"/>
 	<attribute id="classpath"/>
 	<attribute id="jdwp-port"/>
+	<attribute id="cdwp-port" default-value="#context"/>
+	<attribute id="global-agent-address" default-value="#context"/>
 	<attribute id="vm-parameters"/>
 	<attribute id="app-parameters"/>
 	<attribute id="tunnel-closure-policy"/>

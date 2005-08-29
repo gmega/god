@@ -1,7 +1,7 @@
 <spec name="Root element specification for DD Prototype 1" type="dd_config">
 	<attribute id = "thread-pool-size"/>
-	<attribute id = "port"/>
+	<attribute id = "cdwp-port"/>
 	<attribute id = "connection-queue-size"/>
-	<attribute id = "global-agent-address" default-value="auto"/>
+	<attribute id = "global-agent-address"/>
 	<child type="node-list" multiplicity="1"/>
 </spec>
