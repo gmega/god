@@ -4,12 +4,14 @@
  */
 package ddproto1.launcher;
 
+import java.net.Inet4Address;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.exception.AttributeAccessException;
@@ -40,6 +42,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
     private String gid;
     private String globalAddress;
     private String appParameters;
+    private String cdwp_port;
     
     private Boolean block;
       
@@ -52,7 +55,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
         try{
             if ((classpath == null) || (mainclass == null) || (jvmport == null)
                     || (gid == null) || (appParameters == null)
-                    || (block == null))
+                    || (block == null) || (globalAddress == null) || (cdwp_port == null))
                 throw new ConfigException(module + " Required launcher parameter is missing.");
             
             IServiceLocator locator = (IServiceLocator) Lookup
@@ -82,7 +85,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
                     + " -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address="
                     + jvmport + " " + vmParameters 
                     + " -Dagent.local.gid=" + gid 
-                    + " -Dagent.global.address=" + globalAddress 
+                    + " -Dagent.global.address=" + globalAddress + ":" + cdwp_port
                     + " ddproto1.localagent.LocalLauncher --main-class=" + mainclass 
                     + " --app-parameters " + appParameters + "\n";
             
@@ -114,6 +117,10 @@ public class JVMShellLauncher implements IApplicationLauncher {
             wrap(e);
         }
     }
+    
+    public boolean isWritable(){
+        return true;
+    }
 
     /* (non-Javadoc)
      * @see ddproto1.interfaces.Configurable#setAttribute(java.lang.String, java.lang.String)
@@ -135,6 +142,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
             gid = value;
     	}else if(key.equals("global-agent-address")){
             globalAddress = value;
+        }else if(key.equals("cdwp-port")){
+            cdwp_port = value;
         }else if(key.equals("app-parameters")){
             appParameters = value;
         }else if(key.equals("tunnel-closure-policy")){
@@ -145,9 +154,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
             }else{
                 throw new IllegalAttributeException(module + "Tunnel closure policy can be either launch-and-close or wait-until-dead");
             }
-    	}else{
-    	    throw new IllegalAttributeException(module + " Unrecognized attribute "+ key +" (is tunnel-class unset?).");
-        }
+    	}
     }
 
     /* (non-Javadoc)

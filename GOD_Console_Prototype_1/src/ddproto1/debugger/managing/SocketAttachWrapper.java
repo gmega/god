@@ -105,4 +105,8 @@ public class SocketAttachWrapper implements IConfigurable{
 
         return def;
     }
+
+    public boolean isWritable() {
+        return true;
+    }
 }

@@ -8,7 +8,7 @@ package ddproto1.configurator.newimpl;
 import java.util.List;
 import java.util.Map;
 
-import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.IQueriableConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.IllegalAttributeException;
 
@@ -24,7 +24,7 @@ import ddproto1.exception.IllegalAttributeException;
  * @author giuliano
  *
  */
-public interface IObjectSpec extends IConfigurable{
+public interface IObjectSpec extends IQueriableConfigurable{
 
 	public static final String CONTEXT_VALUE = "#context";
 	

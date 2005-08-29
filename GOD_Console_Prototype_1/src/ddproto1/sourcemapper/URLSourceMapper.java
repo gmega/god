@@ -24,6 +24,9 @@ import com.sun.jdi.Location;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.IConfigurator;
+import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.InvalidAttributeValueException;
+import ddproto1.exception.UninitializedAttributeException;
 import ddproto1.util.MessageHandler;
 
 /**
@@ -38,12 +41,15 @@ import ddproto1.util.MessageHandler;
  */
 public class URLSourceMapper implements ISourceMapper, IConfigurable{
 
+    private static final String SOURCE_PATH="sourcepath";
+    
     // I don't know if url separators are system-dependent.
     private static final String separator = "/";
     
     private Set sourceURLs;
     private Map name2source;
     private SourceFactory srcfactory;
+    private String originalSourcepath;
    
     private static final String module = "URLSourceMapper -";
     
@@ -54,7 +60,7 @@ public class URLSourceMapper implements ISourceMapper, IConfigurable{
         sourceURLs = new HashSet();
     }
     
-    public void addSourceLocations(String sourcepath){
+    private void addSourceLocations(String sourcepath){
         StringTokenizer strtk = new StringTokenizer(sourcepath, IConfigurator.LIST_SEPARATOR_CHAR);
         while(strtk.hasMoreTokens()){
             String url = strtk.nextToken();
@@ -158,5 +164,22 @@ public class URLSourceMapper implements ISourceMapper, IConfigurable{
         InputStream is = getSource(appender + loc.sourceName());
         
         return is;
+    }
+
+    public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
+        if(key.equals(SOURCE_PATH)) return originalSourcepath;
+        else throw new IllegalAttributeException("URLSourceMapper - Unrecognized attribute " + key);
+    }
+
+    public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
+        if(key.equals(SOURCE_PATH)){
+            this.addSourceLocations(val);
+        }else{
+            throw new IllegalAttributeException("URLSourceMapper - Unrecognized attribute " + key);
+        }
+    }
+
+    public boolean isWritable() {
+        return true;
     }
 }

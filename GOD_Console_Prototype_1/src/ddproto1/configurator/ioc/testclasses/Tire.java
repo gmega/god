@@ -25,4 +25,9 @@ public class Tire implements IConfigurable{
         return null;
     }
 
+    public boolean isWritable() {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
 }

@@ -81,6 +81,13 @@ public class XMLParserTest extends TestCase {
             System.out.println(" -- Info Summary --");
             mh.getStandardOutput().print(this.stringHierarchy(root, "",""));
             
+            /** Deep context test */
+            root = root.getChildOfType(IConfigurationConstants.NODE_LIST);
+            List<IObjectSpec> children = root.getChildren();
+            IObjectSpec launcher = children.get(0).getChildOfType("launcher");
+            try{
+                launcher.getAttribute("cdwp-port");
+            }catch(UninitializedAttributeException ex){ }
 
         }catch(Exception e){
             mh.getErrorOutput().println(e.getMessage());

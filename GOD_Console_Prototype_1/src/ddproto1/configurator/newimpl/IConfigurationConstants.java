@@ -31,7 +31,7 @@ public interface IConfigurationConstants {
     
     /** Client constants (attribute keys, essentially). */
     public static final String NODE_LIST = "node-list";
-    public static final String PORT = "port";
+    public static final String PORT = "cdwp-port";
     public static final String MAX_QUEUE_LENGTH = "connection-queue-size";
     public static final String GLOBAL_AGENT_ADDRESS = "global-agent-address";
     public static final String GUID = "guid";

@@ -504,9 +504,10 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
         } else if(key.equals(IConfigurationConstants.GUID)){
             gid = val;
         }
-//        } else if(key.equals("launcher")){ 
-//        } else {
-//            throw new IllegalAttributeException("Unknown attribute " + key);
-//        }
+    }
+
+
+    public boolean isWritable() {
+        return true;
     }
 }

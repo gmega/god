@@ -19,7 +19,6 @@ import java.util.Set;
 
 import org.xml.sax.SAXException;
 
-import ddproto1.configurator.IReadableConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.IllegalAttributeException;
@@ -561,6 +560,10 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             this.lookupStrategy = algorithm;
         }
         
+        public boolean isWritable(){
+            return true;            
+        }
+        
         public void addAsParent(IObjectSpec parent) throws DuplicateSymbolException{
         	if(parentSet.contains(parent)) throw new DuplicateSymbolException("You cannot add a parent twice.");
         	parentSet.add(parent);
@@ -574,7 +577,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         public Set<IObjectSpec> getAllParents(){
             return parentSet;
         }
-           
+        
         public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
             try{
                 /** InvalidAttributeValueException is never thrown if the value 
@@ -614,27 +617,30 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                     value = parent.getAttribute(key);
                 }
                 /** Exception means this parent doesn't define our attribute. */
-                catch(IllegalAttributeException ex) { }
-                
+                catch(IllegalAttributeException ex){ continue; }
                 break;
             }
             
-            if(value == null) throw new IllegalAttributeException("Attribute " + key + " could not be found." );
+            if (value == null)
+                throw new IllegalAttributeException("Specification instance of type "
+                        + parentType + " relies on attribute " + key
+                        + " to be defined on one of its parents but that attribute" +
+                                " could not be found.");
 
             /** If the value extracted from context violates assignment constraints, 
              * throws an exception.
              */
             IAttribute attribute = internal.getAttribute(key);
             if(!attribute.isAssignableTo(value))
-                throw new IllegalAttributeException("The value '" + value
+                throw new IllegalAttributeException("Type mismatch: The value '" + value
                         + "' extracted from context does not "
                         + "match any of the values "
                         + attribute.acceptableValues()
-                        + " declared for attribute " + attribute.attributeKey());
+                        + " declared for attribute " + attribute.attributeKey() 
+                        + " in specification type " + parentType);
             
             return value;
         }
-        
         
 
         public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {

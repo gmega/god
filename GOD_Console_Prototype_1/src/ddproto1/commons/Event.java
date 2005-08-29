@@ -10,8 +10,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.IInfoCarrier;
+import ddproto1.configurator.IQueriableConfigurable;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.ParserException;
 import ddproto1.exception.UnsupportedException;
 
@@ -30,7 +31,7 @@ import ddproto1.exception.UnsupportedException;
  * 
  * @author giuliano
  */
-public class Event implements IInfoCarrier {
+public class Event implements IQueriableConfigurable {
     
     /* Make this smaller than 2 and get an access violation exception. */
     private static int START_LENGTH = 10;
@@ -104,15 +105,11 @@ public class Event implements IInfoCarrier {
     public byte getType(){
         return type;
     }
-
-    /* (non-Javadoc)
-     * @see ddproto1.configurator.IInfoCarrier#getAttributeKeys()
-     */
-    public Set<String> getAttributeKeys() {
+    
+    public Set<String> getAttributeKeys(){
         return keys;
     }
-    
-    
+
     /** This method encodes an event as a byte stream. The format is pretty straightforward:
      * 
      * [TYPE]([key_length][key][value_length][value])*[0]
@@ -166,6 +163,15 @@ public class Event implements IInfoCarrier {
         byte[] word = new byte[length]; 
         System.arraycopy(body, offset+1, word , 0, length);
         return new String(word);
+    }
+
+    public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
+        throw new UnsupportedOperationException();
+    }
+
+    public boolean isWritable() {
+        // TODO Auto-generated method stub
+        return false;
     }
 }    
 

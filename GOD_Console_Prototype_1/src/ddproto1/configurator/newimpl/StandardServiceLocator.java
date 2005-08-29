@@ -115,13 +115,16 @@ public class StandardServiceLocator implements IServiceLocator{
          * There will be trouble if another thread starts modifying the object
          * type after we've acquired the attribute set.
          */
-        for (String key : type.attributeKeySet()) {
+        for (String key : spec.getAttributeKeys()) {
             try {
                 iconf.setAttribute(key, spec.getAttribute(key));
             } catch (IllegalAttributeException ex) {
                 throw new IncarnationException(
-                        "Either the object or the metaobject reports supporting "
-                                + "an attribute ( " + key + " ) it does not understand (concurrent modification?)");
+                        "Either the metaobject of specification type "
+                                + type
+                                + " or its incarnation reports supporting an attribute ( "
+                                + key
+                                + " ) it does not understand (concurrent modification?)");
             } catch (UninitializedAttributeException ex) {
                 throw new IncarnationException("Required attribute " + key
                         + " for configurable " + klass

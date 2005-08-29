@@ -59,4 +59,9 @@ public class Civic implements IConfigurable{
     public Set<String> getAttributeKeys() {
         return null;
     }
+
+    public boolean isWritable() {
+        // TODO Auto-generated method stub
+        return false;
+    }
 }

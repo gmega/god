@@ -20,7 +20,6 @@ import com.sun.jdi.Location;
 public interface ISourceMapper {
     public String getLine(Location loc);
     public void setSourceFactory(SourceFactory sf);
-    public void addSourceLocations(String srclist);
     public ISource getSource(Location loc) throws AbsentInformationException,
             IOException;
 }

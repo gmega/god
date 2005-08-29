@@ -10,7 +10,7 @@ import java.util.Set;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.UninitializedAttributeException;
 
-public interface IInfoCarrier {
+public interface IQueriableConfigurable extends IConfigurable{
     /**
      * Returns the current attribute key set. Might change with time.  
      * 
