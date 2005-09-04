@@ -55,16 +55,25 @@ public interface IObjectSpec extends IQueriableConfigurable{
     public List<IObjectSpec> getChildren();
         
     /**
-     *   
+     * Gets all children that have 'type' as declared spec type.
      * 
      * @param type - alias of the interface set or name of the non-incarnable type.
      * @return
      */
     public List<IObjectSpec> getChildrenOfType(String type);
 
+    /**
+     * Convenience method - if there's only one children of type 'type', using
+     * this method is more economical and less akward
+     * 
+     * @param type
+     * @return
+     * @throws AmbiguousSymbolException
+     */
     public IObjectSpec getChildOfType(String type) throws AmbiguousSymbolException;
     
     /**
+     * Gets 
      * 
      * @param type
      * @return
@@ -79,12 +88,12 @@ public interface IObjectSpec extends IQueriableConfigurable{
 	public IObjectSpecType getType();
     
     /**
-     * Convenience method. Returns whether this ObjectSpec has been fully initialized
-     * (i.e. all of its attributes have been assigned) or not. If your spec type has
-     * plenty of optionals this operation could turn out to be quite expensive, so
-     * don't go using it into inner loops.  
+     * Convenience method. Returns <b>true</b> if this ObjectSpec has been fully initialized
+     * and all of its cardinality constraints are respected and <b>false</b> otherwise.  
+     * Since the IObjectSpec might have to traverse the entire hetererarchy, this operation
+     * can be very expensive.
      * 
-     * @return <b>true</b> if every attribute has been assigned, <b>false</b> otherwise.
+     * @return <b>true</b> if the spec is valid, <b>false</b> otherwise.
      */
     public boolean validate();
     
@@ -106,4 +115,10 @@ public interface IObjectSpec extends IQueriableConfigurable{
      */
     public Map<String, Integer> getMissingChildren();
     
+    /**
+     * Returns the ammount of children of type 'type' that can be added to this spec 
+     * before generating an exception.
+     * 
+     */
+    public int allowedChildrenOfType(String type);   
 }

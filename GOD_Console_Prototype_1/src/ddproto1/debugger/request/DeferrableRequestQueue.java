@@ -501,11 +501,4 @@ public class DeferrableRequestQueue {
         }
 
     }
-    
-    private VirtualMachine getAssociatedVM()
-    	throws VMDisconnectedException
-    {
-        return VMManagerFactory.getInstance().getVMManager(vmid).virtualMachine();
-    }
-
 }

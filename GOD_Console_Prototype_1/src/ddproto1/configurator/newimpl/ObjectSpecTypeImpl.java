@@ -27,7 +27,6 @@ import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UninitializedAttributeException;
-import ddproto1.exception.UnsupportedException;
 import ddproto1.util.collection.OrderedMultiMap;
 import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;
@@ -727,8 +726,6 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         private void checkPurge(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException{
             if(!this.checkPurgeKey(key)){
                 
-                String concrete;
-                
                 throw new IllegalAttributeException("Illegal attribute '" + key
                         + "'. Specification instance type - " + parentType);
             }
@@ -851,6 +848,16 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         
         public Object clone(){
         	throw new UnsupportedOperationException("Cloneable not available yet.");
+        }
+        
+        public int allowedChildrenOfType(String xmlType){
+            IIntegerInterval constraint = internal
+                    .computeResultingChildrenConstraints(xmlType,
+                            attributeValues);
+            
+            int howMany = constraint.getMax() - children.size(xmlType);
+            
+            return Math.max(0, howMany);
         }
     }
     

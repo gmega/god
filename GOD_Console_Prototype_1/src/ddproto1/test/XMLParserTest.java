@@ -30,10 +30,17 @@ import junit.framework.TestCase;
  */
 public class XMLParserTest extends TestCase {
 
+    private IObjectSpec root;
+    private String basedir;
+    
     public static void main(String[] args) {
         junit.textui.TestRunner.run(XMLParserTest.class);
     }
-
+    
+    public void setBasedir(String basedir){
+        this.basedir = basedir;
+    }
+    
     public void testParseConfig() {
         
         // This is required for all test cases.
@@ -63,7 +70,9 @@ public class XMLParserTest extends TestCase {
         
         
         try{
-            String basedir = System.getProperty("user.dir");
+            if(basedir == null)
+                basedir = System.getProperty("user.dir");
+            
             String separator = File.separator;
             if(!basedir.endsWith(separator)) basedir += separator;
 
@@ -81,6 +90,8 @@ public class XMLParserTest extends TestCase {
             System.out.println(" -- Info Summary --");
             mh.getStandardOutput().print(this.stringHierarchy(root, "",""));
             
+            this.root = root;
+            
             /** Deep context test */
             root = root.getChildOfType(IConfigurationConstants.NODE_LIST);
             List<IObjectSpec> children = root.getChildren();
@@ -88,6 +99,7 @@ public class XMLParserTest extends TestCase {
             try{
                 launcher.getAttribute("cdwp-port");
             }catch(UninitializedAttributeException ex){ }
+            
 
         }catch(Exception e){
             mh.getErrorOutput().println(e.getMessage());
@@ -95,6 +107,10 @@ public class XMLParserTest extends TestCase {
             fail();
         }
  
+    }
+    
+    public IObjectSpec getRoot(){
+        return root;
     }
     
     public String stringHierarchy(IObjectSpec spec, String initialSpacing, String fLine){
