@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<spec name="Java node with Launcher extension" type="node">
+	<attribute id="local-agent-address"/>
+	<attribute id="jdwp-port"/>	
+	<child type="launcher" multiplicity="1"/>
+	<child type="attaching-connector" multiplicity="1"/>
+</spec>
