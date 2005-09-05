@@ -4,7 +4,7 @@
 <spec name="Java Virtual Machine Shell Launcher (bash syntax)" type="launcher">
 	<attribute id="main-class"/>
 	<attribute id="classpath"/>
-	<attribute id="jdwp-port"/>
+	<attribute id="jdwp-port" default-value="#context"/>
 	<attribute id="cdwp-port" default-value="#context"/>
 	<attribute id="global-agent-address" default-value="#context"/>
 	<attribute id="vm-parameters"/>

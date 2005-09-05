@@ -3,7 +3,7 @@
 
 <spec name="JDI Attaching Socket Configurable Wrapper" type="attaching-connector">
 	<attribute id="attaching-connector-type"/>
-	<attribute id="local-agent-address"/>
-	<attribute id="local-agent-port"/> 
+	<attribute id="local-agent-address" default-value="#context"/>
+	<attribute id="jdwp-port" default-value="#context"/> 
 </spec>
 

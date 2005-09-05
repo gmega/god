@@ -2,7 +2,8 @@
 <!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
 
 <spec name="Secure Shell Tunnel (over bash command line)" type="shell-tunnel">
-	<attribute id="host"/>
+	<attribute id="local-agent-address" default-value="#context"/>
+	<attribute id="ssh-port"/>
 	<attribute id="user"/>
 	<attribute id="pass"/>
 	<attribute id="pass-type"/>

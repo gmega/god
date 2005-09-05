@@ -4,9 +4,9 @@
 <spec name="Java Node" type="node">
 	<attribute id="name"/>
 	<attribute id="guid" default-value="auto"/>
-	
+
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava,node);no:nop()"/>
-	<extension-attribute id="launcher" action="yes:addchildren(launcher,1,attaching-connector,1);no:nop()"/>
+	<extension-attribute id="launcher" action="yes:loadspec(JavaWithLauncher,node);no:nop()"/>
 	
 	<child type="source-mapper" multiplicity="1"/>
 </spec>
