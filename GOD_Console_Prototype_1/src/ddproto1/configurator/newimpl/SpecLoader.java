@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
@@ -26,10 +27,33 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
+import ddproto1.configurator.IConfigurator;
 import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.InvalidAttributeValueException;
 
+/**
+ * Default implementation for the <i>ISpecLoader</i> interface. It represents a mapping
+ * between the ISpecType + IObjectSpecType concepts and a XML file structure.
+ * The SpecLoader relies on two basic types of files:
+ * 
+ * <ol>
+ * <li> <b> The Table Of Contents </b> (TOC) file. Contains all specification type 
+ * declarations (@see ddproto1.configurator.newimpl.ISpecType for more information)</li>
+ * <li> <b> The Object Specification Type </b>. Contains the actual instances of 
+ * the specification types. They generally represent Java classes. </li>
+ * </ol>
+ *  
+ * The SpecLoader allows you to specify both the TOC URL and a list of lookup
+ * URLs for the Object Specification Type files. You can also use the system
+ * property 'spec.lookup.path' to convey that information through a list of 
+ * IConfigurator.LIST_SEPARATOR_CHAR separated URLs. Example:
+ * 
+ * -Dspec.lookup.path=file:///home/giuliano/specs;http://www.ime.usp.br/specs
+ * 
+ * @author giuliano
+ *
+ */
 public class SpecLoader implements ISpecLoader, IConfigurationConstants{
 
     // TODO: Move all this stuff to a configuration file (maybe the TOC?).
@@ -44,24 +68,39 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
     private String tocLocation;
     private List<String> specLocations;
     
+    private static ThreadLocal<SpecLoader> context = new ThreadLocal<SpecLoader>();
+
+    public static void setContextSpecLoader(SpecLoader spk){
+        context.set(spk);
+    }
+    
+    public static SpecLoader getContextSpecLoader(){
+        return context.get();
+    }
+    
     public SpecLoader(List <String> specLocations, String tocLocation){
+        
         // Locations (string form, URLs).
         this.tocLocation = tocLocation;
-        this.specLocations = specLocations;
+        this.specLocations = (specLocations == null)?new ArrayList<String>():specLocations;
+        
+        // Adds the spec.lookup.path property
+        String lookup = System.getProperty("spec.lookup.path");
+        if(lookup != null){
+            StringTokenizer strtok = new StringTokenizer(lookup, IConfigurator.LIST_SEPARATOR_CHAR);
+            while(strtok.hasMoreElements())
+                this.specLocations.add(strtok.nextToken());
+        }
         
         // TOC and spec cache
         this.loadedSpecs = new HashMap<String, ObjectSpecTypeImpl>();
         
+        SpecLoader.setContextSpecLoader(this);
     }
     
     public synchronized ObjectSpecTypeImpl specForName(String concreteType,
-            String specType) throws SpecNotFoundException, IOException,
+            ISpecType specType) throws SpecNotFoundException, IOException,
             SAXException {
-
-        Map TOC = getLoadTOC();
-        if (!TOC.containsKey(specType))
-            throw new SpecNotFoundException("Unknown specification type - "
-                    + specType);
 
         String expectedName = makeExpected(concreteType, specType);
 
@@ -81,6 +120,17 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
 
         return loadedSpecs.get(expectedName);
 
+    }
+    
+    public synchronized ISpecType specForName(String specType)
+        throws SpecNotFoundException, IOException, SAXException
+    {
+        Map <String, TocEntry>TOC = getLoadTOC();
+        if (!TOC.containsKey(specType))
+            throw new SpecNotFoundException("Unknown specification type - "
+                    + specType);
+
+        return TOC.get(specType);
     }
     
     
@@ -182,10 +232,10 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                                
                 String intfs = attributes.getValue(INTENDED_INTF_ATTRIB);
                 
-                specMap.put(name, new TocEntry(val, intfs));
+                specMap.put(name, new TocEntry(name, val, intfs));
                 
             }else if(qName.equals(ROOT_ATTRIB)){
-                specMap.put(ROOT_ATTRIB, new TocEntry(name, null));
+                specMap.put(ROOT_ATTRIB, new TocEntry(name, name, null));
             }
         }
 
@@ -198,7 +248,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             if(rootElement == null)
                 throw new SAXException("The Table Of Contents must specify a root specification.");
             
-            if(!specMap.containsKey(rootElement.getMappedValue()))
+            if(!specMap.containsKey(rootElement.getExtension()))
                 throw new SAXException("The root specification " + rootElement + " could not be found among " +
                         "the specifications declared in the TOC.");
             
@@ -234,10 +284,12 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             throws SAXParseException
         {
             try{
+                if(id == null)
+                    throw new SAXParseException("Attribute specifications must have an id.", locator);
                 if (defaultValue != null
                         && defaultValue.equals(IObjectSpec.CONTEXT_VALUE))
                     defaultValue = IObjectSpec.CONTEXT_VALUE;
-                return new StandardAttribute(id, defaultValue, IAttribute.ANY);
+                return new StandardAttribute(id, defaultValue, constraints);
             }catch(InvalidAttributeValueException ex){
                 throw new SAXParseException(
                         "You cannot assign a default value that is not valid for the attribute.",
@@ -258,6 +310,15 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         throw new SAXParseException("Expected "+ SPEC_ATTRIB +", got " + qName, locator);
                     
                     String type = attributes.getValue(TYPE_ATTRIB);
+                    String extension = attributes.getValue(SPEC_EXT_ATTRIB);
+                    if(extension == null)
+                        extension = "false";
+                    
+                    /** It's a extension spec. It doesn't have anything really. */
+                    if(extension.equals("true")){
+                        current = new ObjectSpecTypeImpl(type, SpecLoader.this);
+                        return;
+                    }
                     
                     /** Loads interfaces eagerly. */
                     if (!specMap.containsKey(type))
@@ -269,7 +330,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                                         + " but this type is not declared in the TOC.",
                                 locator);
                     
-                    String interfaces [] = specMap.get(type).getInterfaces();
+                    String interfaces [] = specMap.get(type).expectedInterfaces();
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
                     Set <Class> realInterfaces = new HashSet<Class>();
                     for (int i = 0; i < interfaces.length; i++) {
@@ -282,7 +343,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                                     + " which could not be found. ", locator);
                         }
                     }
-                    
+
                     current = new ObjectSpecTypeImpl(currentConcrete, type, SpecLoader.this, realInterfaces);
                 }
             });
@@ -324,6 +385,8 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                          * value constraints before executing any action. */
                         Map <String,String> opt2act = new HashMap<String,String>();
                        
+                        Set<String> allowedValues = new HashSet<String>();
+                        
                         for(String action : actions){
                             
                             /* I really hate doing this kind of hard-coded parsing code. 
@@ -337,6 +400,8 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                             
                             if(opt2act.containsKey(option))
                                 throw new SAXParseException("Cannot have two actions with the same branch condition ", locator);
+                            
+                            allowedValues.add(option);
                             
                             opt2act.put(option, call);
                         }
@@ -353,7 +418,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                             current.addAttribute(SpecParser.this
                                     .createConstrainedAttribute(attributes
                                             .getValue(ID_ATTRIB), defaultValue,
-                                            IAttribute.ANY));
+                                            allowedValues));
                         }catch(DuplicateSymbolException ex){
                             throw new SAXParseException("Duplicate attribute detected while loading specification.", locator);
                         }
@@ -419,13 +484,12 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                 public void compileAction(String attribute, String condition,
                         String selector, List<String> args,
                         IObjectSpecType context) throws Exception {
-                    if (args.size() != 2)
+                    if (args.size() != 1)
                         throw new Exception("Wrong argument number for action "
                                 + selector);
                     String concrete = args.get(0);
-                    String spectype = args.get(1);
 
-                    current.bindOptionalSupertype(new BranchKey(attribute, condition), concrete, spectype);
+                    current.bindOptionalSupertype(new BranchKey(attribute, condition), concrete);
                 }
             };
             
@@ -551,10 +615,10 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
     }
 
     
-    public String makeExpected(String concrete, String spectype)
+    public String makeExpected(String concrete, ISpecType spectype)
         throws SAXException, IOException
     {
-        String translation = getLoadTOC().get(spectype).getMappedValue();
+        String translation = spectype.getExtension();
         String expected = (concrete == null)?"":concrete + ".";
         return expected + translation + ".xml";
     }
@@ -563,23 +627,29 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         public void compileAction(String attribute, String condition, String selector, List <String> args, IObjectSpecType context) throws Exception;
     }
     
-    private class TocEntry{
+    private class TocEntry implements ISpecType{
         private String [] interfaces;
         private String mappedValue;
+        private String name;
         
-        public TocEntry(String mappedValue, String supportedInterfaces){
+        public TocEntry(String name, String mappedValue, String supportedInterfaces){
             if(supportedInterfaces == null)
                 interfaces = new String[0];
             else
                 interfaces = supportedInterfaces.split(",");
             this.mappedValue = mappedValue;
+            this.name = name;
         }
         
-        public String [] getInterfaces(){
+        public String getName(){
+            return name;
+        }
+        
+        public String [] expectedInterfaces(){
             return interfaces;
         }
         
-        public String getMappedValue(){
+        public String getExtension(){
             return mappedValue;
         }
     }

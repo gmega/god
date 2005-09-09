@@ -111,15 +111,13 @@ public interface IObjectSpecType {
      * is assigned to the given value.
      * 
      * @param bk branch key that specifies both the attribute and the value to bind to.
-     * @param specType type of the specification to be loaded
      * @param specConcrete concrete type of the specification to be loaded
      * 
      * @throws IllegalAttributeException if the required attribute doesn't exist
      * @throws InvalidAttributeValueException if the attribute cannot be assigned to the value
      * specified in the branch key.
      */
-    public void bindOptionalSupertype(BranchKey bk, String specType,
-            String specConcrete) throws IllegalAttributeException,
+    public void bindOptionalSupertype(BranchKey bk, String extensionName) throws IllegalAttributeException,
             InvalidAttributeValueException, SpecNotFoundException, IOException,
             SAXException;
     
@@ -154,5 +152,8 @@ public interface IObjectSpecType {
      * @return
      */
 	public boolean containsAttribute(String attributeKey);
+    
     public IObjectSpec makeInstance() throws InstantiationException;
+    
+    public boolean isExtension();    
  }

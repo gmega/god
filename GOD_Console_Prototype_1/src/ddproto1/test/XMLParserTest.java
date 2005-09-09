@@ -13,6 +13,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.xml.sax.SAXParseException;
+
 import ddproto1.Main;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
@@ -28,61 +30,19 @@ import junit.framework.TestCase;
  * @author giuliano
  *
  */
-public class XMLParserTest extends TestCase {
+public class XMLParserTest extends BasicSpecTest {
 
     private IObjectSpec root;
-    private String basedir;
     
     public static void main(String[] args) {
         junit.textui.TestRunner.run(XMLParserTest.class);
     }
     
-    public void setBasedir(String basedir){
-        this.basedir = basedir;
-    }
-    
     public void testParseConfig() {
         
-        // This is required for all test cases.
-        IMessageBox stdout = new IMessageBox(){
-            public void println(String s){
-                System.out.println(s);
-            }
-            
-            public void print(String s){
-                System.out.print(s);
-            }
-        };
-        
-        IMessageBox stderr = new IMessageBox(){
-            public void println(String s){
-                System.err.println(s);
-            }
-            
-            public void print(String s){
-                System.err.print(s);
-            }
-        };
-        
-        MessageHandler mh = MessageHandler.getInstance();
-        mh.setErrorOutput(stderr);
-        mh.setStandardOutput(stdout);
-        
-        
         try{
-            if(basedir == null)
-                basedir = System.getProperty("user.dir");
-            
-            String separator = File.separator;
-            if(!basedir.endsWith(separator)) basedir += separator;
 
-            /** Creates a new XML configuration parser, assuming that all constraint
-             * specs are located in basedir/SPECS_DIR, including the TOC.
-             */
-            String url = "file://" + basedir + IConfigurationConstants.SPECS_DIR;
-            List <String> specPath = new ArrayList<String>();
-            specPath.add(url);
-            XMLConfigurationParser cfg = new XMLConfigurationParser(new SpecLoader(specPath, url));
+            XMLConfigurationParser cfg = new XMLConfigurationParser(new SpecLoader(null, TOCurl));
             
             /** Parses the configuration file */
             IObjectSpec root = cfg.parseConfig(new URL("file://" + basedir + Main.DD_CONFIG_FILENAME)); 
@@ -103,6 +63,10 @@ public class XMLParserTest extends TestCase {
 
         }catch(Exception e){
             mh.getErrorOutput().println(e.getMessage());
+            if(e instanceof SAXParseException){
+                SAXParseException sax = (SAXParseException)e;
+                mh.getErrorOutput().println("Line: " + sax.getLineNumber() + " Column: " + sax.getColumnNumber());
+            }
             mh.printStackTrace(e);
             fail();
         }

@@ -32,9 +32,9 @@ public class BaseObjectSpecTypeImplTest extends TestCase {
             /** Loads the node list specification, the java node specification
              * and the shell tunnel specification.
              */
-            IObjectSpecType nodeListSpec = loader.specForName(null,"node-list");
-            IObjectSpecType javaNode = loader.specForName("Java", "node");
-            IObjectSpecType sshtunnel = loader.specForName("ddproto1.launcher.JVMShellLauncher", "launcher");
+            IObjectSpecType nodeListSpec = loader.specForName(null,loader.specForName("node-list"));
+            IObjectSpecType javaNode = loader.specForName("Java", loader.specForName("node"));
+            IObjectSpecType sshtunnel = loader.specForName("ddproto1.launcher.JVMShellLauncher", loader.specForName("launcher"));
             
             /** Creates three nodes and one node list. */
             IObjectSpec normalSpec = javaNode.makeInstance();

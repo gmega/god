@@ -35,12 +35,12 @@ public class ExtendedObjectSpecTypeImplTest extends TestCase {
             /** Loads the node list specification, the java node specification
              * and the shell tunnel specification.
              */
-            IObjectSpecType nodeListSpec = loader.specForName(null,"node-list");
+            IObjectSpecType nodeListSpec = loader.specForName(null,loader.specForName("node-list"));
             IObjectSpec theList = nodeListSpec.makeInstance();
-            IObjectSpecType javaNode = loader.specForName("ddproto1.debugger.managing.VirtualMachineManager", "node");
+            IObjectSpecType javaNode = loader.specForName("ddproto1.debugger.managing.VirtualMachineManager", loader.specForName("node"));
             IObjectSpec nodeOne = javaNode.makeInstance();
             
-            IObjectSpecType sshTunnelSpec = loader.specForName("ddproto1.launcher.JVMShellLauncher", "launcher");
+            IObjectSpecType sshTunnelSpec = loader.specForName("ddproto1.launcher.JVMShellLauncher", loader.specForName("launcher"));
             
             /** Sets the node list so that it doesn't accept any nodes. */
             nodeListSpec.removeChildConstraint(javaNode.getInterfaceType());

@@ -37,15 +37,16 @@ public interface IConfigurationConstants {
     public static final String GUID = "guid";
     
     public static final String AUTO = "auto";
-    
-    /** Extension constants (those that are not on the TOC) */
-    public static final String TRANSLATION_EXTENSION = "translation";
 
     /** Directory constraints. */
     public static final String SPECS_DIR = "specs";
     public static final String TOC_DIR = "specs";
     public static final String JAVA_TRANSLATIONS_DIR = SPECS_DIR + File.separator + "java_translations";
     public static final String TRANSLATION_FILE_EXTENSION = "translation";
-    public static final String TRANSLATION_TOC_FILENAME = "TOC" + "." + TRANSLATION_FILE_EXTENSION; 
-   
+    public static final String TRANSLATION_TOC_FILENAME = "TOC" + "." + TRANSLATION_FILE_EXTENSION;
+    
+    /** Misc constants */
+    public static final String XML_FILE_EXTENSION = "xml";
+    public static final String FILE_URL_PREFIX = "file:";
+    public static final String EXTENSION_SEPARATOR_CHAR=".";
 }

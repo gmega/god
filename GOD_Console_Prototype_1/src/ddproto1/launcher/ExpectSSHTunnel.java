@@ -215,16 +215,11 @@ public class ExpectSSHTunnel implements IShellTunnel {
     public void setAttribute(String attribute, String value)
             throws IllegalAttributeException {
 
-        if (attribute.equals("host")) {
-            String[] spec = value.split(":");
-            if (spec.length != 2)
-                    throw new IllegalAttributeException(
-                            module
-                                    + " Error - syntax of parameter 'host' is [host-address]:[port]");
-
-            host = spec[0];
+        if (attribute.equals("local-agent-address")) {
+            host = value;
+        } else if (attribute.equals("ssh-port")){
             try {
-                port = Integer.parseInt(spec[1]);
+                port = Integer.parseInt(value);
             } catch (NumberFormatException e) {
                 throw new IllegalAttributeException(
                         module

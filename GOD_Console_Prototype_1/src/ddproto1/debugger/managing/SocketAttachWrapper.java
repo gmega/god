@@ -36,7 +36,7 @@ public class SocketAttachWrapper implements IConfigurable{
 
     static{
         attributes.put("local-agent-address", "hostname");
-        attributes.put("local-agent-port", "port");
+        attributes.put("jdwp-port", "port");
         attributes.put("attaching-connector-type", null);
     }
     

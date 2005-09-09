@@ -48,6 +48,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
     private String interfaceType;
     private SpecLoader loader;
     
+    private boolean isExtension = false;
+    
     /** Static constraint storage (local attributes and children). */
     private Map<String, IAttribute> requiredAttributes;
     private Map<String, IIntegerInterval> children;
@@ -66,6 +68,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
      * The first map relates the optional children types to their branch keys.
      * It's used for easily determining which branch keys are satisfied for a given
      * child type.
+     * 
      * The second map relates branch keys to maps of child types, which in turn map
      * to the actual constraints. That way you can easily know which constraint is 
      * associated to a given child type under some branch key. 
@@ -117,6 +120,13 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
             this.lookupStrategy = ObjectSpecTypeImpl.DEFAULT_LOOKUP_STRATEGY;
     }
     
+    public ObjectSpecTypeImpl(String type, SpecLoader loader){
+        this(null, type, loader, new HashSet<Class>(), null);
+        isExtension = true;
+    }
+    
+    public boolean isExtension() { return isExtension; }
+    
     /**
      * Adds a certain number of children to this specification. This number will be enforced
      * at all instances and can be modified later (check 
@@ -128,8 +138,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         this.checkMinMax(min, max);
         children.put(childtype, new IntegerIntervalImpl(min, max));        
     }
-    
-    
+        
     public void addOptionalChildrenConstraint(BranchKey precondition, String childtype, int min, int max)
         throws InvalidAttributeValueException, IllegalAttributeException
     {
@@ -354,7 +363,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                     + "> cannot be assigned to value <" + val + ">");
     }
 
-    public void bindOptionalSupertype(BranchKey bk, String concrete, String type)
+    public void bindOptionalSupertype(BranchKey bk, String concrete)
         throws IllegalAttributeException,
         InvalidAttributeValueException, SpecNotFoundException, IOException,
         SAXException
@@ -362,7 +371,17 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         this.expungeStaleEntries();
         this.validateBranchKey(bk);
         
-        ObjectSpecTypeImpl spec = loader.specForName(concrete, type);
+        ISpecType sType = loader.specForName(interfaceType);
+        ObjectSpecTypeImpl spec = null;
+        try{
+            spec = loader.specForName(concrete, sType);
+        }catch(SpecNotFoundException ex){
+            throw new SpecNotFoundException("Could not find spec (" + concrete + ", " + interfaceType + "). " +
+                    "Check that if you've got the specification types right.");
+        }
+        if(!spec.isExtension())
+            throw new InvalidAttributeValueException("Object Specification Type ( "
+                    + concrete + ", " + interfaceType + ") is not an extension specification.");
         
         /** We use our private protocol to add ourselves as parents 
          * to the newly created spec. */

@@ -11,6 +11,10 @@ import org.xml.sax.SAXException;
 
 
 public interface ISpecLoader {
-    public IObjectSpecType specForName(String concreteType, String specType)
+    public IObjectSpecType specForName(String concreteType, ISpecType specType)
             throws SpecNotFoundException, IOException, SAXException;
+    
+    public ISpecType specForName(String specType)
+        throws SpecNotFoundException, IOException, SAXException;;
+    
 }

@@ -83,7 +83,7 @@ public class XMLConfigurationParser extends DefaultHandler2 implements
                 try {
                     /** Loads the specification for this item. */
                     IObjectSpecType spec = loader.specForName(concreteType,
-                            specType);
+                            loader.specForName(specType));
 
                     IObjectSpec newSpec = spec.makeInstance();
 

@@ -37,6 +37,9 @@ public class StandardAttribute implements IAttribute{
                     "the specified value constraints conflict with it.");
         
         this.defaultValue = defaultValue;
+        
+        /** Computes the hash code. */
+        hashCode = key.hashCode();
     }
 
     public String attributeKey() {
@@ -60,6 +63,10 @@ public class StandardAttribute implements IAttribute{
         return hashCode;
     }
     
+    public String toString(){
+        return "Key: " + key;
+    }
+    
     public boolean equals(Object anObject){
         /** We could be less strict but we run the risk of losing symmetry */
         if(!(anObject instanceof StandardAttribute)) return false;
@@ -70,7 +77,7 @@ public class StandardAttribute implements IAttribute{
         if(!key.equals(other.key)) return false;
         
         /** Check for null symmetry. */
-        if(!((values == null) ^ (other.values == null))) return false;
+        if((values == null) ^ (other.values == null)) return false;
         
         /** It's symmetric and it's null. They're equal. */
         if(values == null) return true;
