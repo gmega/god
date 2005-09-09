@@ -2,8 +2,9 @@
 
 <!ELEMENT spec ((attribute|extension-attribute|child)+)>
 <!ATTLIST spec 
-	name	CDATA					#REQUIRED
-	type	CDATA				 	#REQUIRED 
+	name			CDATA	#REQUIRED
+	spec-extension	CDATA	#IMPLIED
+	type			CDATA	#REQUIRED 
 >
 
 <!ELEMENT attribute EMPTY>
