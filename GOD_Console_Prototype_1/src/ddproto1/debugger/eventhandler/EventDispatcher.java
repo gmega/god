@@ -34,12 +34,13 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class EventDispatcher extends BasicEventProcessor implements Runnable, IVotingManager {
+public class EventDispatcher extends BasicEventProcessor implements IVotingManager {
     
     private static final int MAX_SIMULTANEOUS_EVENTS = 4;
     
     private static final String module = "EventDispatcher -";
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
+    private static final MessageHandler mh = MessageHandler.getInstance();
 
     private VirtualMachine jvm;
     private EventQueue queue;
@@ -77,24 +78,26 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
      * 
      * @see java.lang.Runnable#run()
      */
-    public void run() {
-        if(dc == null)
-            throw new IllegalStateException("Error - debug context not configured.");
-        
-        if(!connected){
-            connected = true;
-            this.jvm = dc.getVMM().virtualMachine();
-            this.jvmid = dc.getProperty("name");
-            this.queue = jvm.eventQueue();
-        }
+    private void doRun() {
 
-		live();
-        
-		EventSet tlocalEvents = null;
-        /* Event dispatching loop */
-        while (connected) {
+        try {
 
-            try {
+            if (dc == null)
+                throw new IllegalStateException(
+                        "Error - debug context not configured.");
+
+            if (!connected) {
+                connected = true;
+                this.jvm = dc.getVMM().virtualMachine();
+                this.jvmid = dc.getProperty("name");
+                this.queue = jvm.eventQueue();
+            }
+
+            live();
+
+            EventSet tlocalEvents = null;
+            /* Event dispatching loop */
+            while (connected) {
 
                 /*
                  * We can't afford to have two threads waiting for events - it's
@@ -209,33 +212,32 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
                 if (pcm.getProcessingContext().getResults(
                         IEventManager.RESUME_SET) > 0
                         && counter.intValue() == 0) {
-                    event2int.put(tlocalEvents, new Integer(-1)); // Ensures the
+                    event2int.put(tlocalEvents, new Integer(-1)); // Ensures
+                                                                    // the
                     // EventSet
                     // won't be
                     // resumed
                     // twice.
                     tlocalEvents.resume();
                     /*
-                     * Ideally this sema.v() should be before
-                     * tlocalEvent.resume(), but since we might have a race
-                     * condition in JDI we'd better not to risk it.
+                     * Ideally this sema.v() should be before tlocalEvent.resume(),
+                     * but since we might have a race condition in JDI we'd better
+                     * not to risk it.
                      */
                     sema.v();
                 } else {
                     sema.v();
                 }
 
-                if (mustDie()) {
-                    die();
+                if (mustDie())
                     break;
-                }
 
-            } catch (InterruptedException ie) {
-                die();
-                return;
             }
+        }catch(InterruptedException ex){
+            mh.printStackTrace(ex);
+        } finally {
+            die();
         }
-
     }
     
     private synchronized boolean mustDie(){
@@ -245,7 +247,9 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
     private synchronized void die(){
         Thread c = Thread.currentThread();
         if(markToDie.contains(c)) markToDie.remove(Thread.currentThread());
+        mh.getDebugOutput().println("Thread " + c.getName() + " called die().");
         handlerThreads--;
+        assert handlerThreads >= 0;
     }
     
     private synchronized void live(){
@@ -262,13 +266,21 @@ public class EventDispatcher extends BasicEventProcessor implements Runnable, IV
             throw new RuntimeException("You cannot start another handler thread - pool exhausted");
         
         handlerThreads++;
-        Thread t = new Thread(this);
+        
+        Thread t = new Thread(new Runnable(){
+            public void run() {
+                doRun();
+            }
+        });
+        
+        t.setName("JDI Dispatcher " + (handlerThreads-1));
         
         /* Current handler thread will die when it returns */
         if(owner != null) markToDie.add(owner);
         
         /* We become the current handler thread */
         owner = t;
+        mh.getDebugOutput().println("Thread " + t.getName() + " is now being started.");
         t.start();
     }
     

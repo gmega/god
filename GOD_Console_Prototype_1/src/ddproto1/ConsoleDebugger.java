@@ -20,21 +20,34 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
 import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.ArrayReference;
+import com.sun.jdi.ClassType;
+import com.sun.jdi.Field;
 import com.sun.jdi.IncompatibleThreadStateException;
+import com.sun.jdi.InterfaceType;
+import com.sun.jdi.InvocationException;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
+import com.sun.jdi.ObjectReference;
+import com.sun.jdi.ReferenceType;
+import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadGroupReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
+import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
+import com.sun.tools.example.debug.expr.ExpressionParser;
+import com.sun.tools.example.debug.expr.ParseException;
+import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
@@ -89,6 +102,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private Properties descriptions;
     private Token token;
     private Lexer l;
+    
+    private IValuePrinter printer;
     
     private boolean isPromptPrinted = false;
     private boolean running;
@@ -562,6 +577,46 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             commandKill(machine);
             break;
         }
+        
+        case Token.EVAL:{
+            machine = checkCurrent("command.eval");
+
+            int frameNumber;
+            
+            if(token.type != Token.NUMBER)
+                badCommand("command.eval");
+            
+            frameNumber = Integer.parseInt(token.text);
+            
+            advance();
+            
+            Value value = null;
+            int exprIdx = currentCommand.lastIndexOf(" ");
+            String expression = currentCommand.substring(exprIdx+1, currentCommand.length());
+            
+            if(token.type == Token.HEX_ID){
+                value = commandEvalExpression(expression,machine,token.text);
+            }else if(token.type == Token.DOTTED_ID){
+                value = null;
+            }else{
+                badCommand("command.eval");
+            }
+            
+            if(value == null){
+                mh.getStandardOutput().println("Expression " + expression + " value is null.");
+            }else if(value instanceof ObjectReference){
+                ObjectReference obj = (ObjectReference) value;
+                this.dump(obj, obj.referenceType(), obj.referenceType());
+            }else {
+                String strVal = getStringValue();
+                if (strVal != null) {
+                    mh.getStandardOutput().println("expr is value" + value.toString() + " " + strVal );
+                }
+            }
+            
+            break;
+        }
+            
 
         /**
          * Allows for repeatable commands.
@@ -598,6 +653,21 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
       ---------------------- Command handlers ---------------------------------
       -------------------------------------------------------------------------
      */
+    
+    private String getStringValue()
+        throws CommandException
+    {
+        Value val = null;
+        String valStr = null;
+        try {
+            val = ExpressionParser.getMassagedValue();
+            valStr = val.toString();
+        } catch (ParseException e) {
+            mh.printStackTrace(e);
+            throw new CommandException(e);
+        }
+        return valStr;
+    }
     
     /**
      * Prints information about a JVM.
@@ -1110,6 +1180,75 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         
         vmm.virtualMachine().exit(0);
         mh.getStandardOutput().print("Virtual machine <" + machine + "> has been killed.");
+    }
+    
+    private Value commandEvalExpression(String expression, String vmid, String hexy)
+        throws CommandException
+    {
+        Value result = null;
+        ExpressionParser.GetFrame frameGetter = null;
+        
+        VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vmid);
+        
+        final ThreadReference tr = this.grabSuspendedThread(hexy, vmm);
+        frameGetter = new ExpressionParser.GetFrame() {
+            public StackFrame get()
+                throws IncompatibleThreadStateException {
+                    return tr.frame(0);
+                }
+            };
+
+        try{
+            result = ExpressionParser.evaluate(expression, vmm.virtualMachine(), frameGetter);
+        } catch (InvocationException ie) {
+            mh.getErrorOutput().println("Exception in expression:" +  ie.exception()
+                    .referenceType().name());
+            throw new CommandException(ie);
+        } catch (Exception ex) {
+            mh.printStackTrace(ex);
+            throw new CommandException(ex);
+        }
+        return result;
+    }
+    
+    private void dump(ObjectReference obj, ReferenceType refType,
+            ReferenceType refTypeBase) {
+        for (Iterator it = refType.fields().iterator(); it.hasNext();) {
+            StringBuffer o = new StringBuffer();
+            Field field = (Field) it.next();
+            o.append("    ");
+            if (!refType.equals(refTypeBase)) {
+                o.append(refType.name());
+                o.append(".");
+            }
+            o.append(field.name());
+            o.append(": ");
+            o.append(obj.getValue(field));
+            mh.getStandardOutput().println(o.toString()); // Special case: use printDirectln()
+        }
+        if (refType instanceof ClassType) {
+            ClassType sup = ((ClassType) refType).superclass();
+            if (sup != null) {
+                dump(obj, sup, refTypeBase);
+            }
+        } else if (refType instanceof InterfaceType) {
+            List sups = ((InterfaceType) refType).superinterfaces();
+            for (Iterator it = sups.iterator(); it.hasNext();) {
+                dump(obj, (ReferenceType) it.next(), refTypeBase);
+            }
+        } else {
+            /* else refType is an instanceof ArrayType */
+            if (obj instanceof ArrayReference) {
+                for (Iterator it = ((ArrayReference) obj).getValues()
+                        .iterator(); it.hasNext();) {
+                    mh.getStandardOutput().println(it.next().toString());// Special case: use printDirect()
+                    if (it.hasNext()) {
+                        mh.getStandardOutput().println(", ");// Special case: use printDirect()
+                    }
+                }
+                mh.getStandardOutput().println("");
+            }
+        }
     }
     
     private ThreadReference grabSuspendedThread(String hexy, VirtualMachineManager vmm)

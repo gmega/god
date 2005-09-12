@@ -597,27 +597,8 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         }
         
         public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
-            try{
-                /** InvalidAttributeValueException is never thrown if the value 
-                 * passed on to checkPurge is nil */
-                checkPurge(key, null);
-            }catch(InvalidAttributeValueException ex) { }
             
-            String value;
-            
-            /** Attribute is undefined. We must check wether there is a default value or not. */
-            if(!attributeValues.containsKey(key)) {
-                /** It's okay to do an unchecked 'get' because checkPurge already
-                 * checked the key's validity in the context of our attribute values.
-                 */
-                IAttribute attribute = internal.getAttribute(key);
-                value = attribute.defaultValue();
-                if(value == null) throw new UninitializedAttributeException();
-                /** Lazily assigns the default value. */
-                attributeValues.put(key, value);
-            }else{
-                value = attributeValues.get(key);
-            }
+            String value = this.getValue(key);
             
             /** Common value, just return the string. */
             if(value != IObjectSpec.CONTEXT_VALUE) return value;
@@ -656,6 +637,41 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                         + attribute.acceptableValues()
                         + " declared for attribute " + attribute.attributeKey() 
                         + " in specification type " + parentType);
+            
+            return value;
+        }
+        
+        public boolean isContextAttribute(String attkey)
+                throws UninitializedAttributeException,
+                IllegalAttributeException {
+
+            return this.getValue(attkey) == IObjectSpec.CONTEXT_VALUE;
+        }
+        
+        private String getValue(String key)
+                throws UninitializedAttributeException,
+                IllegalAttributeException {
+            try{
+                /** InvalidAttributeValueException is never thrown if the value 
+                 * passed on to checkPurge is nil */
+                checkPurge(key, null);
+            }catch(InvalidAttributeValueException ex) { }
+            
+            String value;
+            
+            /** Attribute is undefined. We must check whether there is a default value or not. */
+            if(!attributeValues.containsKey(key)) {
+                /** It's okay to do an unchecked 'get' because checkPurge already
+                 * checked the key's validity in the context of our attribute values.
+                 */
+                IAttribute attribute = internal.getAttribute(key);
+                value = attribute.defaultValue();
+                if(value == null) throw new UninitializedAttributeException();
+                /** Lazily assigns the default value. */
+                attributeValues.put(key, value);
+            }else{
+                value = attributeValues.get(key);
+            }
             
             return value;
         }

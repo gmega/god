@@ -33,7 +33,13 @@ public class StandardServiceLocator implements IServiceLocator{
         return (instance == null)?instance = new StandardServiceLocator():instance;
     }
 
-	public IConfigurable incarnate(IObjectSpec spec)
+    public IConfigurable incarnate(IObjectSpec spec)
+        throws IncarnationException
+    {
+        return this.incarnate(spec, true);
+    }
+    
+	public IConfigurable incarnate(IObjectSpec spec, boolean createNew)
 			throws IncarnationException {
 		/*
 		 * incarnate guarantees a consistent temporal view of all IObjectSpec
@@ -50,13 +56,13 @@ public class StandardServiceLocator implements IServiceLocator{
 		 * The guarantee is only with respect to time.
 		 */
 		IConfigurable iconf;
-		if (spec2object.containsKey(spec)) {
+		if (spec2object.containsKey(spec) && !createNew) {
 			iconf = spec2object.get(spec).get();
 			// Double check since it's a weak reference.
 			if (iconf != null)
 				return iconf;
 		}
-
+        
 		IObjectSpecType type = spec.getType();
         
         String klass = null;

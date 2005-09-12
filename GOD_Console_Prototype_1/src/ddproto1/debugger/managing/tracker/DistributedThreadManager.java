@@ -34,7 +34,9 @@ import ddproto1.debugger.request.StdResolutionContextImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.server.IRequestHandler;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.InternalError;
 import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.ParserException;
 import ddproto1.exception.PropertyViolation;
 import ddproto1.exception.UnsupportedException;
@@ -111,18 +113,18 @@ public class DistributedThreadManager implements IRequestHandler {
             while(st.hasMoreTokens())
                 skelclasses.add(st.nextToken());
             
-            spec.cbr = new ComponentBoundaryRecognizer(this, stubclasses, ui, vmm);
+            ComponentBoundaryRecognizer cbr = new ComponentBoundaryRecognizer(this, stubclasses, ui, vmm);
                         
             spec.gid = gid;
             spec.vmm = vmm;
             
             /* Now adds the hook requests, which we hope will go into the right place */
-            DeferrableHookRequest cbr_dhr = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, spec.cbr, policySet);
-            DeferrableHookRequest dtsu_dhr_break = new DeferrableHookRequest(vmm.getName(), IEventManager.THREAD_DEATH_EVENT, dtsu, null);
-            DeferrableHookRequest dtsu_dhr_step = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, dtsu, null);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(cbr_dhr);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(dtsu_dhr_break);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(dtsu_dhr_step);
+            spec.cbr = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, cbr, policySet);
+            spec.dtsu_td = new DeferrableHookRequest(vmm.getName(), IEventManager.THREAD_DEATH_EVENT, dtsu, null);
+            spec.dtsu_step = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, dtsu, null);
+            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.cbr);
+            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_td);
+            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_step);
                         
         }catch (IllegalAttributeException e){
             /* Not an error - just means this node is not middleware-enabled */
@@ -134,11 +136,30 @@ public class DistributedThreadManager implements IRequestHandler {
         nodes.put(spec.gid, spec);
     }
     
-    public void unregisterNode(byte gid){
+    public void unregisterNode(byte gid)
+        throws NoSuchSymbolException, InternalError
+    {
         /* The registration process is so complicated that we would go nuts if we would like
-         * to allow nodes to be unregistered. 
+         * to allow nodes to be unregistered.
+         * 
+         * CORRECTION: Might not be that bad. If you look closely you'll realise that the only thing
+         * that actually gets registered is the Node structure. Also, after I added support for 
+         * deferrable request removal into the DeferrableRequestQueue class, things got a little better.
          */
-        throw new UnsupportedException("Unregistering of nodes is currently unsupported.");
+        
+        Node spec = nodes.get(gid);
+        if(spec == null) throw new NoSuchSymbolException("Node " + gid + " doesn't exist.");
+        if(spec.cbr != null){
+            try{
+                spec.cbr.undo();
+                assert spec.dtsu_step != null;
+                spec.dtsu_step.undo();
+                assert spec.dtsu_td != null;
+                spec.dtsu_td.undo();
+            }catch(Exception ex){
+                throw new InternalError("Unregistration of node " + gid + " could not be completed.", ex);
+            }
+        }
     }
     
     public DistributedThread getByUUID(int uuid) 
@@ -682,7 +703,8 @@ public class DistributedThreadManager implements IRequestHandler {
     private class Node{
         protected VirtualMachineManager vmm;
         protected Byte gid;
-        protected ComponentBoundaryRecognizer cbr;
-        protected Set threadComponents;
+        protected DeferrableHookRequest cbr;
+        protected DeferrableHookRequest dtsu_td;
+        protected DeferrableHookRequest dtsu_step;
     }
 }

@@ -10,6 +10,8 @@ package ddproto1.debugger.request;
 
 import java.util.List;
 
+import ddproto1.exception.IllegalStateException;
+
 /**
  * Deferrable Requests are, as their name implies, requests that could get
  * deferred until some set of preconditions is satisfied. Classes implementing
@@ -79,16 +81,17 @@ public interface IDeferrableRequest {
 	 */
     public Object resolveNow(IResolutionContext context) throws Exception;
     
-    public void addResolutionListener(IResolutionListener listener);
-    
-    public void removeResolutionListener(IResolutionListener listener);
-    
     /** Allows access to resolution preconditions. It should be a fixed list
      * of preconditions and should not vary during the life of the deferrable
      * request. Support for some types of dynamic preconditions exist, but this
      * is not the place to do it.
      */
     public List <IPrecondition> getRequirements();
+    
+    public void addResolutionListener(IResolutionListener listener);
+    
+    public void removeResolutionListener(IResolutionListener listener);
+       
     
     /** This interface serves as a mean of communicating concrete DeferrableRequest
 	 * implementations preconditions to the outside world.<BR>

@@ -25,7 +25,7 @@ public class MessageHandler {
     private IMessageBox stdout = null;
     private IMessageBox warning = null;
     private IMessageBox debug = null;
-
+    
     private static MessageHandler instance;
 
     private MessageHandler() { }

@@ -157,6 +157,14 @@ public class DeferrableRequestQueue {
         return true;
     }
     
+    /**
+     * Removes a deferrable request that's been previously made.
+     * 
+     * @param req - The request to be removed.
+     * @return <b>true</b> if the request could be removed, <b>false</b> otherwise.
+     * The most common reason for this method returning false is because the request
+     * has already been fulfilled and therefore can no longer be removed. 
+     */
     public synchronized boolean removeRequest(IDeferrableRequest req){
         
         boolean success = true;

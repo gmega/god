@@ -64,6 +64,8 @@ public class Main {
     private static String basedir =  null;
     private static IUICallback ui = null;
     
+    private static boolean debugEnabled = true;
+    
     /* REMARK This attribute confuses the semantics of the Main class (which is not
      * a class at all) with the semantics of the (yet inexistent) DistributedSystem 
      * class. 
@@ -254,11 +256,23 @@ public class Main {
             }
         };
         
+        IMessageBox debug = new IMessageBox(){
+            public void println(String s){
+                if(debugEnabled)
+                    ui.printLine("DEBUG - " + s);
+            }
+            
+            public void print(String s){
+                if(debugEnabled)
+                    ui.printMessage("DEBUG - " + s);
+            }
+        };
+        
         MessageHandler mh = MessageHandler.getInstance();
         mh.setErrorOutput(stdout);
         mh.setStandardOutput(stdout);
         mh.setWarningOutput(stdout);
-        mh.setDebugOutput(stdout);
+        mh.setDebugOutput(debug);
         
         /* This isn't very good. Some classes use the log4j logger so we
          * must set it up. 

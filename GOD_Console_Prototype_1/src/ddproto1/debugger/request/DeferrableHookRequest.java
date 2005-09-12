@@ -33,6 +33,8 @@ public class DeferrableHookRequest implements IDeferrableRequest{
     private IJDIEventProcessor iep;
     private int type;
     private Set filters;
+    
+    private VirtualMachineManager targetVMM;
 
     private static List precondList;
     private static IPrecondition precondition;
@@ -93,9 +95,9 @@ public class DeferrableHookRequest implements IDeferrableRequest{
      * @see ddproto1.debugger.request.IDeferrableRequest#resolveNow(ddproto1.debugger.request.IDeferrableRequest.IResolutionContext)
      */
     public Object resolveNow(IResolutionContext context) throws Exception {
-        VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
+        targetVMM = (VirtualMachineManager)context.getContext();
         
-        IEventManager iem = vmm.getEventManager();
+        IEventManager iem = targetVMM.getEventManager();
 
         /* Finally. Registers the hook at the event manager */
         iem.addEventListener(type, iep);
@@ -104,6 +106,17 @@ public class DeferrableHookRequest implements IDeferrableRequest{
         
         /* If no exception was thrown, then it worked */
         return new Boolean(true);
+    }
+    
+    public IJDIEventProcessor getProcessor(){
+        return iep;
+    }
+    
+    public void undo()
+        throws Exception
+    {
+        IEventManager iem = targetVMM.getEventManager();
+        iem.removeEventListener(type, iep);
     }
 
     /* (non-Javadoc)

@@ -11,6 +11,7 @@ import java.util.Map;
 import ddproto1.configurator.IQueriableConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.UninitializedAttributeException;
 
 /**
  * This type represents a metaobject holding information about real objects. 
@@ -96,6 +97,9 @@ public interface IObjectSpec extends IQueriableConfigurable{
      * @return <b>true</b> if the spec is valid, <b>false</b> otherwise.
      */
     public boolean validate();
+    
+    public boolean isContextAttribute(String attributeKey)
+            throws IllegalAttributeException, UninitializedAttributeException;
     
     /**
      * Returns a list of all required attributes that have not yet been assigned for this
