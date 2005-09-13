@@ -48,6 +48,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
       
     private static final String module = "JVMShellLauncher -";
     
+    private IShellTunnel sht;
+    
     /* (non-Javadoc)
      * @see ddproto1.interfaces.ApplicationLauncher#launch()
      */
@@ -61,9 +63,11 @@ public class JVMShellLauncher implements IApplicationLauncher {
             IServiceLocator locator = (IServiceLocator) Lookup
                     .serviceRegistry().locate("service locator");
             
-            IObjectSpec thisSpec = locator.getMetaobject(this);
-            IObjectSpec shtSpec = thisSpec.getChildSupporting(IShellTunnel.class);
-            IShellTunnel sht = (IShellTunnel)locator.incarnate(shtSpec);
+            if(sht == null){
+                IObjectSpec thisSpec = locator.getMetaobject(this);
+                IObjectSpec shtSpec = thisSpec.getChildSupporting(IShellTunnel.class);
+                sht = (IShellTunnel)locator.incarnate(shtSpec);
+            }
             
             /* Remove all line breaks */
             /* This is REALLY ugly. We have a particular pattern for processing strings
@@ -208,5 +212,11 @@ public class JVMShellLauncher implements IApplicationLauncher {
                 throw new NestedRuntimeException(e.getMessage(), e);
             }
         }
+    }
+    
+    public IShellTunnel getShellTunnel(){
+        if(sht == null)
+            throw new IllegalStateException("Cannot acquire shell tunnel before launch");
+        return sht;
     }
 }

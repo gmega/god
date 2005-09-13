@@ -6,7 +6,7 @@
  * File: CORBAHook.java
  */
 
-package ddproto1.localagent.CORBA;
+package ddproto1.localagent.instrumentation;
 
 import java.io.File;
 import java.util.HashMap;
@@ -34,7 +34,6 @@ import org.apache.bcel.generic.ReturnInstruction;
 import org.apache.bcel.generic.Type;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.localagent.IClassLoadingHook;
 
 /**
  * @author giuliano

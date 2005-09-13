@@ -6,7 +6,7 @@
  * File: IClassLoadingHook.java
  */
 
-package ddproto1.localagent;
+package ddproto1.localagent.instrumentation;
 
 import org.apache.bcel.classfile.JavaClass;
 

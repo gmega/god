@@ -10,6 +10,7 @@ package ddproto1.debugger.managing;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.sun.jdi.Mirror;
@@ -51,10 +52,12 @@ import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.InvalidAttributeValueException;
+import ddproto1.exception.InvalidStateException;
 import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UninitializedAttributeException;
 import ddproto1.exception.UnsupportedException;
+import ddproto1.launcher.JVMShellLauncher;
 import ddproto1.sourcemapper.ISourceMapper;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
@@ -86,7 +89,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     
     private String name;
     private String gid;
-        
+    
     /** Creates a new VirtualMachineManager.
      * 
      * @param info Virtual machine specification.
@@ -133,9 +136,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
                     .serviceRegistry().locate("service locator");
             
             IObjectSpec self = this.acquireMetaObject();
-            
             IObjectSpec connectorSpec = self.getChildSupporting(SocketAttachWrapper.class);
-
             SocketAttachWrapper conn = (SocketAttachWrapper)locator.incarnate(connectorSpec);
             
             jvm = conn.attach();
@@ -166,7 +167,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
                     jvm.dispose();
                 }catch(VMDisconnectedException ex){ }	// Just means the JVM is already dead.
             }
-            throw new IllegalAttributeException(e);
+            throw new NestedRuntimeException(e);
         }
     }
     
@@ -505,8 +506,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             gid = val;
         }
     }
-
-
+    
     public boolean isWritable() {
         return true;
     }

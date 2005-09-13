@@ -73,15 +73,8 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
         voteSet.add(IEventManager.RESUME_SET);
     }
     
-    /*
-     * (non-Javadoc)
-     * 
-     * @see java.lang.Runnable#run()
-     */
     private void doRun() {
-
         try {
-
             if (dc == null)
                 throw new IllegalStateException(
                         "Error - debug context not configured.");
@@ -212,12 +205,9 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
                 if (pcm.getProcessingContext().getResults(
                         IEventManager.RESUME_SET) > 0
                         && counter.intValue() == 0) {
-                    event2int.put(tlocalEvents, new Integer(-1)); // Ensures
-                                                                    // the
-                    // EventSet
-                    // won't be
-                    // resumed
-                    // twice.
+                    /** Ensures the EventSet won't be resumed twice.*/
+                    event2int.put(tlocalEvents, new Integer(-1)); 
+                                        
                     tlocalEvents.resume();
                     /*
                      * Ideally this sema.v() should be before tlocalEvent.resume(),

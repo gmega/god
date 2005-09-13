@@ -24,6 +24,7 @@ import com.sun.jdi.Location;
 
 import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.IConfigurator;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.UninitializedAttributeException;
@@ -61,7 +62,7 @@ public class URLSourceMapper implements ISourceMapper, IConfigurable{
     }
     
     private void addSourceLocations(String sourcepath){
-        StringTokenizer strtk = new StringTokenizer(sourcepath, IConfigurator.LIST_SEPARATOR_CHAR);
+        StringTokenizer strtk = new StringTokenizer(sourcepath, IConfigurationConstants.LIST_SEPARATOR_CHAR);
         while(strtk.hasMoreTokens()){
             String url = strtk.nextToken();
             if(!url.endsWith(separator))

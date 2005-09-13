@@ -17,6 +17,6 @@ import ddproto1.exception.InvalidStateException;
  */
 public interface IShellTunnel extends ITunnel {
     public void feedCommand(String s) throws CommException, InvalidStateException;
-    public List getStdoutResult() throws InvalidStateException;
-    public List getStderrResult() throws InvalidStateException;
+    public List<String> getStdoutResult() throws InvalidStateException;
+    public List<String> getStderrResult() throws InvalidStateException;
 }

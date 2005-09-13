@@ -22,12 +22,15 @@ import org.apache.log4j.PropertyConfigurator;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.IConfigurator;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.exception.CommException;
-import ddproto1.localagent.CORBA.CORBAHook;
 import ddproto1.localagent.CORBA.ORBHolder;
 import ddproto1.localagent.CORBA.orbspecific.JacORBStampRetriever;
 import ddproto1.localagent.client.GlobalAgentFactory;
 import ddproto1.localagent.client.IGlobalAgent;
+import ddproto1.localagent.instrumentation.CORBAHook;
+import ddproto1.localagent.instrumentation.DebugLoader;
+import ddproto1.localagent.instrumentation.RunnableHook;
 
 /**
  * This class serves as a wrapper for the debuggee JVM main class. It's 
@@ -240,7 +243,7 @@ public class LocalLauncher extends JavaWrapper{
         
         try{
             String list = globalAgent.getAttribute(typelistId);
-            String [] types = list.split(IConfigurator.LIST_SEPARATOR_CHAR);
+            String [] types = list.split(IConfigurationConstants.LIST_SEPARATOR_CHAR);
             ObjectType [] obtypes = new ObjectType[types.length];
             for(int i = 0; i < types.length; i++)
                 obtypes[i] = new ObjectType(types[i]);

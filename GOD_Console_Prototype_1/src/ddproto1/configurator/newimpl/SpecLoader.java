@@ -87,7 +87,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         // Adds the spec.lookup.path property
         String lookup = System.getProperty("spec.lookup.path");
         if(lookup != null){
-            StringTokenizer strtok = new StringTokenizer(lookup, IConfigurator.LIST_SEPARATOR_CHAR);
+            StringTokenizer strtok = new StringTokenizer(lookup, IConfigurationConstants.LIST_SEPARATOR_CHAR);
             while(strtok.hasMoreElements())
                 this.specLocations.add(strtok.nextToken());
         }
@@ -320,7 +320,6 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                         return;
                     }
                     
-                    /** Loads interfaces eagerly. */
                     if (!specMap.containsKey(type))
                         throw new SAXParseException(
                                 "Spec file for concrete type "
@@ -329,7 +328,8 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
                                         + type
                                         + " but this type is not declared in the TOC.",
                                 locator);
-                    
+
+                    /** Loads interfaces eagerly. */
                     String interfaces [] = specMap.get(type).expectedInterfaces();
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
                     Set <Class> realInterfaces = new HashSet<Class>();
@@ -636,7 +636,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
             if(supportedInterfaces == null)
                 interfaces = new String[0];
             else
-                interfaces = supportedInterfaces.split(",");
+                interfaces = supportedInterfaces.split(IConfigurationConstants.LIST_SEPARATOR_CHAR);
             this.mappedValue = mappedValue;
             this.name = name;
         }

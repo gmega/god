@@ -12,25 +12,22 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
+import primitiveGUI.DisplayWindow;
+import primitiveGUI.IOpenListener;
+
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.InfoCarrierWrapper;
-import ddproto1.configurator.newimpl.BranchKey;
 import ddproto1.configurator.newimpl.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IIntegerInterval;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.newimpl.StandardServiceLocator;
 import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.debugger.managing.VMManagerFactory;
-import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.managing.distributed.DefaultGUIDManager;
 import ddproto1.debugger.managing.distributed.IGUIDManager;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
@@ -42,9 +39,11 @@ import ddproto1.exception.ConfigException;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.ResourceLimitReachedException;
 import ddproto1.interfaces.IMessageBox;
+import ddproto1.interfaces.ISemaphore;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
+import ddproto1.util.Semaphore;
 
 /**
  * @author giuliano
@@ -126,6 +125,7 @@ public class Main {
              */
             setServer(root);
             
+            MessageHandler.getInstance().getDebugOutput().println("Starting main loop.");
             /* Starts the debugger */
             dbg.mainLoop();
             
@@ -212,8 +212,6 @@ public class Main {
                 node.setAttribute(IConfigurationConstants.GUID, Integer.toString(_guid));
             }
         }
-        
-        
     }
     
     private static void parseParameters(String[] args) {
@@ -245,6 +243,12 @@ public class Main {
     }
     
     private static void setIO(){
+        
+        IMessageBox dummy = new IMessageBox(){
+            public void println(String s) { }
+            public void print(String s) { }
+        };
+        
         IMessageBox stdout = new IMessageBox(){
         
             public void println(String s){
@@ -256,23 +260,27 @@ public class Main {
             }
         };
         
-        IMessageBox debug = new IMessageBox(){
+        IMessageBox warn = new IMessageBox(){
             public void println(String s){
                 if(debugEnabled)
-                    ui.printLine("DEBUG - " + s);
+                    ui.printLine("WARNING - " + s);
             }
             
             public void print(String s){
                 if(debugEnabled)
-                    ui.printMessage("DEBUG - " + s);
+                    ui.printMessage("WARNING - " + s);
             }
         };
         
         MessageHandler mh = MessageHandler.getInstance();
+        
+        if(debugEnabled)
+            mh.setDebugOutput(createWindow("Debug Window"));
+        else mh.setDebugOutput(dummy);
+        
         mh.setErrorOutput(stdout);
         mh.setStandardOutput(stdout);
-        mh.setWarningOutput(stdout);
-        mh.setDebugOutput(debug);
+        mh.setWarningOutput(warn);
         
         /* This isn't very good. Some classes use the log4j logger so we
          * must set it up. 
@@ -281,6 +289,20 @@ public class Main {
         Logger.getLogger("agent.global");
         /* TODO Allow custom configuration file for global agent logger */
         BasicConfigurator.configure();
+    }
+    
+    private static DisplayWindow createWindow(String title){
+        final ISemaphore sema = new Semaphore(0);
+        IOpenListener theListener = new IOpenListener(){
+            public void notifyOpening() {
+                sema.v();
+            }
+        };
+        DisplayWindow dWindow = new DisplayWindow("Debug Window");
+        dWindow.addOpenListener(theListener);
+        dWindow.openAsync();
+        sema.p();
+        return dWindow;
     }
     
     private static void printUsage(){

@@ -6,7 +6,7 @@
  * File: DebugLoader.java
  */
 
-package ddproto1.localagent;
+package ddproto1.localagent.instrumentation;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.apache.bcel.classfile.JavaClass;
 import org.apache.bcel.util.ClassLoader;
+
 
 /**
  * @author giuliano

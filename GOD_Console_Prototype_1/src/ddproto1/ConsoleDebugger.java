@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import sun.security.krb5.internal.util.m;
+
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ClassType;
@@ -66,11 +68,13 @@ import ddproto1.exception.ConfigException;
 import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.CommandException;
+import ddproto1.exception.InvalidStateException;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.UnsupportedException;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.launcher.IApplicationLauncher;
+import ddproto1.launcher.JVMShellLauncher;
 import ddproto1.lexer.Lexer;
 import ddproto1.lexer.Token;
 import ddproto1.sourcemapper.ISource;
@@ -103,14 +107,10 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private Token token;
     private Lexer l;
     
-    private IValuePrinter printer;
-    
     private boolean isPromptPrinted = false;
     private boolean running;
     
-    private Map vmid2requests = new HashMap();
-    
-    private Map <String, IObjectSpec> vmid2ninfo = new HashMap <String, IObjectSpec> ();
+    private Map <String, Node> vmid2ninfo = new HashMap <String, Node> ();
     private String currentMachine = null;
     private String prompt;
     private LinkedList <String> batch = new LinkedList <String> ();
@@ -536,6 +536,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             }else if(token.type == Token.WORD && token.text.equals("stack")){
                 stack = true;
                 advance();
+            }else if(token.type == Token.WORD && token.text.equals("output")){
+                advance();
+                int tail = SHOW_DEFAULT;
+                if(token.type == Token.NUMBER) 
+                    tail = Integer.parseInt(token.text);
+                machine = checkCurrent("command.show");
+                commandShowOutput(machine, tail);
+                break;
             }
             
             if(!currentMachine.equals("Global")){
@@ -547,7 +555,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 if (token.type == Token.HEX_ID)
                     hexy = token.text;
             
-
                 advance();
             	if (!(token.type == Token.EMPTY))
                 	badCommand("command.show");
@@ -714,7 +721,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
         mh.getStandardOutput().println(" Now launching JVM <" + vmid + ">");
 
-        IObjectSpec ninfo = vmid2ninfo.get(vmid);
+        Node node = vmid2ninfo.get(vmid);
+        IObjectSpec ninfo = node.spec;
+
         // Checks to see if all required attributes have been set (not
         // giving a damn about their consistency).
         ninfo.validate();
@@ -722,8 +731,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         try{
             IServiceLocator locator = (IServiceLocator)Lookup.serviceRegistry().locate("service locator");
             IObjectSpec launcherSpec = ninfo.getChildSupporting(IApplicationLauncher.class);
-            IApplicationLauncher l = (IApplicationLauncher)locator.incarnate(launcherSpec);
-                
+            JVMShellLauncher l = (JVMShellLauncher)locator.incarnate(launcherSpec);
+            node.launcher = l;
             l.launch();
         }catch(Exception e){
             throw new CommandException(e);
@@ -1030,6 +1039,23 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
     
+    private void commandShowOutput(String machine, int lines)
+        throws CommandException
+    {
+        Node theNode = vmid2ninfo.get(machine);
+        assert theNode != null;
+        mh.getStandardOutput().println(
+                "Last " + lines + " of output produced by <" + machine + ">");
+        try{
+            List <String> oup = theNode.launcher.getShellTunnel().getStdoutResult();
+            for(int k = 0; k < lines; k++)
+                mh.getStandardOutput().println(oup.get(k));
+            
+        }catch(InvalidStateException ex){
+            throw new CommandException(ex);
+        }
+    }
+
     private String threadStack(ThreadReference target, int base, int top, int begin, String machine)
     	throws IncompatibleThreadStateException
     {
@@ -1522,8 +1548,11 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 Set <Integer> filters = new HashSet <Integer> ();
                 filters.add(new Integer(EventRequest.SUSPEND_ALL));
                 filters.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
+
+                Node nodeStruct = new Node();
+                nodeStruct.spec = node;
                 
-                vmid2ninfo.put(mname, node);
+                vmid2ninfo.put(mname, nodeStruct);
 
             } catch (IllegalAttributeException e) {
                 throw new InternalError(
@@ -1567,23 +1596,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         return this;
     }
     
-    
-    private void addDeferredRequestFor(String name, IDeferrableRequest req){
-        List l;
-        if(vmid2requests.containsKey(name)){
-            l = (List)vmid2requests.get(name);
-        }else{
-            l = new LinkedList();
-        }
-        
-        l.add(req);
+    private class Node{
+        private IObjectSpec spec;
+        private JVMShellLauncher launcher;
     }
-        
-    private List eventRequests(String name) 
-    	throws NoSuchSymbolException{
-        if(!vmid2requests.containsKey(name))
-            throw new NoSuchSymbolException("No requests registered for machine " + name);
-        
-        return((List)vmid2requests.get(name));
-    }
+   
 }

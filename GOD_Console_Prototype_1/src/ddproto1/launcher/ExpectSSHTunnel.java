@@ -8,6 +8,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -58,6 +59,8 @@ import ddproto1.util.traits.ConversionTrait;
  */
 public class ExpectSSHTunnel implements IShellTunnel {
 
+    private static final int MAX_SCROLL_BUFFER_SIZE = 300;
+    
     // Semaphore for helping with asynch communication
     private ExternalSemaphore sema;
     
@@ -157,7 +160,8 @@ public class ExpectSSHTunnel implements IShellTunnel {
          * Lexycal analyzers do just that. We could generate some lexers at run-time. 
          */
         List current_result = result_oup;
-        result_oup = new LinkedList <String>();
+        if(current_result == null) return new ArrayList();
+        result_oup = new ArrayList <String>(result_oup);    // Cheaper for random access.
         return current_result;
     }
 
@@ -320,12 +324,12 @@ public class ExpectSSHTunnel implements IShellTunnel {
      * 
      */
     private synchronized void receiveStdoutOutput(String s) {
-     //   System.out.println(s);
+        if(result_oup.size() == MAX_SCROLL_BUFFER_SIZE)
+            result_oup.remove(MAX_SCROLL_BUFFER_SIZE - 1);
         result_oup.add(s);
     }
 
     private synchronized void receiveStderrOutput(String s) {
-    //    System.err.println(s);
         computeTransition(s);
     }
 

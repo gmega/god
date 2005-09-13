@@ -49,4 +49,5 @@ public interface IConfigurationConstants {
     public static final String XML_FILE_EXTENSION = "xml";
     public static final String FILE_URL_PREFIX = "file:";
     public static final String EXTENSION_SEPARATOR_CHAR=".";
+    public static final String LIST_SEPARATOR_CHAR = ";";
 }

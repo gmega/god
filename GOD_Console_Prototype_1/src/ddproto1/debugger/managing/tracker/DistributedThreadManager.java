@@ -22,6 +22,7 @@ import com.sun.jdi.request.EventRequest;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.commons.Event;
 import ddproto1.configurator.IConfigurator;
+import ddproto1.configurator.newimpl.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.VMManagerFactory;
@@ -105,11 +106,11 @@ public class DistributedThreadManager implements IRequestHandler {
             String skellist = vmm.getAttribute("skeletonlist");
             Set <String> stubclasses = new HashSet<String> ();
             Set <String> skelclasses = new HashSet<String> ();
-            StringTokenizer st = new StringTokenizer(stublist, IConfigurator.LIST_SEPARATOR_CHAR);
+            StringTokenizer st = new StringTokenizer(stublist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
             while(st.hasMoreTokens())
                 stubclasses.add(st.nextToken());
         
-            st = new StringTokenizer(skellist, IConfigurator.LIST_SEPARATOR_CHAR);
+            st = new StringTokenizer(skellist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
             while(st.hasMoreTokens())
                 skelclasses.add(st.nextToken());
             

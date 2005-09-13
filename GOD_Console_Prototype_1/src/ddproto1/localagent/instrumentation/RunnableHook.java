@@ -3,7 +3,7 @@
  * 
  * file: RunnableHook.java
  */
-package ddproto1.localagent;
+package ddproto1.localagent.instrumentation;
 
 import org.apache.bcel.Constants;
 import org.apache.bcel.Repository;
