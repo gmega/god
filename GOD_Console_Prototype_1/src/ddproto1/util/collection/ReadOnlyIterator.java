@@ -7,7 +7,7 @@ package ddproto1.util.collection;
 
 import java.util.Iterator;
 
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 
 public class ReadOnlyIterator <E> implements Iterator <E>{
 

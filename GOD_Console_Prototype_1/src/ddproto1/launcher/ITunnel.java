@@ -4,9 +4,9 @@
  */
 package ddproto1.launcher;
 
-import ddproto1.configurator.IConfigurable;
-import ddproto1.exception.CommException;
+import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.exception.ConfigException;
+import ddproto1.exception.commons.CommException;
 
 /**
  * @author giuliano

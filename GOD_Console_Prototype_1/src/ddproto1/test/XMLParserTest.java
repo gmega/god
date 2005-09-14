@@ -16,12 +16,12 @@ import java.util.List;
 import org.xml.sax.SAXParseException;
 
 import ddproto1.Main;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.newimpl.XMLConfigurationParser;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.interfaces.IMessageBox;
 import ddproto1.util.MessageHandler;
 import junit.framework.TestCase;

@@ -12,7 +12,6 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Random;
 
 import org.apache.bcel.Constants;
 import org.apache.bcel.classfile.Code;
@@ -24,7 +23,6 @@ import org.apache.bcel.generic.ATHROW;
 import org.apache.bcel.generic.BranchInstruction;
 import org.apache.bcel.generic.ClassGen;
 import org.apache.bcel.generic.ConstantPoolGen;
-import org.apache.bcel.generic.Instruction;
 import org.apache.bcel.generic.InstructionFactory;
 import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.InstructionList;
@@ -81,7 +79,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     	else if(skeletons.containsKey(name)) serverClass = true;
     	else return jc;
     	
-   	Method [] methods = jc.getMethods();
+        Method [] methods = jc.getMethods();
     	
     	ClassGen cgen = new ClassGen(jc);
     	ConstantPoolGen cpg = cgen.getConstantPool();

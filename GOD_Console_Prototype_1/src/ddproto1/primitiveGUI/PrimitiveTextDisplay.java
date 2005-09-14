@@ -3,7 +3,7 @@
  * 
  * file: PrimitiveTextDisplay.java
  */
-package primitiveGUI;
+package ddproto1.primitiveGUI;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.layout.FillLayout;

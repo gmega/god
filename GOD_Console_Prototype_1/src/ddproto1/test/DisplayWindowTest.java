@@ -6,9 +6,9 @@
 package ddproto1.test;
 
 import ddproto1.interfaces.ISemaphore;
+import ddproto1.primitiveGUI.DisplayWindow;
+import ddproto1.primitiveGUI.IOpenListener;
 import ddproto1.util.Semaphore;
-import primitiveGUI.DisplayWindow;
-import primitiveGUI.IOpenListener;
 import junit.framework.TestCase;
 
 public class DisplayWindowTest extends TestCase implements IOpenListener{

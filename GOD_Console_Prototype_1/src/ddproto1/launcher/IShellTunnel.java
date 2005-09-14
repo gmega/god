@@ -6,8 +6,8 @@ package ddproto1.launcher;
 
 import java.util.List;
 
-import ddproto1.exception.CommException;
 import ddproto1.exception.InvalidStateException;
+import ddproto1.exception.commons.CommException;
 
 
 /**

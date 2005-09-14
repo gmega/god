@@ -64,6 +64,7 @@ hex_id=[0-9]+"x"[0-9a-zA-Z]+
 	"exit" 				{return makeToken(Token.EXIT, yytext());}
 	"step" 				{return makeToken(Token.STEP, yytext());}
 	"script"			{return makeToken(Token.RUNSCRIPT, yytext());}
+	"eval"				{return makeToken(Token.EVAL, yytext());}
 
 
 	{method}":"{number}		{return makeToken(Token.METHOD_BREAKSPEC, yytext());}	

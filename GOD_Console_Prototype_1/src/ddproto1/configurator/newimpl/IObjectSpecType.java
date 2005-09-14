@@ -11,9 +11,9 @@ import java.util.Set;
 import org.xml.sax.SAXException;
 
 import ddproto1.exception.DuplicateSymbolException;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.util.collection.ReadOnlyHashSet;
 
 /**

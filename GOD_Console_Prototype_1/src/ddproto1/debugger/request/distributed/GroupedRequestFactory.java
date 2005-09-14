@@ -12,7 +12,7 @@ import java.util.Map;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.NestedException;
+import ddproto1.exception.commons.NestedException;
 
 /**
  * @author giuliano

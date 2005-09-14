@@ -13,17 +13,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import ddproto1.exception.CommException;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InvalidStateException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.CommException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.interfaces.IStreamGobblerListener;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.ExternalSemaphore;
 import ddproto1.util.StreamGobbler;
 import ddproto1.util.collection.ReadOnlyHashSet;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 
 /**

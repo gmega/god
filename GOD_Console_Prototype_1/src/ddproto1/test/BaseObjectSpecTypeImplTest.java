@@ -11,8 +11,8 @@ import java.util.List;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IObjectSpecType;
 import ddproto1.configurator.newimpl.SpecLoader;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import junit.framework.TestCase;
 
 public class BaseObjectSpecTypeImplTest extends TestCase {

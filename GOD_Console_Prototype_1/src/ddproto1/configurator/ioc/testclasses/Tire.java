@@ -7,8 +7,8 @@ package ddproto1.configurator.ioc.testclasses;
 
 import java.util.Set;
 
-import ddproto1.configurator.IConfigurable;
-import ddproto1.exception.IllegalAttributeException;
+import ddproto1.configurator.commons.IConfigurable;
+import ddproto1.exception.commons.IllegalAttributeException;
 
 public class Tire implements IConfigurable{
 

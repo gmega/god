@@ -3,7 +3,7 @@
  * 
  * file: IOpenListener.java
  */
-package primitiveGUI;
+package ddproto1.primitiveGUI;
 
 public interface IOpenListener {
     public void notifyOpening();

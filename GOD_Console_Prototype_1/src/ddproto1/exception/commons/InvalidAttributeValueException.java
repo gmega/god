@@ -3,7 +3,9 @@
  * 
  * file: InvalidAttributeValueException.java
  */
-package ddproto1.exception;
+package ddproto1.exception.commons;
+
+
 
 public class InvalidAttributeValueException extends AttributeAccessException{
 

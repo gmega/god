@@ -11,11 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import ddproto1.configurator.IConfigurable;
-import ddproto1.exception.IllegalAttributeException;
+import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.exception.IncarnationException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 
 public class StandardServiceLocator implements IServiceLocator{
     private static StandardServiceLocator instance;

@@ -2,6 +2,9 @@ package ddproto1.exception;
 
 import java.util.List;
 
+import ddproto1.exception.commons.NestedException;
+
+
 /*
  * Created on Jul 21, 2004
  *

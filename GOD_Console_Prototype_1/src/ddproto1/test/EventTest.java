@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.Set;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.commons.Event;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.ParserException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.ParserException;
+import ddproto1.util.commons.Event;
 import junit.framework.TestCase;
 
 /**

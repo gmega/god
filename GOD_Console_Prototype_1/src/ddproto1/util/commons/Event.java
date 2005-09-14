@@ -3,18 +3,19 @@
  * 
  * file: ParsedEvent.java
  */
-package ddproto1.commons;
+package ddproto1.util.commons;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.IQueriableConfigurable;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.ParserException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.configurator.commons.IQueriableConfigurable;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.ParserException;
+import ddproto1.exception.commons.UnsupportedException;
+
 
 /**
  * This class represents the events that get passed from local to global agent

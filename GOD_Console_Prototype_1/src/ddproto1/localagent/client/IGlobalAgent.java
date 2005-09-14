@@ -8,8 +8,8 @@
 
 package ddproto1.localagent.client;
 
-import ddproto1.commons.Event;
-import ddproto1.exception.CommException;
+import ddproto1.exception.commons.CommException;
+import ddproto1.util.commons.Event;
 
 
 /**

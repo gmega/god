@@ -15,9 +15,9 @@
 		The "intended-interface" is a comma-separated list of interfaces
 		this element should specify.
 		-->
-	<element name="launcher"   
-			spec-extension="launcherspec" 
-			intended-interfaces="ddproto1.launcher.IApplicationLauncher"/>
+	<element name="tunnelled-launcher"   
+			spec-extension="tunnelledlauncherspec" 
+			intended-interfaces="ddproto1.launcher.IApplicationLauncher;ddproto1.launcher.JVMShellLauncher"/>
 	
 	<element name="source-mapper" 
 			spec-extension="mapperspec"

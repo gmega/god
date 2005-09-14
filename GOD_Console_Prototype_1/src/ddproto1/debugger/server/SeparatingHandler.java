@@ -8,8 +8,8 @@ package ddproto1.debugger.server;
 import java.util.HashMap;
 import java.util.Map;
 
+import ddproto1.util.commons.ByteMessage;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.util.ByteMessage;
 
 /**
  * Simple class that classifies request handlers according to the

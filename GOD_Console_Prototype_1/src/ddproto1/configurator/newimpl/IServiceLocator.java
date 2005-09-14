@@ -7,7 +7,7 @@ package ddproto1.configurator.newimpl;
 
 import java.util.NoSuchElementException;
 
-import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.exception.IncarnationException;
 
 public interface IServiceLocator {

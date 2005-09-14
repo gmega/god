@@ -22,9 +22,9 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.util.commons.ByteMessage;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.exception.CommException;
-import ddproto1.util.ByteMessage;
+import ddproto1.exception.commons.CommException;
 
 /**
  * @author giuliano

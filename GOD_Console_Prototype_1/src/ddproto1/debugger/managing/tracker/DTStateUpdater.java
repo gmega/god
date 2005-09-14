@@ -23,7 +23,7 @@ import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.exception.PropertyViolation;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * This event processor will convey the information that comes with each

@@ -8,7 +8,7 @@
 
 package ddproto1.debugger.server;
 
-import ddproto1.util.ByteMessage;
+import ddproto1.util.commons.ByteMessage;
 
 /**
  * @author giuliano

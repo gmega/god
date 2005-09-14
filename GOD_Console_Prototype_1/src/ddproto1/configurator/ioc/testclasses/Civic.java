@@ -11,12 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.IConfigurable;
+import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.configurator.newimpl.StandardServiceLocator;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.IncarnationException;
+import ddproto1.exception.commons.IllegalAttributeException;
 
 public class Civic implements IConfigurable{
     

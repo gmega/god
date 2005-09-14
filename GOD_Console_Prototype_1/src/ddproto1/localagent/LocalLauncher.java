@@ -22,8 +22,8 @@ import org.apache.log4j.PropertyConfigurator;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.IConfigurator;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
-import ddproto1.exception.CommException;
+import ddproto1.configurator.commons.IConfigurationConstants;
+import ddproto1.exception.commons.CommException;
 import ddproto1.localagent.CORBA.ORBHolder;
 import ddproto1.localagent.CORBA.orbspecific.JacORBStampRetriever;
 import ddproto1.localagent.client.GlobalAgentFactory;
@@ -49,6 +49,7 @@ import ddproto1.localagent.instrumentation.RunnableHook;
  * Starred parameters are required.
  * 
  * @author giuliano
+ * @deprecated Trying to banish it. 
  *
  */
 public class LocalLauncher extends JavaWrapper{

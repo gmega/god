@@ -17,10 +17,10 @@ import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IObjectSpecType;
 import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.util.StandardAttribute;
-import ddproto1.exception.AttributeAccessException;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.AttributeAccessException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import junit.framework.TestCase;
 
 public class ExtendedObjectSpecTypeImplTest extends TestCase {

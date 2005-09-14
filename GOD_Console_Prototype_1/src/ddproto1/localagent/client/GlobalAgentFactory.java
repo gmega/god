@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
  *
  */
 public class GlobalAgentFactory {
+    private static final Logger logger = Logger.getLogger(GlobalAgentFactory.class);
     
     private static GlobalAgentFactory instance = null;
     
@@ -52,7 +53,7 @@ public class GlobalAgentFactory {
 
         IConnectionManager icmgr = new PooledConnectionManager(
                 DEFAULT_POOLSIZE, hostSpec[0], Integer.parseInt(hostSpec[1]),
-                Logger.getLogger("agent.local"));
+                logger);
         
         the_agent = new GlobalAgentProxyImpl(icmgr, localgid);
                         

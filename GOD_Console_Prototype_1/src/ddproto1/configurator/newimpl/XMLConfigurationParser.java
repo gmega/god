@@ -23,7 +23,8 @@ import org.xml.sax.ext.DefaultHandler2;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import ddproto1.configurator.IConfigurator;
-import ddproto1.exception.IllegalAttributeException;
+import ddproto1.configurator.commons.IConfigurationConstants;
+import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.util.MessageHandler;
 
 public class XMLConfigurationParser extends DefaultHandler2 implements

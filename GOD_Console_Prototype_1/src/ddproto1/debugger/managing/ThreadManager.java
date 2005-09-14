@@ -34,10 +34,10 @@ import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.debugger.managing.tracker.TaggerProxy;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.MessageHandler;
-import ddproto1.util.traits.ConversionTrait;
 import ddproto1.util.traits.MethodSearchTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano

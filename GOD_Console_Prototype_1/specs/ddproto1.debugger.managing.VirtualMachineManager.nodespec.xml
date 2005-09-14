@@ -6,6 +6,8 @@
 	<attribute id="guid" default-value="auto"/>
 
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava);no:nop()"/>
+	<!-- This dependency is not actually quite accurate because in the current implemention
+		the Java node manager does not communicate with the launcher. That'll change, though. -->
 	<extension-attribute id="launcher" action="yes:loadspec(JavaWithLauncher);no:nop()"/>
 	
 	<child type="source-mapper" multiplicity="1"/>

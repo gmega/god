@@ -19,12 +19,11 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.EventRequest;
 
+import ddproto1.util.commons.ByteMessage;
+import ddproto1.util.commons.Event;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.commons.Event;
-import ddproto1.configurator.IConfigurator;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
-import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
@@ -34,19 +33,17 @@ import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdResolutionContextImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.server.IRequestHandler;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.ParserException;
 import ddproto1.exception.PropertyViolation;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.ParserException;
 import ddproto1.interfaces.IUICallback;
-import ddproto1.util.ByteMessage;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.collection.LockingHashMap;
-import ddproto1.util.traits.ConversionTrait;
 import ddproto1.util.traits.JDIMiscTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * The <b>Distributed Thread Manager</b> is a critical component, 

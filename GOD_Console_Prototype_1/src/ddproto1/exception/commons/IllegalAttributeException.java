@@ -1,4 +1,8 @@
-package ddproto1.exception;
+package ddproto1.exception.commons;
+
+
+
+
 /*
  * Created on Jul 21, 2004
  *

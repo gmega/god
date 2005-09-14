@@ -3,7 +3,7 @@
  * 
  * file: AttributeException.java
  */
-package ddproto1.exception;
+package ddproto1.exception.commons;
 
 public class AttributeAccessException extends Exception{
 

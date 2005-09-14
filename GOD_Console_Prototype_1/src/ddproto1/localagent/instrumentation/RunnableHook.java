@@ -67,6 +67,7 @@ public class RunnableHook implements IClassLoadingHook{
     }
     
     private Method glueSnippet(ClassGen nc, Method m){
+        System.out.println("Instrumenting " + nc.getClassName());
         
         InstructionList il = new InstructionList();
         InstructionFactory iFactory = new InstructionFactory(nc);

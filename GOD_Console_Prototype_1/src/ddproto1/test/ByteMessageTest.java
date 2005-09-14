@@ -5,7 +5,7 @@
  */
 package ddproto1.test;
 
-import ddproto1.util.ByteMessage;
+import ddproto1.util.commons.ByteMessage;
 import junit.framework.TestCase;
 
 /**

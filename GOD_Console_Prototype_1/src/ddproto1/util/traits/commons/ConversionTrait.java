@@ -6,13 +6,14 @@
  * File: StringHandler.java
  */
 
-package ddproto1.util.traits;
+package ddproto1.util.traits.commons;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.exception.MalformedInputException;
+import ddproto1.exception.commons.MalformedInputException;
+
 
 
 /**

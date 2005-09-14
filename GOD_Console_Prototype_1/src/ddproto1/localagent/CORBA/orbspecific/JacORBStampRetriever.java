@@ -15,10 +15,10 @@ import org.omg.CORBA.Any;
 import org.omg.CORBA.BAD_OPERATION;
 import org.omg.PortableInterceptor.InvalidSlot;
 
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.localagent.Tagger;
 import ddproto1.localagent.CORBA.ORBHolder.CurrentSpec;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano

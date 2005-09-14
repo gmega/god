@@ -17,7 +17,7 @@ import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.util.MessageHandler;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano

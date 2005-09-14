@@ -6,11 +6,12 @@
  * File: InfoCarrier.java
  */
 
-package ddproto1.configurator;
+package ddproto1.configurator.commons;
 
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.UninitializedAttributeException;
+
 
 /**
  * @author giuliano

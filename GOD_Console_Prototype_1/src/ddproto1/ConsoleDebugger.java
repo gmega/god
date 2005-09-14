@@ -52,7 +52,7 @@ import com.sun.tools.example.debug.expr.ParseException;
 import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
@@ -65,13 +65,13 @@ import ddproto1.debugger.managing.tracker.VirtualStackframe;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.CommandException;
 import ddproto1.exception.InvalidStateException;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.launcher.IApplicationLauncher;
 import ddproto1.launcher.JVMShellLauncher;
@@ -83,8 +83,8 @@ import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
 import ddproto1.util.collection.ThreadGroupIterator;
-import ddproto1.util.traits.ConversionTrait;
 import ddproto1.util.traits.JDIMiscTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * This highly inflated class represents our first attempt at constructing

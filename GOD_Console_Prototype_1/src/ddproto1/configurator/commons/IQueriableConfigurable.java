@@ -3,9 +3,11 @@
  * 
  * file: IInfoCarrier.java
  */
-package ddproto1.configurator;
+package ddproto1.configurator.commons;
 
 import java.util.Set;
+
+
 
 public interface IQueriableConfigurable extends IConfigurable{
     /**

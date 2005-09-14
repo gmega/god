@@ -3,7 +3,7 @@
  * 
  * file: DisplayWindow.java
  */
-package primitiveGUI;
+package ddproto1.primitiveGUI;
 
 import java.util.LinkedList;
 import java.util.List;

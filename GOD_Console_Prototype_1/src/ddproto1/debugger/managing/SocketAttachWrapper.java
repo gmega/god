@@ -20,14 +20,14 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.connect.Connector.Argument;
 
-import ddproto1.configurator.IConfigurable;
-import ddproto1.exception.AttributeAccessException;
+import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
-import ddproto1.exception.InvalidAttributeValueException;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.AttributeAccessException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.util.Lookup;
 
 public class SocketAttachWrapper implements IConfigurable{

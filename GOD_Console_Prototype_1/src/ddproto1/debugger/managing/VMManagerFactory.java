@@ -18,8 +18,8 @@ import java.util.NoSuchElementException;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
-import ddproto1.configurator.IConfigurable;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.commons.IConfigurable;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
@@ -28,12 +28,12 @@ import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.request.IDeferrableRequest.IPrecondition;
-import ddproto1.exception.AttributeAccessException;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.IncarnationException;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.AttributeAccessException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 

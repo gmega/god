@@ -10,12 +10,12 @@ package ddproto1.localagent.client;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.util.commons.ByteMessage;
+import ddproto1.util.commons.Event;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.commons.Event;
-import ddproto1.exception.CommException;
-import ddproto1.exception.NestedRuntimeException;
-import ddproto1.exception.UnsupportedException;
-import ddproto1.util.ByteMessage;
+import ddproto1.exception.commons.CommException;
+import ddproto1.exception.commons.NestedRuntimeException;
+import ddproto1.exception.commons.UnsupportedException;
 
 /**
  * @author giuliano

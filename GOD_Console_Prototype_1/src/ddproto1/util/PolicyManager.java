@@ -10,7 +10,7 @@ package ddproto1.util;
 
 import com.sun.jdi.request.EventRequest;
 
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 
 /**
  * @author giuliano

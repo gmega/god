@@ -18,7 +18,7 @@ import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 
 
 /**

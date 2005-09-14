@@ -6,13 +6,14 @@
  * File: ByteArray.java
  */
 
-package ddproto1.util;
+package ddproto1.util.commons;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.exception.CommException;
+import ddproto1.exception.commons.CommException;
+
 
 /**
  * @author giuliano

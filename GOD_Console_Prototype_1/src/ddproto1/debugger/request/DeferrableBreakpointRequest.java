@@ -33,12 +33,12 @@ import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.exception.AmbiguousSymbolException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano

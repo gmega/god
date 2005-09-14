@@ -8,7 +8,7 @@
 
 package ddproto1.localagent.client;
 
-import ddproto1.exception.CommException;
+import ddproto1.exception.commons.CommException;
 
 
 /**

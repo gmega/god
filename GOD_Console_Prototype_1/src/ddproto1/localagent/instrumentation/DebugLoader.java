@@ -19,6 +19,7 @@ import org.apache.bcel.util.ClassLoader;
 /**
  * @author giuliano
  *
+ * @deprecated Java 1.5 instrumentation agent renders this class loader obsolete.
  */
 public class DebugLoader extends ClassLoader{
     

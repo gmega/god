@@ -3,7 +3,7 @@
  * 
  * file: MalformedInputException.java
  */
-package ddproto1.exception;
+package ddproto1.exception.commons;
 
 /**
  * @author giuliano

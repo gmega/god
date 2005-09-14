@@ -5,8 +5,8 @@ Configuration Module:
 - Add a binary 'incarnable' attribute to the specs. Validate incarnable attribute against type attribute in the configuration file.
 - Add metadata attributes that don't go to the actual incarnation. 
 - Let metadata attributes be specified both in the configuration file and the deployment descriptor.
-- Add default values. 
-- Add context.
+- Semi-OK. Add default values. 
+- OK. Add context.
 
 Debugger:
 

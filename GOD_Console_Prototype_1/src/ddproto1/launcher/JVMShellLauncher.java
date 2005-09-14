@@ -11,20 +11,20 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.newimpl.IConfigurationConstants;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
-import ddproto1.exception.AttributeAccessException;
-import ddproto1.exception.CommException;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.LauncherException;
-import ddproto1.exception.NestedRuntimeException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.AttributeAccessException;
+import ddproto1.exception.commons.CommException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.NestedRuntimeException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.collection.ReadOnlyHashSet;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 
 /**

@@ -21,12 +21,12 @@ import org.xml.sax.SAXException;
 
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.DuplicateSymbolException;
-import ddproto1.exception.IllegalAttributeException;
 import ddproto1.exception.InternalError;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.NestedRuntimeException;
 import ddproto1.exception.NoSuchSymbolException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.NestedRuntimeException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.util.collection.OrderedMultiMap;
 import ddproto1.util.collection.ReadOnlyHashSet;
 import ddproto1.util.collection.UnorderedMultiMap;

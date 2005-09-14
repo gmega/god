@@ -16,7 +16,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.EventRequest;
 
 import ddproto1.debugger.request.IDeferrableRequest;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.MessageHandler;
 
 /**

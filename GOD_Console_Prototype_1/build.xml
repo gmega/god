@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Distributed Debugger Prototype 1" default="all" basedir=".">
+	
+	<property name="jar-dir" location="lib"/>
+	<property name="src-dir" location="src"/>
+	<property name="bin-dir" location="bin"/>
+
+	<property name="client-agent-mainclass" value="ddproto1.localagent.instrumentation.java5.ClientSideAgent"/>
+	<property name="agent-library-list" value="bcel-5.1.jar log4j-1.2.9.jar local-agent.jar"/>
+	<property name="local-agent-subdir" value="ddproto1/localagent"/>
+	
+	<property name="commons-subdir" value="ddproto1/commons"/>
+	<property name="configurator-commons-subdir" value="ddproto1/configurator/commons"/>
+	<property name="exception-commons-subdir" value="ddproto1/exception/commons"/>
+	<property name="util-commons-subdir" value="ddproto1/util/commons"/>
+
+
+	<!-- Generates the client side instrumentation agent jar. -->	
+	<target name="gen-client-agent-jar">
+    	<mkdir dir="${jar-dir}"/>
+		<jar destfile="${jar-dir}/local-agent.jar">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Premain-Class" value="${client-agent-mainclass}"/>
+				<attribute name="Boot-Class-Path" value="${agent-library-list}"/>
+				<attribute name="Can-Redefine-Classes" value="true"/>
+			</manifest>
+			
+			<zipfileset dir="${bin-dir}/${local-agent-subdir}" 
+				includes="**/*.class" prefix="${local-agent-subdir}"/>
+			
+			<zipfileset dir="${bin-dir}/${commons-subdir}" 
+				includes="**/*.class" prefix="${commons-subdir}"/>
+			
+			<zipfileset dir="${bin-dir}/${configurator-commons-subdir}" 
+				includes="**/*.class" prefix="${configurator-commons-subdir}"/>			
+			
+			<zipfileset dir="${bin-dir}/${exception-commons-subdir}" 
+				includes="**/*.class" prefix="${exception-commons-subdir}"/>
+			
+			<zipfileset dir="${bin-dir}/${util-commons-subdir}" 
+				includes="**/*.class" prefix="${util-commons-subdir}"/>
+		</jar>
+	</target>	
+	
+	<target name="all" depends="gen-client-agent-jar"/>
+</project>

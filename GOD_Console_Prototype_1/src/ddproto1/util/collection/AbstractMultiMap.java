@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.exception.NestedRuntimeException;
+import ddproto1.exception.commons.NestedRuntimeException;
 
 /**
  * This class implements a collection that resembles a map, but accepts multiple

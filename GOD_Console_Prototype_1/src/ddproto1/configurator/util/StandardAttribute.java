@@ -9,7 +9,7 @@ import java.util.Set;
 
 import ddproto1.configurator.newimpl.IAttribute;
 import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.exception.InvalidAttributeValueException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.util.collection.ReadOnlyHashSet;
 
 public class StandardAttribute implements IAttribute{

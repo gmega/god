@@ -35,8 +35,8 @@ import ddproto1.exception.RequestProcessorException;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
-import ddproto1.util.traits.ConversionTrait;
 import ddproto1.util.traits.JDIMiscTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 
 /**

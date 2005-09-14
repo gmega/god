@@ -20,9 +20,9 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
 import ddproto1.debugger.managing.VMManagerFactory;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.NestedRuntimeException;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.NestedRuntimeException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.collection.OrderedMultiMap;
 

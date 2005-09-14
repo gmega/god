@@ -5,9 +5,9 @@
  */
 package ddproto1.debugger.server;
 
-import ddproto1.commons.Event;
-import ddproto1.exception.ParserException;
-import ddproto1.util.ByteMessage;
+import ddproto1.util.commons.ByteMessage;
+import ddproto1.util.commons.Event;
+import ddproto1.exception.commons.ParserException;
 
 /**
  * @author giuliano

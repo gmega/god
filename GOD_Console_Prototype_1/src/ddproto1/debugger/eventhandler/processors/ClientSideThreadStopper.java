@@ -19,7 +19,7 @@ import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
-import ddproto1.exception.UnsupportedException;
+import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.PolicyManager;
 import ddproto1.util.traits.JDIMiscTrait;
 

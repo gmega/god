@@ -8,10 +8,10 @@ package ddproto1.configurator.newimpl;
 import java.util.List;
 import java.util.Map;
 
-import ddproto1.configurator.IQueriableConfigurable;
+import ddproto1.configurator.commons.IQueriableConfigurable;
 import ddproto1.exception.AmbiguousSymbolException;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 
 /**
  * This type represents a metaobject holding information about real objects. 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ASCII"?>
 <!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
 
-<spec name="Java Virtual Machine Shell Launcher (bash syntax)" type="launcher">
+<spec name="Java Virtual Machine Shell Launcher (bash syntax)" type="tunnelled-launcher">
 	<attribute id="main-class"/>
 	<attribute id="classpath"/>
 	<attribute id="jdwp-port" default-value="#context"/>

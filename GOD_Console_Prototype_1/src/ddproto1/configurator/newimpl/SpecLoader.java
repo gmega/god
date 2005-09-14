@@ -28,9 +28,10 @@ import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import ddproto1.configurator.IConfigurator;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
-import ddproto1.exception.InvalidAttributeValueException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 
 /**
  * Default implementation for the <i>ISpecLoader</i> interface. It represents a mapping

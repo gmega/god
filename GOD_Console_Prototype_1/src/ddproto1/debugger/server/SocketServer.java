@@ -21,11 +21,11 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.util.commons.ByteMessage;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.exception.CommException;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.NestedRuntimeException;
-import ddproto1.util.ByteMessage;
+import ddproto1.exception.commons.CommException;
+import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.Semaphore;
 

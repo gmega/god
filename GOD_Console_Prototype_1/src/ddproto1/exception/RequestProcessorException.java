@@ -5,6 +5,8 @@
  */
 package ddproto1.exception;
 
+import ddproto1.exception.commons.NestedRuntimeException;
+
 /**
  * @author giuliano
  *

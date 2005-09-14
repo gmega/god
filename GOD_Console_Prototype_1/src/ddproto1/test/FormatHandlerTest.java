@@ -5,7 +5,7 @@
  */
 package ddproto1.test;
 
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 import junit.framework.TestCase;
 
 /**

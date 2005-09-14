@@ -23,13 +23,13 @@ import org.omg.PortableInterceptor.Current;
 import org.omg.PortableInterceptor.InvalidSlot;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.commons.Event;
-import ddproto1.exception.CommException;
+import ddproto1.exception.commons.CommException;
 import ddproto1.localagent.Tagger;
 import ddproto1.localagent.CORBA.orbspecific.IStampRetrievalStrategy;
 import ddproto1.localagent.client.GlobalAgentFactory;
 import ddproto1.localagent.client.IGlobalAgent;
-import ddproto1.util.traits.ConversionTrait;
+import ddproto1.util.commons.Event;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * This class holds most of the interception code that is called by the various 

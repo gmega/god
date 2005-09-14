@@ -5,15 +5,28 @@
  */
 package ddproto1.localagent.instrumentation.java5;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
-import java.net.URL;
 
-public class ClientSideAgent {
-    public static void premain(String agentArgs, Instrumentation instrumentation){
+import org.apache.log4j.BasicConfigurator;
 
+import ddproto1.localagent.instrumentation.CORBAHookInitWrapper;
+import ddproto1.localagent.instrumentation.IClassLoadingHook;
+import ddproto1.localagent.instrumentation.RunnableHook;
 
-        instrumentation.addTransformer(new ClientSideTransformer());
+public abstract class ClientSideAgent {
+
+    public static void premain(String agentArgs, Instrumentation instrumentation) {
+        BasicConfigurator.configure();
+        ClientSideTransformer transformer = new ClientSideTransformer();
+        for (IClassLoadingHook modifier : getDefaultModifiers())
+            transformer.addModifier(modifier);
+
+        instrumentation.addTransformer(transformer);
+    }
+
+    private static IClassLoadingHook [] getDefaultModifiers() {
+        return new IClassLoadingHook[] {
+                new CORBAHookInitWrapper(),
+                new RunnableHook() };
     }
 }

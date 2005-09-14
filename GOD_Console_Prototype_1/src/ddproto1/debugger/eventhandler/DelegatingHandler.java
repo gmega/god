@@ -30,7 +30,7 @@ import com.sun.jdi.request.EventRequest;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.exception.ConfigException;
-import ddproto1.exception.IllegalAttributeException;
+import ddproto1.exception.commons.IllegalAttributeException;
 
 /**
  * @author giuliano

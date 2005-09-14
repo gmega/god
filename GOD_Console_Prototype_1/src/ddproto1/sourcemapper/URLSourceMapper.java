@@ -22,12 +22,12 @@ import java.util.StringTokenizer;
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.Location;
 
-import ddproto1.configurator.IConfigurable;
 import ddproto1.configurator.IConfigurator;
-import ddproto1.configurator.newimpl.IConfigurationConstants;
-import ddproto1.exception.IllegalAttributeException;
-import ddproto1.exception.InvalidAttributeValueException;
-import ddproto1.exception.UninitializedAttributeException;
+import ddproto1.configurator.commons.IConfigurable;
+import ddproto1.configurator.commons.IConfigurationConstants;
+import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.util.MessageHandler;
 
 /**

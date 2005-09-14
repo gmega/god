@@ -3,7 +3,7 @@
  * 
  * file: AttributeConstants.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator.commons;
 
 import java.io.File;
 
@@ -35,6 +35,8 @@ public interface IConfigurationConstants {
     public static final String MAX_QUEUE_LENGTH = "connection-queue-size";
     public static final String GLOBAL_AGENT_ADDRESS = "global-agent-address";
     public static final String GUID = "guid";
+    public static final String STUB_LIST = "stublist";
+    public static final String SKELETON_LIST = "skeletonlist";
     
     public static final String AUTO = "auto";
 

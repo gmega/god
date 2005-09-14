@@ -3,7 +3,9 @@
  * 
  * file: UnsetAttributeException.java
  */
-package ddproto1.exception;
+package ddproto1.exception.commons;
+
+
 
 public class UninitializedAttributeException extends AttributeAccessException {
 

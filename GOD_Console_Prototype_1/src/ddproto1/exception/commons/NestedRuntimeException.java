@@ -3,7 +3,7 @@
  * 
  * file: RuntimeWrapCapableException.java
  */
-package ddproto1.exception;
+package ddproto1.exception.commons;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
