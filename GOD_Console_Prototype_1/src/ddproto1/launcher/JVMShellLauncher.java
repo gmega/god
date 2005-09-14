@@ -4,27 +4,15 @@
  */
 package ddproto1.launcher;
 
-import java.net.Inet4Address;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.LauncherException;
-import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.CommException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.NestedRuntimeException;
-import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
-import ddproto1.util.collection.ReadOnlyHashSet;
-import ddproto1.util.traits.commons.ConversionTrait;
 
 
 /**
@@ -36,6 +24,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
 
     private String classpath;
     private String mainclass;
+    private String agentJar;
     private String jvmport;
     private String ttype;
     private String vmParameters = "";
@@ -55,9 +44,10 @@ public class JVMShellLauncher implements IApplicationLauncher {
      */
     public void launch() throws CommException, LauncherException, ConfigException {
         try{
-            if ((classpath == null) || (mainclass == null) || (jvmport == null)
-                    || (gid == null) || (appParameters == null)
-                    || (block == null) || (globalAddress == null) || (cdwp_port == null))
+            if (classpath == null || mainclass == null || jvmport == null
+                    || gid == null || appParameters == null
+                    || block == null || globalAddress == null || cdwp_port == null 
+                    || agentJar == null)
                 throw new ConfigException(module + " Required launcher parameter is missing.");
             
             IServiceLocator locator = (IServiceLocator) Lookup
@@ -83,8 +73,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
             // FIXME Another issue arises if the JVM don't return control to the command prompt (if we are in Windows, for instance).
             String script = (block == true)?"./open_block.sh":"./open.sh";
             String cmdline = script
-                    + " java -cp \""
-                    + classpath +"\""
+                    + " java " + "-javaagent:" + agentJar
+                    + "-cp \"" + classpath +"\""
                     + " -Xdebug"
                     + " -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address="
                     + jvmport + " " + vmParameters 
@@ -150,6 +140,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
             cdwp_port = value;
         }else if(key.equals("app-parameters")){
             appParameters = value;
+        }else if(key.equals("local-agent-jar")){
+            agentJar = value;
         }else if(key.equals("tunnel-closure-policy")){
             if(value.equals("launch-and-close")){
                 block = false;

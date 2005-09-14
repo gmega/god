@@ -55,7 +55,7 @@ public class XMLParserTest extends BasicSpecTest {
             /** Deep context test */
             root = root.getChildOfType(IConfigurationConstants.NODE_LIST);
             List<IObjectSpec> children = root.getChildren();
-            IObjectSpec launcher = children.get(0).getChildOfType("launcher");
+            IObjectSpec launcher = children.get(0).getChildOfType("tunnelled-launcher");
             try{
                 launcher.getAttribute("cdwp-port");
             }catch(UninitializedAttributeException ex){ }

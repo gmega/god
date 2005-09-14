@@ -164,6 +164,7 @@ public class SocketServer implements Runnable{
             thread_load++;
             ConnectionHandler ch = new ConnectionHandler();
             Thread handlerThread = new Thread(ch);
+            handlerThread.setName("Handler Thread");
             handlerThread.setDaemon(true);
             handlerThread.start();
         }
@@ -226,6 +227,7 @@ public class SocketServer implements Runnable{
                          * were a handler thread available when there were actually
                          * none, causing things to grind into a halt.
                          */
+                        idle_threads++;
                         continue;
                     }
                     

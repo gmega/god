@@ -37,7 +37,10 @@ public interface IConfigurationConstants {
     public static final String GUID = "guid";
     public static final String STUB_LIST = "stublist";
     public static final String SKELETON_LIST = "skeletonlist";
+    public static final String CORBA_ENABLED = "CORBA-enabled";
     
+    public static final String TRUE = "yes";
+    public static final String FALSE = "no";
     public static final String AUTO = "auto";
 
     /** Directory constraints. */

@@ -25,6 +25,7 @@ public class ClientSideTransformer implements ClassFileTransformer{
     
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
         try{
+            if(logger.isDebugEnabled()) logger.debug("Parsing " + className);
             /** Creates a BCEL class file and delegates processing to its hooks. 
              * I can't really assert the name of the source file for this class, so I pass
              * the "garbage" string. I think BCEL doesn't use it, but if it does then I better 

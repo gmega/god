@@ -30,6 +30,7 @@ import org.apache.bcel.generic.MethodGen;
 import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.generic.ReturnInstruction;
 import org.apache.bcel.generic.Type;
+import org.apache.log4j.Logger;
 
 import ddproto1.commons.DebuggerConstants;
 
@@ -40,6 +41,8 @@ import ddproto1.commons.DebuggerConstants;
 public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
 
     private static final String ORBHOLDER_NAME = "ddproto1.localagent.CORBA.ORBHolder";
+    
+    private static final Logger logger = Logger.getLogger(CORBAHook.class);
     
     private static final boolean DEBUG_MODE = false;
     private static final String DUMP_DIR = "/home/giuliano/workspace/Distributed Debugger Prototype 1/runtime-gen";
@@ -169,6 +172,9 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
      
     private void glueSkeletonSnippet(MethodGen mg, ClassGen cgen, String finallyName){
         
+        if(logger.isDebugEnabled())
+            logger.debug("Modifying class " + cgen.getClassName() + " with skeleton snippets.");
+        
         InstructionFactory iFactory = new InstructionFactory(cgen);
         
         /**
@@ -184,6 +190,9 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     }
     
     private void glueStubSnippet(MethodGen mg, ClassGen cgen, String finallyName){
+
+        if(logger.isDebugEnabled())
+            logger.debug("Modifying class " + cgen.getClassName() + " with stub snippets.");
         
         InstructionList il = new InstructionList();
         InstructionFactory iFactory = new InstructionFactory(cgen);

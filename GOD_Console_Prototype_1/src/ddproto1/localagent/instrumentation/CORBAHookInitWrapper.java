@@ -41,6 +41,13 @@ public class CORBAHookInitWrapper implements IClassLoadingHook {
         GlobalAgentFactory gaFactory = GlobalAgentFactory.getInstance();
         IGlobalAgent globalAgent = gaFactory.resolveReference();
         
+        /** First determines if this application is CORBA-enabled */
+        if (globalAgent.getAttribute(IConfigurationConstants.CORBA_ENABLED)
+                .equals(IConfigurationConstants.FALSE)){
+            disabled = true;
+            return;
+        }
+        
         /** Acquires the stub and skeleton list from the global agent. */
         surrogate = new CORBAHook(
                 this.grabList(IConfigurationConstants.STUB_LIST, globalAgent), 

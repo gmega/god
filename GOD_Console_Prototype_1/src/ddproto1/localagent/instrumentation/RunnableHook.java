@@ -18,6 +18,8 @@ import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.generic.Type;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.exception.commons.UninitializedAttributeException;
+import ddproto1.localagent.Tagger;
 
 /**
  * @author giuliano
@@ -31,6 +33,7 @@ public class RunnableHook implements IClassLoadingHook{
      * @see ddproto1.localagent.IClassLoadingHook#modifyClass(org.apache.bcel.classfile.JavaClass)
      */
     public JavaClass modifyClass(JavaClass jc) {
+        
         RunnableHook.getRunnableClass();
         
         if(!jc.instanceOf(runnableIntf)) return jc;
@@ -67,7 +70,7 @@ public class RunnableHook implements IClassLoadingHook{
     }
     
     private Method glueSnippet(ClassGen nc, Method m){
-        System.out.println("Instrumenting " + nc.getClassName());
+        System.out.println("Instrumenting " + nc.getClassName() + " with runnable hook.");
         
         InstructionList il = new InstructionList();
         InstructionFactory iFactory = new InstructionFactory(nc);
