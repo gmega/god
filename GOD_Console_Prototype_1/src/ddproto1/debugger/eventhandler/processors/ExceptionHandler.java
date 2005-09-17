@@ -10,6 +10,7 @@ package ddproto1.debugger.eventhandler.processors;
 
 import java.util.ArrayList;
 
+import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.Location;
@@ -85,7 +86,10 @@ public class ExceptionHandler extends BasicEventProcessor{
             Location loc = stkf.location();
             Method m = loc.method();
             ReferenceType where = loc.declaringType();
-            mesg += i + " at "+where.name()+"." + loc.method().name() + "()\n";
+            String source = "<unknown>";
+            try{ source = loc.sourceName(); } catch(AbsentInformationException ex) { }
+            String line = Integer.toString(loc.lineNumber());
+            mesg += i + " at "+where.name()+"." + loc.method().name() + "():" + source + "["+ line + "]\n";
         }
         
         return mesg;

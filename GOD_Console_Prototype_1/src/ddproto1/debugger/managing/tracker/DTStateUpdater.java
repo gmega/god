@@ -183,7 +183,7 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
              * the dt's state is not damaged. Yet.*/
             if(lt_uuid.equals(vsf.getLocalThreadId())){
                 // If the root is dead, the DT is dead as well.
-                if(vs.getFrameCount() == 1){
+                if(vs.getVirtualFrameCount() == 1){
                     dtm.notifyDeath(lt_uuid); // no problem. Root means lt_uuid equals dt_uuid.
                 } else
                     vs.popFrame();
@@ -228,8 +228,8 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
          * 
          * The loop scans the dt's virtual stack and looks for it.
          */
-        for (int i = 0; i < vs.getFrameCount(); i++) {
-            VirtualStackframe vsf = vs.getFrame(i);
+        for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
+            VirtualStackframe vsf = vs.getVirtualFrame(i);
             if (vsf.getLocalThreadId().equals(lt_uuid)) {
                 idx = i;
                 break;

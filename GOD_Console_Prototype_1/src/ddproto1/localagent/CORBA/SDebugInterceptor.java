@@ -16,6 +16,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.omg.CORBA.Any;
 import org.omg.CORBA.BAD_OPERATION;
+import org.omg.CORBA.BAD_PARAM;
 import org.omg.CORBA.LocalObject;
 import org.omg.CORBA.ORB;
 import org.omg.IOP.ServiceContext;
@@ -75,8 +76,16 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
      */
     public void receive_request_service_contexts(ServerRequestInfo ri) throws ForwardRequest {
         logger.info("receive_request_service_contexts");
-        /* Obtains the request gid */
-        ServiceContext sc = ri.get_request_service_context(upcall_context);
+        ServiceContext sc;
+        
+        try{
+            /* Tries to obtain the request gid */
+            sc = ri.get_request_service_context(upcall_context);
+        }catch(BAD_PARAM ex){
+            /*  No context information. Has been called by debug-unaware node. */
+            return;
+        }
+        
         byte [] id = sc.context_data;
         if(id.length != 4){
             logger.error(name + "Error - encoded id does not obey the required format.");

@@ -4,6 +4,9 @@
  */
 package ddproto1.launcher;
 
+import org.apache.log4j.Logger;
+
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.exception.ConfigException;
@@ -12,16 +15,16 @@ import ddproto1.exception.commons.CommException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.util.Lookup;
-import ddproto1.util.MessageHandler;
-
 
 /**
  * @author giuliano
  *
- * Window - Preferences - Java - Code Style - Code Templates
+ * @note This class is pretty ugly. 
  */
 public class JVMShellLauncher implements IApplicationLauncher {
 
+    private static final Logger logger = Logger.getLogger(JVMShellLauncher.class);
+    
     private String classpath;
     private String mainclass;
     private String agentJar;
@@ -32,6 +35,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
     private String globalAddress;
     private String appParameters;
     private String cdwp_port;
+    private String log4jurl;
     
     private Boolean block;
       
@@ -71,19 +75,24 @@ public class JVMShellLauncher implements IApplicationLauncher {
             // TODO Maybe we should add an option that allows the user to choose between using nohup and
             // maintaining his tunnel connection open.
             // FIXME Another issue arises if the JVM don't return control to the command prompt (if we are in Windows, for instance).
-            String script = (block == true)?"./open_block.sh":"./open.sh";
+            String script = (block == true)?"":"./open.sh ";
+                                    
             String cmdline = script
-                    + " java " + "-javaagent:" + agentJar
-                    + "-cp \"" + classpath +"\""
+                    + "java " + "-javaagent:\"" + agentJar + "\""
+                    + " -cp \"" + classpath +"\""
+                    + ((log4jurl.equals(IConfigurationConstants.AUTO))?""
+                            :" \"-Dlog4.configuration.url=" + log4jurl + "\"")
                     + " -Xdebug"
                     + " -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address="
                     + jvmport + " " + vmParameters 
                     + " -Dagent.local.gid=" + gid 
                     + " -Dagent.global.address=" + globalAddress + ":" + cdwp_port
-                    + " ddproto1.localagent.LocalLauncher --main-class=" + mainclass 
-                    + " --app-parameters " + appParameters + "\n";
+                    + " " + mainclass + " " + appParameters + "\n";
             
-            System.err.println("Inet Address:" + globalAddress);
+            if(logger.isDebugEnabled()){
+                logger.debug("Inet Address:" + globalAddress);
+                logger.debug("Command line:" + cmdline);
+            }
             
             //FIXME This part locks up like hell. We've got to add some timeout support here.
             sht.open();
@@ -91,6 +100,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
             if(block){
                 CommandAndClose cac = new CommandAndClose(sht, cmdline);
                 Thread asyncExecute = new Thread(cac);
+                asyncExecute.setName("Remote Connector");
                 asyncExecute.start();
             }else{
                 sht.feedCommand(cmdline);
@@ -142,6 +152,8 @@ public class JVMShellLauncher implements IApplicationLauncher {
             appParameters = value;
         }else if(key.equals("local-agent-jar")){
             agentJar = value;
+        }else if(key.equals("log4j-config-url")){
+            log4jurl = value;
         }else if(key.equals("tunnel-closure-policy")){
             if(value.equals("launch-and-close")){
                 block = false;
@@ -180,10 +192,7 @@ public class JVMShellLauncher implements IApplicationLauncher {
     private void wrap(Exception e)
     	throws LauncherException
     {
-        MessageHandler mh = MessageHandler.getInstance();
-        mh.getErrorOutput().println(module + " Caught exception. Generating LauncherException");
-        mh.printStackTrace(e);
-        
+        logger.error(" Caught exception. Generating LauncherException", e);
         throw new LauncherException(e.toString());
     }
 

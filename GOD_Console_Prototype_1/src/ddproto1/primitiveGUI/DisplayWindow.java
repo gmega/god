@@ -58,6 +58,7 @@ public class DisplayWindow extends ApplicationWindow implements IMessageBox{
                 display.dispose();
             }
         });
+        t.setName(title);
         t.start();
     }
     

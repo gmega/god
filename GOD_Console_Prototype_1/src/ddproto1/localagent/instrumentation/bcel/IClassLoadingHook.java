@@ -6,7 +6,7 @@
  * File: IClassLoadingHook.java
  */
 
-package ddproto1.localagent.instrumentation;
+package ddproto1.localagent.instrumentation.bcel;
 
 import org.apache.bcel.classfile.JavaClass;
 
@@ -15,5 +15,5 @@ import org.apache.bcel.classfile.JavaClass;
  *
  */
 public interface IClassLoadingHook {
-    public JavaClass modifyClass(JavaClass jc);
+    public JavaClass modifyClass(JavaClass jc, ClassLoader loader);
 }

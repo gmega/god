@@ -6,9 +6,11 @@
  */
 package ddproto1.debugger.managing.tracker;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Stack;
 
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.BreakpointRequest;
@@ -69,7 +71,14 @@ public class DistributedThread {
      * SIGNAL_BOUNDARY will also be blocked, hence things will end up working out
      * just fine (albeit "a bit" slow).
      */    
-    protected ISemaphore stackSema = new Semaphore(1); 
+    protected ISemaphore stackModificationSemaphore = new Semaphore(1);
+    
+    /*
+     * This semaphore is for avoiding that the thread gets resumed after a stack 
+     * inspection operation has begun.
+     * 
+     */
+    protected ISemaphore stackInspectionSemaphore = new Semaphore(1);  
 
     /* Actual thread state. */
     private byte state;
@@ -149,7 +158,7 @@ public class DistributedThread {
     public boolean isSuspended(){
         ThreadReference head = this.getLockedHead();
         boolean result = head.isSuspended();
-        stackSema.v();
+        stackModificationSemaphore.v();
         return result;
     }
     
@@ -161,7 +170,7 @@ public class DistributedThread {
     public boolean isStepping(){
         ThreadReference head = this.getLockedHead();
         boolean result = head.isSuspended();
-        stackSema.v();
+        stackModificationSemaphore.v();
         return result;
     }
     
@@ -171,7 +180,7 @@ public class DistributedThread {
      */
     private ThreadReference getLockedHead(){
         checkOwner();
-        stackSema.p();
+        stackModificationSemaphore.p();
         
         Byte nodeGID = vs.peek().getLocalThreadNodeGID();
         Integer lt_uuid = vs.peek().getLocalThreadId();
@@ -233,7 +242,7 @@ public class DistributedThread {
         state = RUNNING;
 	    tr.resume();
 
-        stackSema.v();
+        stackModificationSemaphore.v();
 	}
     
     public void suspend(){
@@ -246,7 +255,7 @@ public class DistributedThread {
 	     * it has been suspended. Any threads that signalled popping will 
 	     * be blocked. 
 	     */
-	    stackSema.p();
+	    stackModificationSemaphore.p();
 	    VirtualStackframe head = getHead();
 	    IVMThreadManager tm = vmmf.getVMManager(head.getLocalThreadNodeGID())
                 .getThreadManager();
@@ -352,13 +361,13 @@ public class DistributedThread {
 	 *
 	 */
 	public class VirtualStack {
-	    private List frameStack = new LinkedList();
+	    private Stack<VirtualStackframe> frameStack = new Stack<VirtualStackframe>();
 	    
 	    public synchronized void pushFrame(VirtualStackframe tr){
 	        checkOwner();
-            stackSema.p();
-	        frameStack.add(0, tr);
-            stackSema.v();
+            stackModificationSemaphore.p();
+	        frameStack.push(tr);
+            stackModificationSemaphore.v();
 	    }
 	    
 	    public VirtualStackframe popFrame(){
@@ -368,34 +377,43 @@ public class DistributedThread {
 	         * the handler had a chance to actually pop the thread, then synchronization
 	         * is required.
 	         * 
-	         * What this semaphore does is blocking the handler thread from popping the
+	         * What this semaphore does is block the handler thread from popping the
 	         * application thread until it gets resumed by the user who suspended it.
 	         */
-	        stackSema.p();
-	        VirtualStackframe popped = (VirtualStackframe)frameStack.remove(0);
-	        stackSema.v();
+	        stackModificationSemaphore.p();
+	        VirtualStackframe popped = (VirtualStackframe)frameStack.pop();
+	        stackModificationSemaphore.v();
 	        return popped;
 	    }
 	    
 	    public VirtualStackframe peek(){
-	        return (VirtualStackframe)frameStack.get(0);
+	        return (VirtualStackframe)frameStack.peek();
 	    }
 	    
-	    public int getFrameCount(){
+	    public int getVirtualFrameCount(){
 	        return frameStack.size();
 	    }
 	    
-	    public VirtualStackframe getFrame(int idx)
+	    public VirtualStackframe getVirtualFrame(int idx)
 	    	throws NoSuchElementException
 	    {
 	        if(frameStack.size() <= idx)
 	            throw new NoSuchElementException("Invalid index - " + idx);
 	        
-	        return (VirtualStackframe)frameStack.get(idx);
+	        return (VirtualStackframe)frameStack.elementAt(idx);
 	    }
 	    
-	    public List frames(int start, int length){
-	        return null;
+	    public List <VirtualStackframe>virtualFrames(int start, int length) 
+            throws NoSuchElementException
+        {
+            stackInspectionSemaphore.p();
+            try{
+                if(state != SUSPENDED)
+                    throw new IllegalThreadStateException("Cannot look at the stack of a running thread.");
+                return frameStack.subList(start, start + length - 1);
+            }finally{
+                stackInspectionSemaphore.v();
+            }
 	    }
 	}
 }

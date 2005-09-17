@@ -3,10 +3,11 @@
  * 
  * file: RunnableHook.java
  */
-package ddproto1.localagent.instrumentation;
+package ddproto1.localagent.instrumentation.bcel;
+
+import java.util.Set;
 
 import org.apache.bcel.Constants;
-import org.apache.bcel.Repository;
 import org.apache.bcel.classfile.JavaClass;
 import org.apache.bcel.classfile.Method;
 import org.apache.bcel.generic.ClassGen;
@@ -18,25 +19,36 @@ import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.generic.Type;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.exception.commons.UninitializedAttributeException;
-import ddproto1.localagent.Tagger;
 
 /**
  * @author giuliano
  *
+ * 
  */
-public class RunnableHook implements IClassLoadingHook{
+public class BCELRunnableHook implements IClassLoadingHook{
 
-    private static JavaClass runnableIntf;
+    /** This works because Runnable is accessible through the bootstrap classloader. 
+     * No chances of mess because we're also loaded by the bootstrap classloader. */
+    private static final Class runnableIntf = Runnable.class;
+    
+    private String [] filteredPackages;
+    private boolean allowed;
+    
+    public BCELRunnableHook(Set<String> packageFilter, boolean allowed){
+        this.allowed = allowed;
+        filteredPackages = new String[packageFilter.size()];
+        packageFilter.toArray(filteredPackages);
+    }
     
     /* (non-Javadoc)
      * @see ddproto1.localagent.IClassLoadingHook#modifyClass(org.apache.bcel.classfile.JavaClass)
      */
-    public JavaClass modifyClass(JavaClass jc) {
+    public JavaClass modifyClass(JavaClass jc, ClassLoader cl) {
         
-        RunnableHook.getRunnableClass();
-        
-        if(!jc.instanceOf(runnableIntf)) return jc;
+        /** Don't refactor this expression. It's important that unallowed classes
+         * don't go to isInstanceOfRunnable. 
+         */
+        if(!this.isAllowed(jc) || !this.isInstanceOfRunnable(jc, cl)) return jc;
 
         Method [] methods = jc.getMethods();
         int i = 0;
@@ -50,23 +62,10 @@ public class RunnableHook implements IClassLoadingHook{
                     + " in class " + jc.getClassName());
         
         ClassGen newClass = new ClassGen(jc);
-        newClass.removeMethod(methods[i]);
-
         Method mt = glueSnippet(newClass, methods[i]);
-        
-        newClass.addMethod(mt);
+        newClass.replaceMethod(methods[i], mt);
         
         return newClass.getJavaClass();
-    }
-    
-    private static void getRunnableClass()
-    {
-        if(runnableIntf != null) return;
-        
-        runnableIntf = Repository.lookupClass(DebuggerConstants.RUNNABLE_INTF_NAME);
-        if(runnableIntf == null)
-            throw new InternalError("The " + DebuggerConstants.RUNNABLE_INTF_NAME + 
-                    " interface could not be retrieved."); 
     }
     
     private Method glueSnippet(ClassGen nc, Method m){
@@ -89,6 +88,37 @@ public class RunnableHook implements IClassLoadingHook{
         mg.setMaxLocals();
         
         return mg.getMethod();
+    }
+    
+    private boolean isAllowed(JavaClass jc){
+        String _package = jc.getPackageName();
+        for(String filteredPackage : filteredPackages)
+            if(_package.startsWith(filteredPackage)) return allowed;
+        
+        return !allowed;
+    }
+    
+    private boolean isInstanceOfRunnable(JavaClass clazzy, ClassLoader cl){
+        
+        /** Check superclasses */
+        Class<?> c = null;
+        try{
+            c = Class.forName(clazzy.getSuperclassName(), true, cl);
+        }catch(ClassNotFoundException ex){
+            throw new RuntimeException("Internal assertion failed.");
+        }
+        if(runnableIntf.isAssignableFrom(c)) return true;
+        
+        for(String superClass : clazzy.getInterfaceNames()){
+            try{
+                c = Class.forName(superClass, true, cl);
+            }catch(ClassNotFoundException ex){
+                throw new RuntimeException("Internal assertion failed.");
+            }
+            if(runnableIntf.isAssignableFrom(c)) return true;
+        }
+        
+        return false;
     }
 
 }

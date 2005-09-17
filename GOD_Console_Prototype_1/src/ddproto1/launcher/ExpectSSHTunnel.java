@@ -308,7 +308,9 @@ public class ExpectSSHTunnel implements IShellTunnel {
 
         // Start them.
         Thread t1 = new Thread(stdout_processor);
+        t1.setName("STDOUT Stream Gobbler");
         Thread t2 = new Thread(stderr_processor);
+        t1.setName("STDERR Stream Gobbler");
         
         t1.start();
         t2.start();

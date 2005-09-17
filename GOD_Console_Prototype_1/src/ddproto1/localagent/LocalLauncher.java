@@ -13,6 +13,7 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 
 import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.util.JavaWrapper;
@@ -28,9 +29,9 @@ import ddproto1.localagent.CORBA.ORBHolder;
 import ddproto1.localagent.CORBA.orbspecific.JacORBStampRetriever;
 import ddproto1.localagent.client.GlobalAgentFactory;
 import ddproto1.localagent.client.IGlobalAgent;
-import ddproto1.localagent.instrumentation.CORBAHook;
-import ddproto1.localagent.instrumentation.DebugLoader;
-import ddproto1.localagent.instrumentation.RunnableHook;
+import ddproto1.localagent.instrumentation.bcel.BCELRunnableHook;
+import ddproto1.localagent.instrumentation.bcel.CORBAHook;
+import ddproto1.localagent.instrumentation.bcel.DebugLoader;
 
 /**
  * This class serves as a wrapper for the debuggee JVM main class. It's 
@@ -215,7 +216,7 @@ public class LocalLauncher extends JavaWrapper{
     {
         
         /* Preps and creates the Runnable Hook. */
-        RunnableHook rh = new RunnableHook();
+        BCELRunnableHook rh = new BCELRunnableHook(new HashSet<String>(), false);
         dl.registerHook(rh);
         
         /* Preps and creates the CORBA hook */

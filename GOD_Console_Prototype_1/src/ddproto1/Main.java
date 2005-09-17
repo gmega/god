@@ -188,6 +188,7 @@ public class Main {
         }
         
         Thread sthread = new Thread(scs);
+        sthread.setName("Connection Dispatcher");
         sthread.start();
     }
     

@@ -136,6 +136,14 @@ public class ORBHolder {
             return;
         }
         
+        /** Instrumentation hook has been called but there are no registered interceptors. */
+        if(carriers.isEmpty()){
+            logger.warn("Server-side debug interceptors have not been properly initialized for this node. " +
+                    "However, at least part of the code has been instrumented. If you intend to use the " +
+                    "debugger, this is an error. Please make shure the correct ORB initializer has been installed.");
+            return;
+        }
+        
         Tagger t = Tagger.getInstance();
         try{
             /* First checks if this is a remote or a local call */

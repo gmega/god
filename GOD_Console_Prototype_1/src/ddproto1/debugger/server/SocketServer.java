@@ -164,7 +164,7 @@ public class SocketServer implements Runnable{
             thread_load++;
             ConnectionHandler ch = new ConnectionHandler();
             Thread handlerThread = new Thread(ch);
-            handlerThread.setName("Handler Thread");
+            handlerThread.setName("Non-JDI Message Handler - " + thread_load);
             handlerThread.setDaemon(true);
             handlerThread.start();
         }

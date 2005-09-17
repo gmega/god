@@ -3,7 +3,7 @@
  * 
  * file: CORBAHookInitWrapper.java
  */
-package ddproto1.localagent.instrumentation;
+package ddproto1.localagent.instrumentation.bcel;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -23,7 +23,7 @@ public class CORBAHookInitWrapper implements IClassLoadingHook {
     private boolean disabled = false;
     private static final Logger logger = Logger.getLogger(IClassLoadingHook.class);
     
-    public JavaClass modifyClass(JavaClass jc) {
+    public JavaClass modifyClass(JavaClass jc, ClassLoader loader) {
         try{
             if(surrogate == null && !disabled) init();
         }catch(Exception ex){
@@ -31,7 +31,7 @@ public class CORBAHookInitWrapper implements IClassLoadingHook {
                     "No stubs or skeletons will be instrumented.", ex);
             disabled = true;
         }
-        return disabled?jc:surrogate.modifyClass(jc);
+        return disabled?jc:surrogate.modifyClass(jc, loader);
     }
     
     private void init() 

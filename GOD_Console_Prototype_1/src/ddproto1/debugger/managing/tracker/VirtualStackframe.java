@@ -6,6 +6,9 @@
 package ddproto1.debugger.managing.tracker;
 
 /**
+ * The virtual stack frame is not much more than a lightweigth marker of 
+ * the application thread boundaries.  
+ * 
  * @author giuliano
  *
  */

@@ -25,8 +25,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import sun.security.krb5.internal.util.m;
-
 import com.sun.jdi.AbsentInformationException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ClassType;
@@ -617,7 +615,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             }else {
                 String strVal = getStringValue();
                 if (strVal != null) {
-                    mh.getStandardOutput().println("expr is value" + value.toString() + " " + strVal );
+                    mh.getStandardOutput().println("expr is value " + value.toString());
                 }
             }
             
@@ -960,8 +958,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
             String stck = "";
             int acc = 0;
-            for (int i = 0; i < vs.getFrameCount(); i++) {
-                VirtualStackframe vf = vs.getFrame(i);
+            for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
+                VirtualStackframe vf = vs.getVirtualFrame(i);
                 VirtualMachineManager vmm = VMManagerFactory.getInstance()
                         .getVMManager(vf.getLocalThreadNodeGID());
 
@@ -1048,7 +1046,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 "Last " + lines + " of output produced by <" + machine + ">");
         try{
             List <String> oup = theNode.launcher.getShellTunnel().getStdoutResult();
-            for(int k = 0; k < lines; k++)
+            int size = oup.size();
+            int until = Math.min(size, lines);
+            for(int k = (size - until); k < size; k++)
                 mh.getStandardOutput().println(oup.get(k));
             
         }catch(InvalidStateException ex){
@@ -1265,14 +1265,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         } else {
             /* else refType is an instanceof ArrayType */
             if (obj instanceof ArrayReference) {
-                for (Iterator it = ((ArrayReference) obj).getValues()
-                        .iterator(); it.hasNext();) {
-                    mh.getStandardOutput().println(it.next().toString());// Special case: use printDirect()
+                mh.getStandardOutput().print("[");
+                for (Iterator it = ((ArrayReference) obj).getValues().iterator(); it.hasNext();) {
+                    mh.getStandardOutput().print(it.next().toString());// Special case: use printDirect()
                     if (it.hasNext()) {
-                        mh.getStandardOutput().println(", ");// Special case: use printDirect()
+                        mh.getStandardOutput().print(", ");// Special case: use printDirect()
                     }
                 }
-                mh.getStandardOutput().println("");
+                mh.getStandardOutput().println("]");
             }
         }
     }
@@ -1444,8 +1444,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         info.append("<Global> [" + ct.uuid2Dotted(dt.getId()) + "] ");
         info.append((dt.isStepping())?"<stepping>":"<running>");
         info.append("\n");
-        for(int i = vf.getFrameCount() - 1; i >= 0; i--){
-            VirtualStackframe vs = vf.getFrame(i);
+        for(int i = vf.getVirtualFrameCount() - 1; i >= 0; i--){
+            VirtualStackframe vs = vf.getVirtualFrame(i);
             info.append(" |--> ");
             try{
                 VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vs.getLocalThreadNodeGID());

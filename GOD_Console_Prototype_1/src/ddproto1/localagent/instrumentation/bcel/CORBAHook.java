@@ -6,7 +6,7 @@
  * File: CORBAHook.java
  */
 
-package ddproto1.localagent.instrumentation;
+package ddproto1.localagent.instrumentation.bcel;
 
 import java.io.File;
 import java.util.HashMap;
@@ -45,7 +45,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     private static final Logger logger = Logger.getLogger(CORBAHook.class);
     
     private static final boolean DEBUG_MODE = false;
-    private static final String DUMP_DIR = "/home/giuliano/workspace/Distributed Debugger Prototype 1/runtime-gen";
+    private static final String DUMP_DIR = "/home/giuliano/workspace/GOD Console Prototype 1/runtime-gen";
     
     private Map <String, ObjectType> stubs;
     private Map <String, ObjectType> skeletons;
@@ -72,7 +72,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     /* (non-Javadoc)
      * @see ddproto1.localagent.IClassLoadingHook#modifyClass(org.apache.bcel.classfile.JavaClass)
      */
-    public JavaClass modifyClass(JavaClass jc) {
+    public JavaClass modifyClass(JavaClass jc, ClassLoader cl) {
         String name = jc.getClassName();
         
         boolean serverClass;
@@ -95,9 +95,9 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
            
             int modifiers = methods[i].getAccessFlags();
             
-            /* Exclude constructors and static initializers */
+            /* Exclude constructors, static initializers and static methods */
             String mname = methods[i].getName();
-            if(mname.startsWith("<"))
+            if(mname.startsWith("<") || (Constants.ACC_STATIC & modifiers) != 0)
                 continue;
             
             /* Do the "sanity check" (as bcel examples like to call) */
@@ -173,7 +173,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     private void glueSkeletonSnippet(MethodGen mg, ClassGen cgen, String finallyName){
         
         if(logger.isDebugEnabled())
-            logger.debug("Modifying class " + cgen.getClassName() + " with skeleton snippets.");
+            logger.debug("Modifying method " + mg.getName() + " of class " + cgen.getClassName() + " with skeleton snippets.");
         
         InstructionFactory iFactory = new InstructionFactory(cgen);
         
@@ -245,6 +245,17 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         while(it.hasNext()){
             InstructionHandle ih = (InstructionHandle)it.next();
             if(ih.getInstruction() instanceof ReturnInstruction){
+                /* Note that we do aload 0 and then invokevirtual.
+                 * This means this code is not appropriate for static
+                 * methods and will generate VerifyErrors if applied 
+                 * to one. Fortunately Java doesn't allow implementing
+                 * interfaces through static methods. 
+                 * 
+                 * If the need for a static method hook arises, we'll need 
+                 * to add a static finally block and change the code below
+                 * to an invokestatic, removing the aload.
+                 * 
+                 */
                 methodCode.insert(ih, new ALOAD(0));
                 methodCode.insert(ih, iFactory.createInvoke(
                         cgen.getClassName(), finallyName, Type.VOID,

@@ -412,7 +412,7 @@ public class DistributedThreadManager implements IRequestHandler {
                                  * Second - the virtual stackframe should be empty (with the exception
                                  *          of the root, of course) 
                                  */
-                                if (enclosing.getId() != lt_uuid || vs.getFrameCount() > 1){
+                                if (enclosing.getId() != lt_uuid || vs.getVirtualFrameCount() > 1){
                                     /* Something went wrong, we're in case 3. */
                                     throw new PropertyViolation(
                                             "A local thread cannot participate in more "
@@ -517,7 +517,7 @@ public class DistributedThreadManager implements IRequestHandler {
                          * or this message shouldn't have been sent in the first
                          * place.
                          */
-                        assert (vs.getFrameCount() >= 2);
+                        assert (vs.getVirtualFrameCount() >= 2);
 
                         VirtualStackframe vsf = vs.peek();
                         assert (vsf.getLocalThreadId().intValue() == lt_uuid);
@@ -631,7 +631,7 @@ public class DistributedThreadManager implements IRequestHandler {
             assert(dthreads.containsKey(dt_uuid));
             assert(threads2dthreads.contains(dt_uuid));
             DistributedThread dt = dthreads.get(dt_uuid);
-            assert(dt.virtualStack().getFrameCount() == 1);
+            assert(dt.virtualStack().getVirtualFrameCount() == 1);
             dthreads.remove(dt_uuid);
             threads2dthreads.remove(dt_uuid);
         }finally{

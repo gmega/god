@@ -3,7 +3,7 @@
  * 
  * file: ClientSideAgent.java
  */
-package ddproto1.localagent.instrumentation.java5;
+package ddproto1.localagent.instrumentation.bcel;
 
 import java.io.ByteArrayInputStream;
 import java.lang.instrument.ClassFileTransformer;
@@ -16,13 +16,12 @@ import org.apache.bcel.classfile.ClassParser;
 import org.apache.bcel.classfile.JavaClass;
 import org.apache.log4j.Logger;
 
-import ddproto1.localagent.instrumentation.IClassLoadingHook;
 
-public class ClientSideTransformer implements ClassFileTransformer{
+public class BCELClientSideTransformer implements ClassFileTransformer{
     
     private List<IClassLoadingHook> modifiers = new ArrayList<IClassLoadingHook>();
-    Logger logger = Logger.getLogger(ClientSideTransformer.class);
-    
+    Logger logger = Logger.getLogger(BCELClientSideTransformer.class);
+        
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
         try{
             if(logger.isDebugEnabled()) logger.debug("Parsing " + className);
@@ -35,12 +34,12 @@ public class ClientSideTransformer implements ClassFileTransformer{
             JavaClass clazz = cp.parse();
             
             for(IClassLoadingHook modifier : modifiers){
-                clazz = modifier.modifyClass(clazz);
+                clazz = modifier.modifyClass(clazz, loader);
             }
             
             return clazz.getBytes();
-        }catch(Exception ex){
-            logger.error("Failed instrumenting class " + className, ex);
+        }catch(Throwable t){
+            logger.error("Failed instrumenting class " + className, t);
             return classfileBuffer;
         }
     }

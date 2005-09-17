@@ -8,20 +8,27 @@ package ddproto1.localagent.instrumentation.java5;
 import java.lang.instrument.Instrumentation;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
 import ddproto1.localagent.Tagger;
-import ddproto1.localagent.instrumentation.CORBAHookInitWrapper;
-import ddproto1.localagent.instrumentation.IClassLoadingHook;
-import ddproto1.localagent.instrumentation.RunnableHook;
+import ddproto1.localagent.CORBA.ORBHolder;
+import ddproto1.localagent.CORBA.orbspecific.JacORBStampRetriever;
+import ddproto1.localagent.instrumentation.bcel.BCELClientSideTransformer;
+import ddproto1.localagent.instrumentation.bcel.BCELRunnableHook;
+import ddproto1.localagent.instrumentation.bcel.CORBAHookInitWrapper;
+import ddproto1.localagent.instrumentation.bcel.IClassLoadingHook;
 
 public abstract class ClientSideAgent {
     
     private static Logger logger;
+    
+    private static final String [] filteredPackages = new String [] { };
 
     public static void premain(String agentArgs, Instrumentation instrumentation) {
         
@@ -30,27 +37,48 @@ public abstract class ClientSideAgent {
         /** Initializes the Tagger class */
         Byte gid = Byte.parseByte(System.getProperty("agent.local.gid"));
         
-        if(gid == null){
-            logger.fatal("Global ID for this agent has not been specified. Distributed " +
-                    "Debugging is disabled.");
-        }
-        /** If there's no global ID, there can't be distributed debugging. */
-        else{
-            Tagger tagger = Tagger.getInstance();
-            tagger.setGID(gid);
-        
-            ClientSideTransformer transformer = new ClientSideTransformer();
-            for (IClassLoadingHook modifier : getDefaultModifiers())
-                transformer.addModifier(modifier);
+        try {
+            if (gid == null) {
+                logger
+                        .fatal("Global ID for this agent has not been specified. Distributed "
+                                + "Debugging is disabled.");
+            }
+            /** If there's no global ID, there can't be distributed debugging. */
+            else {
+                Tagger tagger = Tagger.getInstance();
+                tagger.setGID(gid);
 
-            instrumentation.addTransformer(transformer);
+                /*
+                 * Preps the ORB holder, the callback singleton for
+                 * CORBAHook-instrumented stubs and skeletons.
+                 * 
+                 * NOTE: This might be an issue. Loading the ORBHolder 
+                 * and the JacORBStampRetriever may push some classes 
+                 * a few loaders up. Since I don't quite understand how
+                 * the transformation agent loads the classes it uses, 
+                 * we might get into trouble. If that's the case, I could
+                 * use the application class loader to manually load these
+                 * classes.
+                 */
+                ORBHolder oh = ORBHolder.getInstance();
+                oh.setStampRetrievalStrategy(new JacORBStampRetriever());
+
+                BCELClientSideTransformer transformer = new BCELClientSideTransformer();
+                for (IClassLoadingHook modifier : getDefaultModifiers())
+                    transformer.addModifier(modifier);
+
+                instrumentation.addTransformer(transformer);
+            }
+        } catch (Exception ex) {
+            logger.error("Failed to initialize instrumentation hooks. Distributed Debugging " +
+                    "is disabled.", ex);
         }
     }
 
     private static List<IClassLoadingHook> getDefaultModifiers() {
         List<IClassLoadingHook> theList = new ArrayList<IClassLoadingHook>();
         theList.add(new CORBAHookInitWrapper());
-        theList.add(new RunnableHook());
+        theList.add(new BCELRunnableHook(getFilteredPackages(), false));
         return theList;
     }
     
@@ -68,5 +96,12 @@ public abstract class ClientSideAgent {
         
         BasicConfigurator.configure();
         logger = Logger.getLogger(ClientSideAgent.class);
+    }
+    
+    private static Set<String> getFilteredPackages(){
+        Set<String> filteredSet = new HashSet<String>();
+        for(String prefix : filteredPackages)
+            filteredSet.add(prefix);
+        return filteredSet;
     }
 }
