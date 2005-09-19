@@ -12,3 +12,9 @@ Debugger:
 
 - The event processing chains need some serious attention. The current design is crying for a refactoring
   in the sense of making the processing chains assembly explicit. 
+
+- When a machine dies or gets reinserted, we must clean system-wide information about its threads. This includes
+  the thread UUID registry and god knows what else.
+  
+- Make step overs work. 
+- Test the full <CORBA Client>-<Reuters Server>-<JacORB NS> cycle.
