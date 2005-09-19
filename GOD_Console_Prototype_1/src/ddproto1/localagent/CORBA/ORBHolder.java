@@ -232,12 +232,16 @@ public class ORBHolder {
             /* We must also make this information available locally */
             endPoint.set(new Integer(stackTrace.length));
 
-            /* Name of the called operation */
+            /* CORBA name of the called operation */
             infoMap.put("op", op);
-            /* Full name of the called operation */
+            /* Java name of the called operation */
             infoMap.put("fop", fullOp);
-            /* Line number of the running code. */
-            infoMap.put("lin", Integer.toString(servantCall.getLineNumber()));
+            
+            /* Line number of the running code, inserted by the intrumentation hook. */
+            infoMap.put("lin", Integer.toString(servantCall.getLineNumber()+1));
+            /* Class in which the operation is being invoked. */
+            infoMap.put("cls", servantCall.getClassName());
+            
 
             /* Build a message with all that information */
             Event e = new Event(infoMap, DebuggerConstants.SERVER_RECEIVE);
@@ -330,16 +334,16 @@ public class ORBHolder {
             StackTraceElement servantCall = callStack[2];
             
             /* This is for consistency */
-            String fullOp = servantCall.getClassName() + "." + servantCall.getMethodName() + "()";
+            String fullOp = servantCall.getClassName() + "." + servantCall.getMethodName();
             
             /* Builds map information */
             Map <String, String> infoMap = new HashMap<String, String>();
-            infoMap.put("fop", fullOp);
-            infoMap.put("siz", String.valueOf(callStack.length));
-            /* REMARK This is actually the only required information. Everything 
-             * else is for consistency.
+            /* REMARK The distributed thread id (dtid) is actually the only required information. 
+             * Everything else is for consistency checks at the distributed tracker.
              * TODO Determine if this is all really required.
              */
+            infoMap.put("fop", fullOp);
+            infoMap.put("siz", String.valueOf(callStack.length-2));
             infoMap.put("dtid", dtid); 
             infoMap.put("ltid", ltid);
             

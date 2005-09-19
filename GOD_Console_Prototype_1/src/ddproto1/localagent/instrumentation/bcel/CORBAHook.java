@@ -16,6 +16,7 @@ import java.util.Map;
 import org.apache.bcel.Constants;
 import org.apache.bcel.classfile.Code;
 import org.apache.bcel.classfile.JavaClass;
+import org.apache.bcel.classfile.LineNumber;
 import org.apache.bcel.classfile.Method;
 import org.apache.bcel.generic.ALOAD;
 import org.apache.bcel.generic.ASTORE;
@@ -27,6 +28,7 @@ import org.apache.bcel.generic.Instruction;
 import org.apache.bcel.generic.InstructionFactory;
 import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.InstructionList;
+import org.apache.bcel.generic.LineNumberGen;
 import org.apache.bcel.generic.MethodGen;
 import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.generic.ReturnInstruction;
@@ -187,7 +189,8 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         startHook.append(iFactory.createInvoke("ddproto1.localagent.CORBA.ORBHolder", "getInstance", new ObjectType("ddproto1.localagent.CORBA.ORBHolder"), Type.NO_ARGS, Constants.INVOKESTATIC));
         startHook.append(iFactory.createInvoke("ddproto1.localagent.CORBA.ORBHolder", "retrieveStamp", Type.VOID, Type.NO_ARGS, Constants.INVOKEVIRTUAL));
         
-        this.wrapFinally(iFactory, startHook, mg, cgen, finallyName);
+        this.annotateLineNumbers(startHook, mg);
+        this.wrapFinally(iFactory, mg, cgen, finallyName);
     }
     
     private void glueStubSnippet(MethodGen mg, ClassGen cgen, String finallyName){
@@ -199,13 +202,56 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         InstructionFactory iFactory = new InstructionFactory(cgen);
         il.append(iFactory.createInvoke("ddproto1.localagent.CORBA.ORBHolder", "getInstance", new ObjectType("ddproto1.localagent.CORBA.ORBHolder"), Type.NO_ARGS, Constants.INVOKESTATIC));
         il.append(iFactory.createInvoke("ddproto1.localagent.CORBA.ORBHolder", "setStamp", Type.VOID, Type.NO_ARGS, Constants.INVOKEVIRTUAL));
-
+        
+        InstructionList methodCode = mg.getInstructionList();
+        methodCode.insert(methodCode.getStart(), il);
+        mg.setInstructionList(methodCode);  // Is this necessary?
+        
         // Wrap the method into a thread-trapping mechanism.
-        this.wrapFinally(iFactory, il, mg, cgen, finallyName);
+        this.wrapFinally(iFactory, mg, cgen, finallyName);
     }
     
-    private void wrapFinally(InstructionFactory iFactory, InstructionList startHook, MethodGen mg, ClassGen cgen, String finallyName){
-        InstructionHandle first = startHook.getStart();
+    private void annotateLineNumbers(InstructionList startHook, MethodGen mg){
+        int addedLines = startHook.getLength();
+        
+        /** Adds the starting hook to the actual method code. */
+        InstructionList methodCode = mg.getInstructionList();
+        methodCode.insert(methodCode.getStart(), startHook);
+        mg.setInstructionList(methodCode);  // Is this necessary?
+
+        /** First gets the first line index . */
+        LineNumberGen [] linenumbers = mg.getLineNumbers();
+        
+        /** If there's debug information, we apply it. */
+        if(linenumbers.length != 0){
+            /** Gets the first line index. */
+            int firstIndex = linenumbers[0].getSourceLine();
+            InstructionHandle [] handles = mg.getInstructionList().getInstructionHandles();
+            
+            for(int i = 0; i < addedLines; i++){
+                mg.addLineNumber(handles[i], firstIndex-1);
+            }
+            
+//            /** Creates line number gens. */
+//            LineNumberGen [] newLines = new LineNumberGen [linenumbers.length + 1];
+//            System.arraycopy(linenumbers, 0, newLines, 1, linenumbers.length);
+//            InstructionHandle _startHook = methodCode.getStart();
+//            newLines[0] = new LineNumberGen(_startHook, firstIndex-1);
+//            
+//            /** Now creates the line number table */
+//            LineNumber [] lnTable = new LineNumber[newLines.length];
+//            for(int i = 0; i < newLines.length; i++)
+//                lnTable[i] = newLines[i].getLineNumber();
+//            
+//            /** Sets the new line number table */
+//            mg.getLineNumberTable(mg.getConstantPool()).setLineNumberTable(lnTable);
+        }
+        
+    }
+    
+    private void wrapFinally(InstructionFactory iFactory, MethodGen mg, ClassGen cgen, String finallyName){
+        InstructionList methodCode = mg.getInstructionList();
+        InstructionHandle first = methodCode.getStart();
         
         /* Calls the finally block in case there's an exception, then rethrows that exception . */
         int handler_reg = mg.getMaxLocals() + 1;    // Safe register to store exception handler stuff.
@@ -235,8 +281,6 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         endHook.append(new ATHROW());
         
         /* Glues the stuff together.*/
-        InstructionList methodCode = mg.getInstructionList();
-        methodCode.insert(methodCode.getStart(), startHook);
         InstructionHandle last = methodCode.getEnd();
         methodCode.append(methodCode.getEnd(), endHook);
         

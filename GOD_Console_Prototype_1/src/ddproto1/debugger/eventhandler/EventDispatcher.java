@@ -266,7 +266,7 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
             }
         });
         
-        t.setName("JDI Dispatcher " + (handlerThreads-1));
+        t.setName("<" + jvmid + "> JDI Dispatcher " + (handlerThreads-1));
         
         /* Current handler thread will die when it returns */
         if(owner != null) markToDie.add(owner);

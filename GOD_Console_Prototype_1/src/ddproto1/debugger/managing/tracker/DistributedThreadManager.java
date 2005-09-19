@@ -336,6 +336,8 @@ public class DistributedThreadManager implements IRequestHandler {
             	String ltuid = evt.getAttribute("ltid");
             	String fullOp = evt.getAttribute("fop");
             	String base = evt.getAttribute("siz");
+                String brLine = evt.getAttribute("lin");
+                String clsName = evt.getAttribute("cls");
                 
                 boolean merge = false;
             	
@@ -465,9 +467,26 @@ public class DistributedThreadManager implements IRequestHandler {
                      * stepping
                      */
                     if (current.getMode() == DistributedThread.STEPPING) {
-                                                
+                        /**
+                         * Old code was:
+                         *                                                 
+                         * DeferrableBreakpointRequest bp = new DeferrableBreakpointRequest(
+                         *       vmm.getName(), fullOp, null);
+                         *       
+                         * But we're migrating to absolute line breakpoints until we can
+                         * process annotations. That's because just having the method name
+                         * was causing some AmbiguousSymbolExceptions to be thrown.
+                         */       
                         DeferrableBreakpointRequest bp = new DeferrableBreakpointRequest(
-                                vmm.getName(), fullOp, null);
+                                vmm.getName(), clsName, Integer.parseInt(brLine));
+
+                        /** This is really great. 
+                         * The two lines of code that follow ensure that:
+                         * 
+                         * 1) This breakpoint will only halt the correct thread.
+                         * 2) This breakpoint will remove itself after serving its purpose,
+                         *    without affecting other threads or other user breakpoints. 
+                         */
                         bp.addThreadFilter(lt_uuid_wrap);
                         bp.setOneShot(true);
                         
@@ -522,8 +541,7 @@ public class DistributedThreadManager implements IRequestHandler {
                         VirtualStackframe vsf = vs.peek();
                         assert (vsf.getLocalThreadId().intValue() == lt_uuid);
 
-                        vs.popFrame();
-                        vf = vs.peek();
+                        vf = vs.popFrame();
 
                         /* Updates the local-to-distributed thread index */
                         assert (threads2dthreads.containsKey(lt_uuid_wrap));
@@ -538,6 +556,7 @@ public class DistributedThreadManager implements IRequestHandler {
                      * is the same operation as the one that went in.
                      */
                     assert vf.getInboundOperation().equals(fullOp);
+                    assert vf.getCallBase() == Integer.parseInt(base);
 
                     /* Resumes the current thread if it's stepping. */
                     if (current.getMode() == DistributedThread.STEPPING) {
