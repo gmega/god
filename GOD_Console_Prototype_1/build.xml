@@ -14,6 +14,7 @@
 	<property name="configurator-commons-subdir" value="ddproto1/configurator/commons"/>
 	<property name="exception-commons-subdir" value="ddproto1/exception/commons"/>
 	<property name="util-commons-subdir" value="ddproto1/util/commons"/>
+	<property name="traits-commons-subdir" value="ddproto1/util/traits/commons"/>
 
 
 	<!-- Generates the client side instrumentation agent jar. -->	
@@ -41,6 +42,10 @@
 			
 			<zipfileset dir="${bin-dir}/${util-commons-subdir}" 
 				includes="**/*.class" prefix="${util-commons-subdir}"/>
+
+			<zipfileset dir="${bin-dir}/${traits-commons-subdir}" 
+				includes="**/*.class" prefix="${traits-commons-subdir}"/>
+
 		</jar>
 	</target>	
 	
