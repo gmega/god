@@ -23,6 +23,7 @@ import ddproto1.localagent.instrumentation.bcel.BCELClientSideTransformer;
 import ddproto1.localagent.instrumentation.bcel.BCELRunnableHook;
 import ddproto1.localagent.instrumentation.bcel.CORBAHookInitWrapper;
 import ddproto1.localagent.instrumentation.bcel.IClassLoadingHook;
+import ddproto1.localagent.instrumentation.bcel.MainThreadTainter;
 
 public abstract class ClientSideAgent {
     
@@ -64,7 +65,7 @@ public abstract class ClientSideAgent {
                 oh.setStampRetrievalStrategy(new JacORBStampRetriever());
 
                 BCELClientSideTransformer transformer = new BCELClientSideTransformer();
-                for (IClassLoadingHook modifier : getDefaultModifiers())
+                for (IClassLoadingHook modifier : getDefaultModifiers(transformer))
                     transformer.addModifier(modifier);
 
                 instrumentation.addTransformer(transformer);
@@ -75,8 +76,9 @@ public abstract class ClientSideAgent {
         }
     }
 
-    private static List<IClassLoadingHook> getDefaultModifiers() {
+    private static List<IClassLoadingHook> getDefaultModifiers(BCELClientSideTransformer transformer) {
         List<IClassLoadingHook> theList = new ArrayList<IClassLoadingHook>();
+        theList.add(new MainThreadTainter(transformer));
         theList.add(new CORBAHookInitWrapper());
         theList.add(new BCELRunnableHook(getFilteredPackages(), false));
         return theList;

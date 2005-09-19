@@ -36,7 +36,7 @@ import ddproto1.util.MessageHandler;
  */
 public class EventDispatcher extends BasicEventProcessor implements IVotingManager {
     
-    private static final int MAX_SIMULTANEOUS_EVENTS = 4;
+    private static final int MAX_SIMULTANEOUS_EVENTS = 8;
     
     private static final String module = "EventDispatcher -";
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
@@ -226,6 +226,8 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
         }catch(InterruptedException ex){
             mh.printStackTrace(ex);
         } finally {
+            /** If the thread got this far then it's going to die. */
+            markToDie.add(Thread.currentThread());
             die();
         }
     }
@@ -252,8 +254,9 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
     }
     
     public synchronized void handleNext(){
-        if(handlerThreads == (MAX_SIMULTANEOUS_EVENTS - 1))
-            throw new RuntimeException("You cannot start another handler thread - pool exhausted");
+        if(handlerThreads == MAX_SIMULTANEOUS_EVENTS)
+            throw new RuntimeException("You cannot start another handler thread - maximum handling" +
+                    "capacity achieved.");
         
         handlerThreads++;
         

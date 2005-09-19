@@ -443,7 +443,7 @@ public class DistributedThreadManager implements IRequestHandler {
                              * stack of the local thread that services the request
                              * at the client-side
                              */
-                            VirtualStackframe vsf = new VirtualStackframe(null, op,
+                            VirtualStackframe vsf = new VirtualStackframe(null, fullOp,
                                     lt_uuid_wrap, gid);
                             vsf.setCallBase(new Integer(base));
 
@@ -533,6 +533,11 @@ public class DistributedThreadManager implements IRequestHandler {
                         /* Releases table locks to reduce contention. */
                         unlockAllTables();
                     }
+                    
+                    /* Asserts that the operation we're returning from 
+                     * is the same operation as the one that went in.
+                     */
+                    assert vf.getInboundOperation().equals(fullOp);
 
                     /* Resumes the current thread if it's stepping. */
                     if (current.getMode() == DistributedThread.STEPPING) {

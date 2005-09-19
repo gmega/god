@@ -27,13 +27,13 @@ import org.omg.PortableInterceptor.ServerRequestInterceptor;
 
 import ddproto1.localagent.client.GlobalAgentFactory;
 import ddproto1.localagent.client.IGlobalAgent;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano
  *
  */
 public class SDebugInterceptor extends LocalObject implements ServerRequestInterceptor{
-
     /**
      * 
      */
@@ -46,16 +46,13 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
     private int opslot;
     private int rmslot;
     private int stslot;
-    
-    private IGlobalAgent global;
-    private Map infoMap = new HashMap();
-    
-    private static final Logger logger = Logger.getLogger(SDebugInterceptor.class);
+           
+    private static final Logger requestLogger = Logger.getLogger(SDebugInterceptor.class.getName() + ".requestLogger");
+    private static final ConversionTrait conversion = ConversionTrait.getInstance();
 
     public SDebugInterceptor(String name, int upcall_context, int downcall_context, int dtslot, int opslot, int rmslot, int stepslot)
     	throws UnknownHostException, IOException
     {
-        global = GlobalAgentFactory.getInstance().resolveReference();
         this.name = name;
         this.upcall_context = upcall_context;
         this.downcall_context = downcall_context;
@@ -68,27 +65,28 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
      */
     public void receive_request(ServerRequestInfo ri) throws ForwardRequest {
         // TODO Auto-generated method stub
-        logger.info("receive_request");
+        requestLogger.info("receive_request");
     }
 
     /* (non-Javadoc)
      * @see org.omg.PortableInterceptor.ServerRequestInterceptorOperations#receive_request_service_contexts(org.omg.PortableInterceptor.ServerRequestInfo)
      */
     public void receive_request_service_contexts(ServerRequestInfo ri) throws ForwardRequest {
-        logger.info("receive_request_service_contexts");
         ServiceContext sc;
         
         try{
             /* Tries to obtain the request gid */
             sc = ri.get_request_service_context(upcall_context);
         }catch(BAD_PARAM ex){
+            if(requestLogger.isDebugEnabled())
+                requestLogger.debug("Processing operation " + ri.operation() + " from non-debug node.");
             /*  No context information. Has been called by debug-unaware node. */
             return;
         }
         
         byte [] id = sc.context_data;
         if(id.length != 4){
-            logger.error(name + "Error - encoded id does not obey the required format.");
+            requestLogger.error(name + "Error - encoded id does not obey the required format.");
             return;
         }
         
@@ -98,8 +96,11 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
             gid |= id[i];
         }
         
-        logger.debug("Received request for operation " + ri.operation()
-                + " from distributed thread " + gid);
+        if (requestLogger.isDebugEnabled()) {
+            requestLogger.debug("Received request for operation "
+                    + ri.operation() + " from distributed thread "
+                    + conversion.uuid2Dotted(gid));
+        }
         
         Any dtany = ORB.init().create_any();
         Any opany = ORB.init().create_any();
@@ -114,7 +115,7 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
             ri.set_slot(opslot, opany);
             ri.set_slot(rmslot, rmany);
         }catch(InvalidSlot e){
-            logger.error(name + " - Cannot insert info into slot.", e);
+            requestLogger.error(name + " - Cannot insert info into slot.", e);
         }
         
     }
@@ -147,10 +148,10 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
             
             ri.add_reply_service_context(stepContext, false);
         }catch(InvalidSlot e){
-            logger.error("Failed to acquire the stepping context - breakpoint returns " +
+            requestLogger.error("Failed to acquire the stepping context - breakpoint returns " +
                     "may not work properly.");
         }catch(BAD_OPERATION e){
-            logger.error("Failed to extract the correct type from the slot assigned to conveying step information." +
+            requestLogger.error("Failed to extract the correct type from the slot assigned to conveying step information." +
                     " Debugger might not operate correctly.");
         }
     }

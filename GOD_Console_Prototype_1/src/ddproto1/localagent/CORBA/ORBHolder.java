@@ -22,6 +22,8 @@ import org.omg.CORBA.ORB;
 import org.omg.PortableInterceptor.Current;
 import org.omg.PortableInterceptor.InvalidSlot;
 
+import com.sun.jdi.StackFrame;
+
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.exception.commons.CommException;
 import ddproto1.localagent.Tagger;
@@ -47,7 +49,9 @@ public class ORBHolder {
     
     private static final ConversionTrait fh = ConversionTrait.getInstance();
     
-    private Logger logger = Logger.getLogger(ORBHolder.class);
+    private Logger inLogger = Logger.getLogger(ORBHolder.class.getName() + ".inLogger");
+    private Logger notificationLogger = Logger.getLogger(ORBHolder.class.getName() + ".notificationLogger");
+    
     private IStampRetrievalStrategy isrs;
     private IGlobalAgent global; 
     private ThreadLocal <Integer> endPoint = new ThreadLocal <Integer>();
@@ -127,10 +131,15 @@ public class ORBHolder {
      */
     public void retrieveStamp(){
         
-        logger.debug("Now retrieving stamp (server-side)");
+        if(inLogger.isDebugEnabled()){
+            Throwable t = new Throwable();
+            StackTraceElement [] callStack = t.getStackTrace();
+            inLogger.debug("retrieveStamp() called by " + callStack[1].getMethodName() + "() at the server-side.");
+            
+        }
         
         if(isrs == null){
-            logger.fatal("Cannot retrieve ID - no retrieval " +
+            inLogger.fatal("Cannot retrieve ID - no retrieval " +
             		" strategy has been configured. Debugger is not working" +
             		" properly.");
             return;
@@ -138,7 +147,7 @@ public class ORBHolder {
         
         /** Instrumentation hook has been called but there are no registered interceptors. */
         if(carriers.isEmpty()){
-            logger.warn("Server-side debug interceptors have not been properly initialized for this node. " +
+            inLogger.warn("Server-side debug interceptors have not been properly initialized for this node. " +
                     "However, at least part of the code has been instrumented. If you intend to use the " +
                     "debugger, this is an error. Please make shure the correct ORB initializer has been installed.");
             return;
@@ -149,7 +158,11 @@ public class ORBHolder {
             /* First checks if this is a remote or a local call */
             String isRemote = isrs.retrieve("locality", carriers.iterator(), t);
             /* Call is local - nothing to do. */
-            if(isRemote.equals("false")) return;
+            if(isRemote.equals("false")){
+                if(inLogger.isDebugEnabled())
+                    inLogger.debug("Call was not remote.");
+                return;
+            }
             
             /* Remove remote marker, since this call might chain up with other
              * instrumented servants and if they think it's a remote call they
@@ -198,8 +211,7 @@ public class ORBHolder {
             assert (stackTrace.length >= 2);
             StackTraceElement servantCall = stackTrace[1];
             String fullOp = servantCall.getClassName() + "." + servantCall.getMethodName();
-            logger.debug("Calling operation " + fullOp + " at stack frame " + stackTrace.length);
-            
+
             /* Notifies the central agent that he must insert a breakpoint
              * right away.
              */
@@ -208,7 +220,8 @@ public class ORBHolder {
             
             Map <String, String> infoMap = new HashMap<String, String>();
             
-            String ltid = fh.int2Hex(Tagger.getInstance().currentTag());
+            int _ltid = Tagger.getInstance().currentTag();
+            String ltid = fh.int2Hex(_ltid);
             
             /* Current distributed thread id */
             infoMap.put("dtid", tag);	
@@ -223,21 +236,29 @@ public class ORBHolder {
             infoMap.put("op", op);
             /* Full name of the called operation */
             infoMap.put("fop", fullOp);
+            /* Line number of the running code. */
+            infoMap.put("lin", Integer.toString(servantCall.getLineNumber()));
 
             /* Build a message with all that information */
             Event e = new Event(infoMap, DebuggerConstants.SERVER_RECEIVE);
             
             try{
-                logger.debug("Notifying the central agent of SERVER_RECEIVE.");
+                if(notificationLogger.isDebugEnabled()){
+                    notificationLogger.debug("Notifying global agent of SERVER_RECEIVE:" +
+                                 "\n  Server-side operation: " + fullOp + 
+                                 "\n  Local thread stack frame base: " + (stackTrace.length -1)+
+                                 "\n  Distributed thread ID: " + fh.uuid2Dotted(fh.hex2Int(tag)) +  
+                                 "\n  Local thread: " + fh.uuid2Dotted(_ltid));
+                }
                 /* Pump it up to the global agent */
                 global.syncNotify(e);
             }catch(CommException ce){
-                logger.fatal("Failed to notify the central agent of a server receive event - " +
+                notificationLogger.fatal("Failed to notify the central agent of a server receive event - " +
                 		" central agent's tracking state might be inconsistent.", ce);
             }
             
         }catch(Exception e){
-            logger.fatal("Cannot retrieve ID - retrieval strategy error.", e);
+            notificationLogger.fatal("Cannot retrieve ID - retrieval strategy error.", e);
         }
     }
     
@@ -248,6 +269,20 @@ public class ORBHolder {
         /* Introspects the stack */
         Throwable t = new Throwable();
         StackTraceElement [] callStack = t.getStackTrace();
+
+        /* There has to be at least three frames.
+         * 0 - checkOut()
+         * 1 - finally_block
+         * 2 - application_method.
+         */
+        assert callStack.length >= 3;
+        
+        String method = callStack[2].getMethodName();
+        
+        if(inLogger.isDebugEnabled()){
+            inLogger.debug("checkOut() called at instrumented servant code for method " + method + "()"); 
+        }
+
         
         Integer _base = (Integer)endPoint.get();
         /* Probably not a remote call. */
@@ -264,6 +299,7 @@ public class ORBHolder {
                 assert(ctag == ptag);
             }catch(IllegalStateException e){
                 /* Ok, it's definitely NOT a remote call. */
+                inLogger.debug("Not a remote call for method " + method + "()");
             }
             return;
         }
@@ -278,16 +314,20 @@ public class ORBHolder {
          * hook" inserted by the instrumentation code. This is something specific 
          * to the instrumentation method currently in use and REMARK WILL BREAK if 
          * the instrumentation method changes. 
+         * 
+         * Note that it's minus 1 and not minus 2 because the initial call stack
+         * length is computed from inside 'retrieveStamp'. 
          */
         //if(callStack.length <= base){
-        assert(callStack.length >= 2);
         if((callStack.length - 1) <= base){
             Tagger tagger = Tagger.getInstance();
-            String ltid = fh.int2Hex(tagger.currentTag());
-            String dtid = fh.int2Hex(tagger.partOf().intValue());
+            int _ltid = tagger.currentTag();
+            String ltid = fh.int2Hex(_ltid);
+            int _dtid = tagger.partOf().intValue();
+            String dtid = fh.int2Hex(_dtid);
             
             //StackTraceElement servantCall = callStack[0];
-            StackTraceElement servantCall = callStack[1];
+            StackTraceElement servantCall = callStack[2];
             
             /* This is for consistency */
             String fullOp = servantCall.getClassName() + "." + servantCall.getMethodName() + "()";
@@ -308,11 +348,42 @@ public class ORBHolder {
             
             int stepStats;
             
+            /* Unbinds the current thread from the current distributed thread.*/
+            tagger.unmakePartOf(_dtid);
+            
+            /* This seems innocuous, but it's important to avoid catastrophic
+             * behavior when for some reason two calls are dispatched to the
+             * servant instead of one. This happens with some special ORB objects
+             * (notoriously the NameContextExtImpl) and may lead to two SIGNAL_BOUNDARIES
+             * causing an assertion failure at the global agent. 
+             * 
+             * The hypothesis and expected behavior are cleared out by this:
+             * 
+             * 1) We assume the POA will dispatch a single call to only one instrumented
+             *    servant method per CORBA request.
+             * 
+             * 2) If by any reason the POA dispatches two calls (as in the case of NameContextExtImpl),
+             *    we treat the second call as non-remote and ORB related. This is ensured by setting
+             *    endPoint to null for this thread.
+             *    
+             * Note that (2) is exceptional behavior, its NOT correct behavior. But it's well-defined. 
+             * The user can always correct the erroneous behavior by excluding the non-CORBA related
+             * methods from instrumentation.
+             *    
+             */
+            endPoint.set(null);
+            
             try{
+                notificationLogger.debug("Notifying global agent of SIGNAL_BOUNDARY:" +
+                        "\n  Server-side operation: " + fullOp + 
+                        "\n  Local thread stack frame base: " + callStack.length +
+                        "\n  Distributed thread ID: " + fh.uuid2Dotted(_dtid) +  
+                        "\n  Local thread: " + fh.uuid2Dotted(_ltid));
+
                 /* Pump it up to the global agent */
                 stepStats = global.syncNotify(e);
             }catch(CommException ce){
-                logger.fatal("Failed to notify the central agent of a client upcall - " +
+                notificationLogger.fatal("Failed to notify the central agent of a client upcall - " +
                 		" central agent's tracking state might be inconsistent.", ce);
                 return;
             }
@@ -325,7 +396,7 @@ public class ORBHolder {
                     try{
                         cs.getCurrent().set_slot(cs.getSTPSlot(), any);
                     }catch(InvalidSlot ex){
-                        logger.error("Cannot insert info into slot.", ex);
+                        notificationLogger.error("Cannot insert info into slot.", ex);
                     }
                 }
             }
@@ -342,6 +413,9 @@ public class ORBHolder {
      *
      */
     public void setStamp(){
+        if(inLogger.isDebugEnabled()){
+            inLogger.debug("setStamp() called at the client-side.");
+        }
         /* First things first - the thread might not have been marked yet */
         Tagger tagger = Tagger.getInstance();
         try{
@@ -352,8 +426,8 @@ public class ORBHolder {
             
         Iterator it = carriers.iterator();
 
-        if(logger.isDebugEnabled())
-            logger.debug("ThreadLocal gid " + tagger.currentTag() + " -> all PICurrent ");
+        if(inLogger.isDebugEnabled())
+            inLogger.debug("Data from thread gid " + tagger.currentTag() + " copied to PICurrent ");
 
         /* REMARK I assume here that no ORB modifies the ANY object. If that does not
          * stand correct, then we must create an ANY instance for each PICurrent object 
@@ -374,9 +448,9 @@ public class ORBHolder {
         tp_any.insert_long(stack_size);
 
         while(it.hasNext()){
-            if (logger.isDebugEnabled()) {
-                logger.debug("Thread id: " + tagger.currentTag() + ", part of:"
-                        + tagger.partOf().intValue()
+            if (inLogger.isDebugEnabled()) {
+                inLogger.debug("Thread id: " + fh.uuid2Dotted(tagger.currentTag()) + ", part of:"
+                        + fh.uuid2Dotted(tagger.partOf().intValue())
                         + " - inserted into PICurrent.");
             }
 
@@ -386,7 +460,7 @@ public class ORBHolder {
                 cs.c.set_slot(cs.ltslot, lt_any);
                 cs.c.set_slot(cs.tpslot, tp_any);
             }catch(InvalidSlot e){
-                logger.fatal(e.toString(), e);
+                inLogger.fatal(e.toString(), e);
             }
         }
         

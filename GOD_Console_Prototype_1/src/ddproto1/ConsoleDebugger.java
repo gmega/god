@@ -32,6 +32,7 @@ import com.sun.jdi.Field;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.InterfaceType;
 import com.sun.jdi.InvocationException;
+import com.sun.jdi.LocalVariable;
 import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectCollectedException;
@@ -229,11 +230,11 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             } catch (CommandException e) {
                 mh.getStandardOutput().println(e.toString());
                 lastCommand = null;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 mh.printStackTrace(e);
                 lastCommand = null;
                 mh.getStandardOutput().print("\n" + prompt + iprompt);
-            }
+            } 
         }
     }
     
@@ -537,9 +538,11 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             }else if(token.type == Token.WORD && token.text.equals("output")){
                 advance();
                 int tail = SHOW_DEFAULT;
-                if(token.type == Token.NUMBER) 
+                if(token.type == Token.NUMBER){ 
                     tail = Integer.parseInt(token.text);
-                machine = checkCurrent("command.show");
+                    advance();
+                }
+                machine = checkCurrent("command.show", false);
                 commandShowOutput(machine, tail);
                 break;
             }
@@ -1030,7 +1033,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     "Stack information for thread " + "[" + target.name()
                             + "], id [" + hexy + "]");
             
-            mh.getStandardOutput().println(threadStack(target, 1, target.frameCount(), -1, null));
+            mh.getStandardOutput().println(threadStack(target, 1, target.frameCount(), 0, null));
             
         }catch(IncompatibleThreadStateException e){
             throw new CommandException(e);
@@ -1077,8 +1080,15 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
         
         for(int i = top; i <= base; i++, begin++){
-            Location loc = target.frame(i).location();
-            
+            StackFrame currentFrame = target.frame(i);
+            Location loc = currentFrame.location();
+            String lineNumber = "<unknown line number>";
+            String source = "<unknown source>";
+            try{
+                lineNumber = Integer.toString(loc.lineNumber());
+                source = loc.sourceName();
+            }catch(AbsentInformationException ex){ }
+                        
             Method m = loc.method();
 
             if(machine != null){
@@ -1092,14 +1102,21 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             
             Iterator it = 
                 m.argumentTypeNames().iterator();
-            	
+
+            Iterator <LocalVariable>argIt = null;
+            
+            try{
+                argIt = m.arguments().iterator();
+            }catch(AbsentInformationException ex) { }
+            
             while(it.hasNext()){
-                pr.append((String)it.next());
+                String arg = (argIt != null && argIt.hasNext())?argIt.next().name():"<unknown>";
+                pr.append((String)it.next() + " " + arg);
                 if(it.hasNext()) pr.append(",");
             }
             
             
-            pr.append(")\n");
+            pr.append("):" + source + "[" + lineNumber + "]\n");
         }
         
         return pr.toString();
@@ -1502,17 +1519,22 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     	throws CommandException, IOException
     {
         if(advance) advance();
+        
+        String machine = null;
+        
         if(token.type != Token.MACHINE_ID){
             if(currentMachine == null)
                 badCommand(command);
             else
-                return currentMachine;
+                machine = currentMachine;
         }else{
-            return token.text.substring(1, token.text.length() - 1); 
+            machine = token.text.substring(1, token.text.length() - 1); 
         }
         
-        // Shuts up the compiler
-        return null;
+        if(!vmid2ninfo.containsKey(machine))
+            throw new CommandException("Unknown machine <" + machine +">");
+        
+        return machine;
     }
 
     private void badCommand(String s) throws CommandException {

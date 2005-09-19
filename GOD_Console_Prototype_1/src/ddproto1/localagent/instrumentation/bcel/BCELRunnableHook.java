@@ -17,6 +17,7 @@ import org.apache.bcel.generic.InstructionList;
 import org.apache.bcel.generic.MethodGen;
 import org.apache.bcel.generic.ObjectType;
 import org.apache.bcel.generic.Type;
+import org.apache.log4j.Logger;
 
 import ddproto1.commons.DebuggerConstants;
 
@@ -27,6 +28,8 @@ import ddproto1.commons.DebuggerConstants;
  */
 public class BCELRunnableHook implements IClassLoadingHook{
 
+    private static final Logger logger = Logger.getLogger(BCELRunnableHook.class);
+    
     /** This works because Runnable is accessible through the bootstrap classloader. 
      * No chances of mess because we're also loaded by the bootstrap classloader. */
     private static final Class runnableIntf = Runnable.class;
@@ -69,7 +72,8 @@ public class BCELRunnableHook implements IClassLoadingHook{
     }
     
     private Method glueSnippet(ClassGen nc, Method m){
-        System.out.println("Instrumenting " + nc.getClassName() + " with runnable hook.");
+        if(logger.isDebugEnabled()) 
+            logger.debug("Instrumenting " + nc.getClassName() + " with runnable hook.");
         
         InstructionList il = new InstructionList();
         InstructionFactory iFactory = new InstructionFactory(nc);

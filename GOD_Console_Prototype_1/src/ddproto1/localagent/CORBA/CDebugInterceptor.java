@@ -49,7 +49,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
     private IGlobalAgent global;
     private ConversionTrait fh = ConversionTrait.getInstance();
     
-    private static final Logger logger = Logger.getLogger(CDebugInterceptor.class);
+    private static final Logger requestLogger = Logger.getLogger(CDebugInterceptor.class.getName() + ".requestLogger");
     
     public CDebugInterceptor(String name, int upctxId, int downctxId, int dtslot, int ltslot, int tpslot)
     	throws UnknownHostException, IOException
@@ -87,7 +87,8 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
      * @see org.omg.PortableInterceptor.ClientRequestInterceptorOperations#send_request(org.omg.PortableInterceptor.ClientRequestInfo)
      */
     public void send_request(ClientRequestInfo ri) throws ForwardRequest {
-        logger.debug("Entering send_request");
+        if(requestLogger.isDebugEnabled())
+            requestLogger.debug("Entering send_request for operation " + ri.operation());
                         
         /* Obtains the gid for the current distributed thread */
         int dtgid, ltgid, tpsiz;
@@ -95,13 +96,13 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
             dtgid = ri.get_slot(dtslot).extract_long();
             ltgid = ri.get_slot(ltslot).extract_long();
             tpsiz = ri.get_slot(tpslot).extract_long();
-            logger.debug(name + " - Client-side interceptor processing request "
+            requestLogger.debug(name + " - Client-side interceptor processing request "
                     + ri.operation() + "\n for thread with gid " + dtgid);
         }catch(InvalidSlot e){
-            logger.error(name + " - Error! Invalid context slot specified.", e);
+            requestLogger.error(name + " - Error! Invalid context slot specified.", e);
             return;
         }catch(BAD_OPERATION e){
-            logger.debug("No id while processing operation - " + ri.operation());
+            requestLogger.debug("No id while processing operation - " + ri.operation());
             return;
         }
         
@@ -132,28 +133,39 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
          */
         infoMap.put("op", ri.operation());
         
-        logger.debug("Making event from map - " + infoMap);
         Event e = new Event(infoMap, DebuggerConstants.CLIENT_UPCALL);
         
         try{
-            logger.debug("Attempting to notify the central agent.");
+            if(requestLogger.isDebugEnabled()){
+                requestLogger.debug("Notifying global agent of CLIENT_UPCALL:" +
+                                    "\n  Remote operation: " + ri.operation() + 
+                                    "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) +  
+                                    "\n  Local thread: " + fh.uuid2Dotted(ltgid));
+            }
+
             if(global.syncNotify(e) == DebuggerConstants.STEPPING){
+                if(requestLogger.isDebugEnabled()){
+                    requestLogger.debug(" The following thread is in remote step mode: " +
+                            "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) + 
+                            "\n  Local thread ID: " + fh.uuid2Dotted(ltgid));
+                }
+                
                 tagger.setStepping(ltgid, true);
             }
         }catch(CommException ce){
-            logger.fatal("Failed to notify the central agent of a client upcall - " +
+            requestLogger.fatal("Failed to notify the central agent of a client upcall - " +
             		" central agent's tracking state might be inconsistent.", ce);
         }
         
     }
     
     private void setForFourth(ClientRequestInfo ri){
-        int dtgid, ltgid, tpsiz;
+        int ltgid;
         try{
             ltgid = ri.get_slot(ltslot).extract_long();
             
-            if(logger.isDebugEnabled()){
-                logger.debug(name + " - Client-side interceptor receiving reply for "
+            if(requestLogger.isDebugEnabled()){
+                requestLogger.debug(name + " - Client-side interceptor receiving reply for "
                         + ri.operation() + "\n on behalf of local application thread " +
                         " globally unique id " + ltgid);
             }
@@ -167,12 +179,12 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                 ctx = ri.get_reply_service_context(downcall_context);
                 byte [] data = ctx.context_data;
                 
-                logger.debug("Step service context is " + data[0]);
+                requestLogger.debug("Step service context is " + data[0]);
                 
                 if(data[0] == 1) tagger.setStepping(ltgid, true);
                 else if(data[0] == 0) tagger.setStepping(ltgid, false);
                 else{
-                    logger.error("Unknown thread state reported by server-side debug" +
+                    requestLogger.error("Unknown thread state reported by server-side debug" +
                             " interceptor. Behavior might be erratic.");
                 }
             }catch(BAD_PARAM bp){ 
@@ -184,10 +196,10 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
             }
             
         }catch(InvalidSlot e){
-            logger.error(name + " - Error! Invalid context slot specified.", e);
+            requestLogger.error(name + " - Error! Invalid context slot specified.", e);
             return;
         }catch(BAD_OPERATION e){
-            logger.debug("No id while processing operation - " + ri.operation());
+            requestLogger.debug("No id while processing operation - " + ri.operation());
             return;
         }
         

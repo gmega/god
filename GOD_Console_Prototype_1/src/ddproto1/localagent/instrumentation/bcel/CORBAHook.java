@@ -23,6 +23,7 @@ import org.apache.bcel.generic.ATHROW;
 import org.apache.bcel.generic.BranchInstruction;
 import org.apache.bcel.generic.ClassGen;
 import org.apache.bcel.generic.ConstantPoolGen;
+import org.apache.bcel.generic.Instruction;
 import org.apache.bcel.generic.InstructionFactory;
 import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.InstructionList;
@@ -44,7 +45,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     
     private static final Logger logger = Logger.getLogger(CORBAHook.class);
     
-    private static final boolean DEBUG_MODE = false;
+    private static final boolean DEBUG_MODE = true;
     private static final String DUMP_DIR = "/home/giuliano/workspace/GOD Console Prototype 1/runtime-gen";
     
     private Map <String, ObjectType> stubs;
@@ -255,12 +256,22 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
                  * to add a static finally block and change the code below
                  * to an invokestatic, removing the aload.
                  * 
+                 * BUG: It's not enough to just insert the instructions. I have
+                 * to alter the handle to the return instruction, otherwise 
+                 * the branch instructions will still point to it.
+                 * 
+                 * methodCode.insert(ih, new ALOAD(0));
+                 * methodCode.insert(ih, iFactory.createInvoke(
+                 *      cgen.getClassName(), finallyName, Type.VOID,
+                 *      Type.NO_ARGS, Constants.INVOKEVIRTUAL));
+                 *      
                  */
-                methodCode.insert(ih, new ALOAD(0));
-                methodCode.insert(ih, iFactory.createInvoke(
+                Instruction returnIns = ih.getInstruction();
+                ih.setInstruction(new ALOAD(0));
+                ih = methodCode.append(ih, iFactory.createInvoke(
                         cgen.getClassName(), finallyName, Type.VOID,
                         Type.NO_ARGS, Constants.INVOKEVIRTUAL));
-
+                methodCode.append(ih, returnIns);
             }
         }
         

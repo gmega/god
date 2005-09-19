@@ -8,9 +8,7 @@
 
 package ddproto1.localagent;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -45,9 +43,10 @@ import ddproto1.commons.DebuggerConstants;
 public class Tagger extends TagResponsible{
     
     private static Tagger instance;
+    private static Logger getSetLogger = Logger.getLogger(Tagger.class.getName() + ".getSetLogger");
+    private static Logger stepPartLogger = Logger.getLogger(Tagger.class.getName() + ".stepPartLogger");
    
     private boolean gidSet = false;
-    private Logger logger;
     
     private byte gid;
     
@@ -56,9 +55,7 @@ public class Tagger extends TagResponsible{
     private ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
     private ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
     
-    private Tagger() { 
-        logger = Logger.getLogger("agent.local");    
-    }
+    private Tagger() {}
     
     public synchronized static Tagger getInstance(){
         return (instance == null)?(instance = new Tagger()):instance;
@@ -80,11 +77,10 @@ public class Tagger extends TagResponsible{
         Integer ltuid = (Integer)currentguid.get();
         if(ltuid != null) return;
         
-        System.out.println("Tagging thread...");
-        
         ltuid = new Integer(this.nextUID());
         currentguid.set(ltuid);
-        System.out.println("Tagged thread at process " + this.getGID() + " with tag " + this.dotted(ltuid.intValue()) );
+        if(getSetLogger.isDebugEnabled())
+            getSetLogger.debug("Tagged thread at process " + this.getGID() + " with tag " + this.dotted(ltuid.intValue()) );
         
         this.haltForRegistration();
     }
@@ -104,18 +100,22 @@ public class Tagger extends TagResponsible{
     }
     
     public int currentTag(){
-        System.err.println("Retrieving tag.");
+        if(getSetLogger.isDebugEnabled()) 
+            getSetLogger.debug("Retrieving tag.");
+        
         Integer tgid = (Integer)currentguid.get();
         if(tgid == null)
             throw new IllegalStateException("Cannot retrieve a thread marker before it gets set");
         
-        System.err.println("Retrieved tag " + tgid + " that corresponds to " + this.dotted(tgid.intValue()));
+        if(getSetLogger.isDebugEnabled()) 
+            getSetLogger.debug("Retrieved tag " + tgid + " that corresponds to " + this.dotted(tgid.intValue()));
         
         return ((Integer)currentguid.get()).intValue();
     }
     
     public boolean isStepping(int uuid){
-        if(logger.isDebugEnabled()) logger.debug("Tagger.isStepping() called.");
+        if(getSetLogger.isDebugEnabled()) 
+            getSetLogger.debug("Tagger.isStepping() called.");
         return(stepping.contains(uuid));
     }
     
@@ -132,23 +132,34 @@ public class Tagger extends TagResponsible{
      * @param uuid
      */
     public void makePartOf(int uuid){
+        if(stepPartLogger.isDebugEnabled()){
+            int id = this.currentTag();
+            stepPartLogger.debug("Will BIND local thread " + this.dotted(id)
+                    + " to distributed thread " + this.dotted(uuid));
+        }
         Integer current = (Integer)partOf.get();
         if(current != null){
-            logger
+            stepPartLogger
                     .error("Local thread "
-                            + currentTag() + " is being marked twice as part of "
-                            + ((current.intValue() == uuid) ? "the same distributed thread"
-                                    : "different distributed threads") + ".");
+                            + dotted(currentTag()) + " is being marked twice as part of "
+                            + ((current.intValue() == uuid) ? "the same distributed thread (NOT THAT BAD)"
+                                    : "different distributed threads (THIS IS REALLY BAD)") + ".");
         }
         partOf.set(new Integer(uuid));
     }
     
     public void unmakePartOf(int uuid){
+        if(stepPartLogger.isDebugEnabled()){
+            int id = this.currentTag();
+            stepPartLogger.debug("Will UNBIND local thread " + this.dotted(id)
+                    + " from distributed thread " + this.dotted(uuid));
+        }
+
         Integer current = (Integer)partOf.get();
         if(current == null){
-            logger
+            stepPartLogger
                     .error("Local thread "
-                            + currentTag() + " is being unmarked twice as part of "
+                            + dotted(currentTag()) + " is being unmarked twice as part of "
                             + "distributed thread " + dotted(uuid) +".");
         }
     }
