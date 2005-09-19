@@ -17,6 +17,7 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.StepEvent;
+import com.sun.jdi.request.StepRequest;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
@@ -121,13 +122,16 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
                     return;
                 }
 
+                StepRequest request = (StepRequest)e.request();
+                boolean into = (request.depth() == StepRequest.STEP_INTO);
+
                 /* Otherwise, marks the distributed thread as stepping. */
                 try{
                     DistributedThread dt = dtm.getByUUID(dt_uuid.intValue());
-                    dt.setStepping(true);
+                    dt.setStepping(true, into);
                 }catch(NoSuchElementError ex){
                     /* The thread hasn't yet been promoted. Creates a deferrable request to change the thread status. */
-                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), true);
+                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), true, into);
                     parent.getDeferrableRequestQueue().addEagerlyResolve(csr);
                 }
                     
@@ -165,9 +169,10 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
 
         private String dt_hex_id;
         private boolean toWhich;
+        private boolean into;
         private List requirements;
         
-        private ChangeStatusRequest(String dt_hex_id, boolean toWhich){
+        private ChangeStatusRequest(String dt_hex_id, boolean toWhich, boolean into){
             this.toWhich = toWhich;
             this.dt_hex_id = dt_hex_id;
             
@@ -176,6 +181,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
             spi.setClassId(dt_hex_id);
             spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
             this.requirements = new ArrayList();
+            this.into = into;
             requirements.add(spi);
         }
         
@@ -193,7 +199,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
                 /* The protocol is: if the event cannot be resolved, return null.
                  */
                 dt = dtm.getByUUID(fh.hex2Int(dt_hex_id));
-                dt.setStepping(toWhich);
+                dt.setStepping(toWhich, into);
             }catch(NoSuchElementError err){
                 return null;
             }

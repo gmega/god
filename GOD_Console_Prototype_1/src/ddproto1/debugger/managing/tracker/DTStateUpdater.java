@@ -16,6 +16,7 @@ import com.sun.jdi.event.LocatableEvent;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
 import com.sun.jdi.request.ExceptionRequest;
+import com.sun.jdi.request.StepRequest;
 
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.VMManagerFactory;
@@ -115,7 +116,12 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
 
             /* All ok. */
             if(lt_uuid.equals(vsf.getLocalThreadId())){
-                dt.setStepping(true);
+                boolean inMode = false;
+                if(e instanceof StepEvent){
+                    StepRequest request = (StepRequest)e.request();
+                    inMode = (request.depth() == StepRequest.STEP_INTO)?true:false;
+                }
+                dt.setStepping(true, inMode);
             }
             /* Some sort of inconsistency occurred - 
              * either the DistributedThreadManager (DTM) unnacurately

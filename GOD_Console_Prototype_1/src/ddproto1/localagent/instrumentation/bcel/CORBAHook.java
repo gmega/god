@@ -228,23 +228,8 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
             int firstIndex = linenumbers[0].getSourceLine();
             InstructionHandle [] handles = mg.getInstructionList().getInstructionHandles();
             
-            for(int i = 0; i < addedLines; i++){
+            for(int i = 0; i < addedLines; i++)
                 mg.addLineNumber(handles[i], firstIndex-1);
-            }
-            
-//            /** Creates line number gens. */
-//            LineNumberGen [] newLines = new LineNumberGen [linenumbers.length + 1];
-//            System.arraycopy(linenumbers, 0, newLines, 1, linenumbers.length);
-//            InstructionHandle _startHook = methodCode.getStart();
-//            newLines[0] = new LineNumberGen(_startHook, firstIndex-1);
-//            
-//            /** Now creates the line number table */
-//            LineNumber [] lnTable = new LineNumber[newLines.length];
-//            for(int i = 0; i < newLines.length; i++)
-//                lnTable[i] = newLines[i].getLineNumber();
-//            
-//            /** Sets the new line number table */
-//            mg.getLineNumberTable(mg.getConstantPool()).setLineNumberTable(lnTable);
         }
         
     }
@@ -282,7 +267,15 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         
         /* Glues the stuff together.*/
         InstructionHandle last = methodCode.getEnd();
-        methodCode.append(methodCode.getEnd(), endHook);
+        
+        /* Fix the source line of the end hook so that it points to the end of the method. */
+//        InstructionHandle endHookBegin = methodCode.append(methodCode.getEnd(), endHook);
+//        int maxIndex = -1;
+//        for(LineNumberGen lnGen : mg.getLineNumbers())
+//            if(maxIndex < lnGen.getSourceLine()) maxIndex = lnGen.getSourceLine();
+//
+//        mg.addLineNumber(endHookBegin, maxIndex);
+        
         
         /* Insert calls to the finally block before each return instruction 
          * so that it gets called in even if there is no exception. */

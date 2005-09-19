@@ -466,7 +466,7 @@ public class DistributedThreadManager implements IRequestHandler {
                      * Makes the request if and only if the thread is remote
                      * stepping
                      */
-                    if (current.getMode() == DistributedThread.STEPPING) {
+                    if (current.getMode() == DistributedThread.STEPPING_INTO) {
                         /**
                          * Old code was:
                          *                                                 
@@ -559,7 +559,7 @@ public class DistributedThreadManager implements IRequestHandler {
                     assert vf.getCallBase() == Integer.parseInt(base);
 
                     /* Resumes the current thread if it's stepping. */
-                    if (current.getMode() == DistributedThread.STEPPING) {
+                    if (current.getMode() == DistributedThread.STEPPING_INTO) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
 

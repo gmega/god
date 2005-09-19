@@ -35,9 +35,10 @@ public class DistributedThread {
 
     /* Possible thread states. */
     public static final byte UNKNOWN = -1;
-    public static final byte STEPPING = 0;
-    public static final byte RUNNING = 1;
-    public static final byte SUSPENDED = 2;
+    public static final byte STEPPING_INTO = 0;
+    public static final byte STEPPING_OVER = 1;
+    public static final byte RUNNING = 2;
+    public static final byte SUSPENDED = 3;
     
     /* Global Universally Unique ID for this Distributed thread. */
     private int uuid;
@@ -134,7 +135,7 @@ public class DistributedThread {
     /**
      * Returns the intended mode for the thread. You should not trust that the value returned by this method
      * actually reflects the true state of the thread, since the function of the 'mode' variable is to convey
-     * intention.
+     * intention and not real state.
      * 
      * @return
      */
@@ -222,7 +223,7 @@ public class DistributedThread {
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
         
-	    if(!(state == STEPPING) || (state == SUSPENDED))
+	    if(!(state == STEPPING_INTO) || (state == SUSPENDED))
 	        throw new IllegalStateException(
 	                "You cannot resume a thread that hasn't been stopped.");
 	    
@@ -277,9 +278,14 @@ public class DistributedThread {
         this.damaged_frame = start_frame;
     }
     
-	protected void setStepping(boolean mode){
+    protected void unsetStepping(){
+        state = RUNNING;
+    }
+    
+	protected void setStepping(boolean mode, boolean into){
 	    checkOwner();
-	    state = (mode)?STEPPING:RUNNING;
+	    if(mode == false) state = RUNNING;
+        else state = (into)?STEPPING_INTO:STEPPING_OVER;
 	}
 
 	/* ThreadLocal metaphors */
@@ -400,7 +406,7 @@ public class DistributedThread {
 	        if(frameStack.size() <= idx)
 	            throw new NoSuchElementException("Invalid index - " + idx);
 	        
-	        return (VirtualStackframe)frameStack.elementAt(idx);
+	        return (VirtualStackframe)frameStack.elementAt(frameStack.size() - idx - 1);
 	    }
 	    
 	    public List <VirtualStackframe>virtualFrames(int start, int length) 
