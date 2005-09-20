@@ -143,15 +143,25 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                                     "\n  Local thread: " + fh.uuid2Dotted(ltgid));
             }
 
-            if(global.syncNotify(e) == DebuggerConstants.STEPPING){
-                if(requestLogger.isDebugEnabled()){
-                    requestLogger.debug(" The following thread is in remote step mode: " +
-                            "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) + 
-                            "\n  Local thread ID: " + fh.uuid2Dotted(ltgid));
-                }
-                
-                tagger.setStepping(ltgid, true);
-            }
+            global.syncNotify(e);
+            
+            /** Do I really have to set the local thread to step mode 
+             * when doing the upcall? I don't think so. 
+             * I'm removing the code below for now and setting it to the return
+             * part.  
+             */
+//            boolean into = status == DebuggerConstants.STEPPING_INTO;
+//            if(into || status == DebuggerConstants.STEPPING_OVER){
+//                if(requestLogger.isDebugEnabled()){
+//                    requestLogger.debug(" The following thread is in remote step mode: " +
+//                            "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) + 
+//                            "\n  Local thread ID: " + fh.uuid2Dotted(ltgid));
+//                }
+//                
+//                tagger.setStepping(ltgid, into);
+//            }else{
+//                tagger.unsetStepping(ltgid);
+//            }
         }catch(CommException ce){
             requestLogger.fatal("Failed to notify the central agent of a client upcall - " +
             		" central agent's tracking state might be inconsistent.", ce);

@@ -77,7 +77,7 @@ class GlobalAgentProxyImpl implements IGlobalAgent{
     /* (non-Javadoc)
      * @see ddproto1.localagent.client.IGlobalAgent#syncNotify(ddproto1.localagent.client.Event)
      */
-    public int syncNotify(Event e) 
+    public byte syncNotify(Event e) 
     	throws CommException
     {
         /* Acquires a connection */

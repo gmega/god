@@ -8,7 +8,9 @@
 
 package ddproto1.localagent;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -50,7 +52,7 @@ public class Tagger extends TagResponsible{
     
     private byte gid;
     
-    private Set <Integer> stepping = new HashSet<Integer>();
+    private Map <Integer, Byte> stepping = new HashMap<Integer, Byte>();
     
     private ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
     private ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
@@ -116,14 +118,20 @@ public class Tagger extends TagResponsible{
     public boolean isStepping(int uuid){
         if(getSetLogger.isDebugEnabled()) 
             getSetLogger.debug("Tagger.isStepping() called.");
-        return(stepping.contains(uuid));
+        Byte state = stepping.get(uuid);
+        if(state == null) return false;
+        return state == DebuggerConstants.STEPPING_INTO || state == DebuggerConstants.STEPPING_OVER;
     }
     
-    public void setStepping(int uuid, boolean stats){
-        if(stats == true)
-            stepping.add(uuid);
+    public void setStepping(int uuid, boolean into){
+        if(into == true)
+            stepping.put(uuid, DebuggerConstants.STEPPING_INTO);
         else
-            stepping.remove(uuid);
+            stepping.put(uuid, DebuggerConstants.STEPPING_OVER);
+    }
+    
+    public void unsetStepping(int uuid){
+        stepping.remove(uuid);
     }
     
     /** Makes the caller local thread part of the distributed thread

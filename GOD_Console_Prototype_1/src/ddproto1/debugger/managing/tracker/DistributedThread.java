@@ -15,6 +15,7 @@ import java.util.Stack;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.BreakpointRequest;
 
+import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.exception.IllegalStateException;
@@ -35,8 +36,8 @@ public class DistributedThread {
 
     /* Possible thread states. */
     public static final byte UNKNOWN = -1;
-    public static final byte STEPPING_INTO = 0;
-    public static final byte STEPPING_OVER = 1;
+    public static final byte STEPPING_INTO = DebuggerConstants.STEPPING_INTO;
+    public static final byte STEPPING_OVER = DebuggerConstants.STEPPING_OVER;
     public static final byte RUNNING = 2;
     public static final byte SUSPENDED = 3;
     
@@ -85,10 +86,14 @@ public class DistributedThread {
     private byte state;
     
     public DistributedThread(VirtualStackframe root, IVMThreadManager tm){
+        this(root, tm, UNKNOWN);
+    }
+    
+    public DistributedThread(VirtualStackframe root, IVMThreadManager tm, byte initialState){
         this.uuid = root.getLocalThreadId().intValue();
         vs = new VirtualStack();
         vs.pushFrame(root);
-        state = UNKNOWN;
+        state = initialState;
     }
     
     /**
@@ -139,10 +144,10 @@ public class DistributedThread {
      * 
      * @return
      */
-    protected int getMode(){
+    protected byte getMode(){
         return state; 
     }
-    
+   
     public boolean isLocked(){
         return owner != null;
     }

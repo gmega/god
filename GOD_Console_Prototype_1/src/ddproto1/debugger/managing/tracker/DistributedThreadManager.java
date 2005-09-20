@@ -281,8 +281,13 @@ public class DistributedThreadManager implements IRequestHandler {
                          */
                         vsf = new VirtualStackframe(op, null,
                                 lt_uuid_wrap, gid);
+                        
+                        /** We set the thread initial state to be 'RUNNING'. If someone other than us
+                         * know that the state of this thread is not RUNNING (i.e., it's stepping) then 
+                         * that someone should create a deferrable request that advertises THREAD_PROMOTION 
+                         * as a precondition and change the state of the thread when it gets promoted. */
                         current = new DistributedThread(vsf, vmm
-                                .getThreadManager());
+                                .getThreadManager(), DistributedThread.RUNNING);
                         dthreads.put(dt_uuid_wrap, current);
 
                         /* Updates the local-to-distributed thread index */
@@ -559,7 +564,8 @@ public class DistributedThreadManager implements IRequestHandler {
                     assert vf.getCallBase() == Integer.parseInt(base);
 
                     /* Resumes the current thread if it's stepping. */
-                    if (current.getMode() == DistributedThread.STEPPING_INTO) {
+                    byte mode = current.getMode();
+                    if (mode == DistributedThread.STEPPING_INTO || mode == DistributedThread.STEPPING_OVER) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
 
@@ -594,8 +600,7 @@ public class DistributedThreadManager implements IRequestHandler {
                          * is zero, but in fact, if it's different from zero we
                          * get an array out of bounds exception.
                          */
-                        ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX,
-                                DebuggerConstants.STEPPING);
+                        ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX, mode);
 
                         /*
                          * I don't know if this thread will ever be in suspended

@@ -269,7 +269,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         InstructionHandle last = methodCode.getEnd();
         
         /* Fix the source line of the end hook so that it points to the end of the method. */
-//        InstructionHandle endHookBegin = methodCode.append(methodCode.getEnd(), endHook);
+        InstructionHandle endHookBegin = methodCode.append(methodCode.getEnd(), endHook);
 //        int maxIndex = -1;
 //        for(LineNumberGen lnGen : mg.getLineNumbers())
 //            if(maxIndex < lnGen.getSourceLine()) maxIndex = lnGen.getSourceLine();

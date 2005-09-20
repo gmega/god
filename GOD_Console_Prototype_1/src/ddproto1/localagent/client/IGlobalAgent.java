@@ -18,7 +18,7 @@ import ddproto1.util.commons.Event;
  */
 public interface IGlobalAgent {
     public String getAttribute(String key) throws CommException;
-    public int syncNotify(Event e) throws CommException;
+    public byte syncNotify(Event e) throws CommException;
     public void asyncNotify(Event e) throws CommException;
     public void dispose() throws CommException;
 }

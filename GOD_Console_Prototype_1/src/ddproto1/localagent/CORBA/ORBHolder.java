@@ -392,7 +392,7 @@ public class ORBHolder {
                 return;
             }
             
-            if(stepStats == DebuggerConstants.STEPPING){
+            if(stepStats == DebuggerConstants.STEPPING_INTO || stepStats == DebuggerConstants.STEPPING_OVER){
                 Any any = ORB.init().create_any();
                 any.insert_boolean(true);
                 
