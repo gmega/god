@@ -143,7 +143,13 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                                     "\n  Local thread: " + fh.uuid2Dotted(ltgid));
             }
 
-            global.syncNotify(e);
+            byte stats = global.syncNotify(e);
+            
+            if(requestLogger.isDebugEnabled()){
+                requestLogger.debug("Global agent reports " +
+                        "\n Distributed thread ID:" + fh.uuid2Dotted(dtgid) + 
+                        "\n Status: " + fh.statusText(stats));
+            }
             
             /** Do I really have to set the local thread to step mode 
              * when doing the upcall? I don't think so. 
@@ -177,7 +183,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
             if(requestLogger.isDebugEnabled()){
                 requestLogger.debug(name + " - Client-side interceptor receiving reply for "
                         + ri.operation() + "\n on behalf of local application thread " +
-                        " globally unique id " + ltgid);
+                        " globally unique id " + fh.uuid2Dotted(ltgid));
             }
             
             ServiceContext ctx = null;
@@ -189,10 +195,16 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                 ctx = ri.get_reply_service_context(downcall_context);
                 byte [] data = ctx.context_data;
                 
-                requestLogger.debug("Step service context is " + data[0]);
+                if(requestLogger.isDebugEnabled()){
+                    requestLogger.debug(" Operation name: " + ri.operation() + 
+                                        "\n Local Thread ID: " + fh.uuid2Dotted(ltgid) +
+                                        "\n Status: " + fh.statusText(data[0])) ;
+                }
                 
-                if(data[0] == 1) tagger.setStepping(ltgid, true);
-                else if(data[0] == 0) tagger.setStepping(ltgid, false);
+                boolean into = data[0] == DebuggerConstants.STEPPING_INTO;
+                if(into || data[0] == DebuggerConstants.STEPPING_OVER)
+                    tagger.setStepping(ltgid, into);
+                else if(data[0] == DebuggerConstants.RUNNING) tagger.unsetStepping(ltgid);
                 else{
                     requestLogger.error("Unknown thread state reported by server-side debug" +
                             " interceptor. Behavior might be erratic.");

@@ -17,7 +17,7 @@ import org.omg.PortableInterceptor.InvalidSlot;
 
 import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.localagent.Tagger;
-import ddproto1.localagent.CORBA.ORBHolder.CurrentSpec;
+import ddproto1.localagent.PIManagementDelegate.CurrentSpec;
 import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
@@ -31,7 +31,7 @@ public class JacORBStampRetriever implements IStampRetrievalStrategy {
     /* (non-Javadoc)
      * @see ddproto1.localagent.CORBA.orbspecific.IStampRetrievalStrategy#retrieveStamp(java.util.Iterator)
      */
-    public String retrieve(String what, Iterator currentSpecs, Tagger t) throws Exception{
+    public String retrieve(String what, Iterator currentSpecs) throws Exception{
         // TODO Auto-generated method stub
         Iterator it = currentSpecs;
         CurrentSpec cs;
@@ -73,7 +73,13 @@ public class JacORBStampRetriever implements IStampRetrievalStrategy {
                     return "false";
                 }
             
-        	}else {
+        	}else if (what.equals("step_stats")){
+                try{
+                    
+                }catch(BAD_OPERATION e){
+                    
+                }
+            }else {
                 throw new UnsupportedException(
                         "Could not service request for unknown "
                                 + "tagging component " + what);

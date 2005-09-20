@@ -176,4 +176,17 @@ public class ConversionTrait {
         for(String s : stuff) newSet.add(s);
         return newSet;
     }
+    
+    public String statusText(int dtStatus){
+        switch(dtStatus){
+        case DebuggerConstants.RUNNING:
+            return "RUNNING";
+        case DebuggerConstants.STEPPING_INTO:
+            return "STEPPING_INTO";
+        case DebuggerConstants.STEPPING_OVER:
+            return "STEPPING_OVER";
+        default:
+            return "<Unidentified or invalid state>";
+        }
+    }
 }

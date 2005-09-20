@@ -57,6 +57,8 @@ public class Tagger extends TagResponsible{
     private ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
     private ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
     
+    private PIManagementDelegate delegate;
+    
     private Tagger() {}
     
     public synchronized static Tagger getInstance(){
@@ -67,7 +69,10 @@ public class Tagger extends TagResponsible{
         this.gid = gid;
         gidSet = true;
     }
-        
+    
+    public void setPICManagementDelegate(PIManagementDelegate delegate){
+        this.delegate = delegate;
+    }
     
     public byte getGID(){
         if(!gidSet) 
@@ -120,7 +125,7 @@ public class Tagger extends TagResponsible{
             getSetLogger.debug("Tagger.isStepping() called.");
         Byte state = stepping.get(uuid);
         if(state == null) return false;
-        return state == DebuggerConstants.STEPPING_INTO || state == DebuggerConstants.STEPPING_OVER;
+        return state == DebuggerConstants.STEPPING_INTO;
     }
     
     public void setStepping(int uuid, boolean into){
@@ -170,6 +175,10 @@ public class Tagger extends TagResponsible{
                             + dotted(currentTag()) + " is being unmarked twice as part of "
                             + "distributed thread " + dotted(uuid) +".");
         }
+    }
+    
+    public void retrieveStamp(){
+        // NO-OP, we're doing this at the interceptor. I must change that. 
     }
     
     public Integer partOf(){

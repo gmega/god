@@ -234,7 +234,7 @@ public class LocalLauncher extends JavaWrapper{
         /* Preps the ORB holder, the callback singleton for CORBAHook-instrumented
          * stubs and skeletons. */
         ORBHolder oh = ORBHolder.getInstance();
-        oh.setStampRetrievalStrategy(new JacORBStampRetriever());
+//        oh.setStampRetrievalStrategy(new JacORBStampRetriever());
     }
     
     private static ObjectType[] getObjectList(String typelistId) 

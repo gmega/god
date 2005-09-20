@@ -29,5 +29,5 @@ import ddproto1.localagent.Tagger;
  *
  */
 public interface IStampRetrievalStrategy {
-    public String retrieve(String retrieve, Iterator piCurrents, Tagger t) throws Exception;
+    public String retrieve(String retrieve, Iterator piCurrents) throws Exception;
 }

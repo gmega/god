@@ -38,9 +38,9 @@ public interface DebuggerConstants {
     public static final byte ECHO_REQUEST = -4;
     public static final byte NOTIFICATION = -5;
     
-    public static final byte STEPPING_INTO = -6;
-    public static final byte STEPPING_OVER = -7;
-    public static final byte NOT_STEPPING = -8;
+    public static final byte STEPPING_INTO = 0;
+    public static final byte STEPPING_OVER = 1;
+    public static final byte RUNNING = 2;
     
     public static final byte EVENT_TYPE_IDX = 0;
     public static final byte CLIENT_DOWNCALL = 1;

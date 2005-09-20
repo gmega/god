@@ -16,6 +16,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
+import ddproto1.localagent.PIManagementDelegate;
 import ddproto1.localagent.Tagger;
 import ddproto1.localagent.CORBA.ORBHolder;
 import ddproto1.localagent.CORBA.orbspecific.JacORBStampRetriever;
@@ -46,12 +47,9 @@ public abstract class ClientSideAgent {
             }
             /** If there's no global ID, there can't be distributed debugging. */
             else {
-                Tagger tagger = Tagger.getInstance();
-                tagger.setGID(gid);
-
                 /*
-                 * Preps the ORB holder, the callback singleton for
-                 * CORBAHook-instrumented stubs and skeletons.
+                 * Preps the Tagger and the ORB holder, the callback singletons 
+                 * for CORBAHook-instrumented stubs and skeletons, respectively.
                  * 
                  * NOTE: This might be an issue. Loading the ORBHolder 
                  * and the JacORBStampRetriever may push some classes 
@@ -59,10 +57,15 @@ public abstract class ClientSideAgent {
                  * the transformation agent loads the classes it uses, 
                  * we might get into trouble. If that's the case, I could
                  * use the application class loader to manually load these
-                 * classes.
+                 * classes and do the inserting through reflection.
                  */
+                PIManagementDelegate delegate = new PIManagementDelegate(new JacORBStampRetriever());
+                Tagger tagger = Tagger.getInstance();
+                tagger.setGID(gid);
+                tagger.setPICManagementDelegate(delegate);
                 ORBHolder oh = ORBHolder.getInstance();
-                oh.setStampRetrievalStrategy(new JacORBStampRetriever());
+                oh.setPICManagementDelegate(delegate);
+                
 
                 BCELClientSideTransformer transformer = new BCELClientSideTransformer();
                 for (IClassLoadingHook modifier : getDefaultModifiers(transformer))

@@ -11,9 +11,6 @@ package ddproto1.localagent.CORBA;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -22,12 +19,12 @@ import org.omg.CORBA.ORB;
 import org.omg.PortableInterceptor.Current;
 import org.omg.PortableInterceptor.InvalidSlot;
 
-import com.sun.jdi.StackFrame;
-
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.exception.commons.CommException;
+import ddproto1.localagent.PIManagementDelegate;
 import ddproto1.localagent.Tagger;
-import ddproto1.localagent.CORBA.orbspecific.IStampRetrievalStrategy;
+import ddproto1.localagent.PIManagementDelegate.CurrentSpec;
 import ddproto1.localagent.client.GlobalAgentFactory;
 import ddproto1.localagent.client.IGlobalAgent;
 import ddproto1.util.commons.Event;
@@ -52,7 +49,8 @@ public class ORBHolder {
     private Logger inLogger = Logger.getLogger(ORBHolder.class.getName() + ".inLogger");
     private Logger notificationLogger = Logger.getLogger(ORBHolder.class.getName() + ".notificationLogger");
     
-    private IStampRetrievalStrategy isrs;
+    private PIManagementDelegate delegate;
+    
     private IGlobalAgent global; 
     private ThreadLocal <Integer> endPoint = new ThreadLocal <Integer>();
     
@@ -62,59 +60,11 @@ public class ORBHolder {
         return (instance == null)?(instance = new ORBHolder()):(instance);
     }
     
-    private List <CurrentSpec> carriers = new LinkedList<CurrentSpec>(); 
-    
     private ORBHolder()
     	throws IOException, UnknownHostException
     {
         if(global == null)
             global = GlobalAgentFactory.getInstance().resolveReference();
-    }
-    
-    /**
-     * Maintains an internal registry of all operational PICurrent objects
-     * in the application.
-     * 
-     * @param c - A reference to a PICurrent object
-     * @param partSlot - A slot allocated for propagating causal information
-     * @param idSlot - A slot allocated for telling the client-side interceptor 
-     * which local thread is currently making the call.
-     * @param opSlot - A slot allocated for telling the the client-side interceptor
-     * the name of the currently invoked operation. 
-     * @param remSlot - Used by local agent code to differ between local and remote
-     * calls.
-     * @param topSlot - Slot used to convey the size of the call stack at the moment
-     * the stub was invoked. This info will be later on transmitted to the global 
-     * agent by the client-side debug interceptor.
-     */
-    public void registerPICurrent(Current c, int partSlot, int idSlot, int opSlot,
-            int remSlot, int topSlot, int stepSlot){
-        CurrentSpec cs = new CurrentSpec(c, partSlot, idSlot, opSlot, remSlot, topSlot, stepSlot);
-        carriers.add(cs);
-    }
-    /**
-     * Unregisters a previously registered <i>PICurrent</i> object. 
-     * 
-     * @param c
-     */
-    public void unregisterPICurrent(Current c){
-        Iterator it = carriers.iterator();
-        while(it.hasNext()){
-            CurrentSpec cs = (CurrentSpec)it.next();
-            if(cs.c.equals(c))
-                carriers.remove(cs);
-        }
-    }
-    
-    /**
-     * Sets an orb-specific <code>IStampRetrievalStrategy</code> for this
-     * ORBHolder. The practical implication of this is that the client may
-     * not mix up ORB implementations.  
-     * 
-     * @param isrs
-     */
-    public void setStampRetrievalStrategy(IStampRetrievalStrategy isrs){
-        this.isrs = isrs;
     }
     
     /**
@@ -131,32 +81,18 @@ public class ORBHolder {
      */
     public void retrieveStamp(){
         
+        if(!checkState()) return;
+        
         if(inLogger.isDebugEnabled()){
             Throwable t = new Throwable();
             StackTraceElement [] callStack = t.getStackTrace();
             inLogger.debug("retrieveStamp() called by " + callStack[1].getMethodName() + "() at the server-side.");
-            
-        }
-        
-        if(isrs == null){
-            inLogger.fatal("Cannot retrieve ID - no retrieval " +
-            		" strategy has been configured. Debugger is not working" +
-            		" properly.");
-            return;
-        }
-        
-        /** Instrumentation hook has been called but there are no registered interceptors. */
-        if(carriers.isEmpty()){
-            inLogger.warn("Server-side debug interceptors have not been properly initialized for this node. " +
-                    "However, at least part of the code has been instrumented. If you intend to use the " +
-                    "debugger, this is an error. Please make shure the correct ORB initializer has been installed.");
-            return;
         }
         
         Tagger t = Tagger.getInstance();
         try{
             /* First checks if this is a remote or a local call */
-            String isRemote = isrs.retrieve("locality", carriers.iterator(), t);
+            String isRemote = delegate.retrieve("locality");
             /* Call is local - nothing to do. */
             if(isRemote.equals("false")){
                 if(inLogger.isDebugEnabled())
@@ -169,9 +105,10 @@ public class ORBHolder {
              * might misintepret data and/or send erroneous or duplicate information 
              * to the central agent.
              */
-            for(CurrentSpec cs : carriers){
-                Any any = cs.c.get_slot(cs.getREMSlot());
-                
+            for(CurrentSpec cs : delegate.getAllPICurrents()){
+                Current picurrent = cs.getCurrent();
+                Any any = cs.getCurrent().get_slot(cs.getREMSlot());
+                                
                 /* I *think* this will never be null (since if it were null then
                  * the retrieval strategy should have returned false in the first
                  * place).
@@ -179,15 +116,15 @@ public class ORBHolder {
                 assert(any != null);
                 
                 any.insert_boolean(false);
-                cs.c.set_slot(cs.getREMSlot(), any);
+                picurrent.set_slot(cs.getREMSlot(), any);
             }
                 
                         
             /* Obtains the distributed thread id from the PICurrent object
              * through an orb-specific strategy.
              */
-            String tag = isrs.retrieve("stamp", carriers.iterator(), t);
-            String op = isrs.retrieve("opname", carriers.iterator(), t);
+            String tag = delegate.retrieve("stamp");
+            String op = delegate.retrieve("opname");
             
             /* Mark the current thread if it hasn't been marked. */
             Tagger.getInstance().tagCurrent();
@@ -270,6 +207,8 @@ public class ORBHolder {
      * Method called from instrumented servant code right before the servant method ends.
      */
     public void checkOut(){
+        if(!checkState()) return;
+        
         /* Introspects the stack */
         Throwable t = new Throwable();
         StackTraceElement [] callStack = t.getStackTrace();
@@ -394,14 +333,18 @@ public class ORBHolder {
             
             if(stepStats == DebuggerConstants.STEPPING_INTO || stepStats == DebuggerConstants.STEPPING_OVER){
                 Any any = ORB.init().create_any();
-                any.insert_boolean(true);
+                any.insert_short((short)stepStats);
                 
-                for(CurrentSpec cs : carriers){
+                for(CurrentSpec cs : delegate.getAllPICurrents()){
                     try{
                         cs.getCurrent().set_slot(cs.getSTPSlot(), any);
                     }catch(InvalidSlot ex){
-                        notificationLogger.error("Cannot insert info into slot.", ex);
+                        notificationLogger.error("Cannot insert info into slot. Step mode might not operate correctly.", ex);
                     }
+                }
+            }else{
+                if(stepStats != DebuggerConstants.RUNNING){
+                    notificationLogger.error("Threads that are doing requests must be either running or stepping.");
                 }
             }
         }
@@ -417,6 +360,9 @@ public class ORBHolder {
      *
      */
     public void setStamp(){
+        
+        if(!checkState()) return;
+        
         if(inLogger.isDebugEnabled()){
             inLogger.debug("setStamp() called at the client-side.");
         }
@@ -428,8 +374,6 @@ public class ORBHolder {
             tagger.tagCurrent();
         }
             
-        Iterator it = carriers.iterator();
-
         if(inLogger.isDebugEnabled())
             inLogger.debug("Data from thread gid " + tagger.currentTag() + " copied to PICurrent ");
 
@@ -451,18 +395,18 @@ public class ORBHolder {
         dt_any.insert_long(tagger.partOf().intValue());
         tp_any.insert_long(stack_size);
 
-        while(it.hasNext()){
+        for(CurrentSpec cs : delegate.getAllPICurrents()){
             if (inLogger.isDebugEnabled()) {
                 inLogger.debug("Thread id: " + fh.uuid2Dotted(tagger.currentTag()) + ", part of:"
                         + fh.uuid2Dotted(tagger.partOf().intValue())
                         + " - inserted into PICurrent.");
             }
 
-            CurrentSpec cs = (CurrentSpec)it.next();
             try{
-                cs.c.set_slot(cs.dtslot, dt_any);
-                cs.c.set_slot(cs.ltslot, lt_any);
-                cs.c.set_slot(cs.tpslot, tp_any);
+                Current current = cs.getCurrent();
+                current.set_slot(cs.getDTSlot(), dt_any);
+                current.set_slot(cs.getIDSlot(), lt_any);
+                current.set_slot(cs.getTOPSlot(), tp_any);
             }catch(InvalidSlot e){
                 inLogger.fatal(e.toString(), e);
             }
@@ -496,36 +440,22 @@ public class ORBHolder {
 
     }
     
-    /** Utility class that holds data about the potentially various PICurrent objects
-     * created at startup of each <b>ORB</b>.
-     * 
-     * @author giuliano
-     *
-     */
-    public class CurrentSpec{
-        protected Current c;
-        protected int dtslot;
-        protected int ltslot;
-        protected int opslot;
-        protected int remslot;
-        protected int tpslot;
-        protected int stslot;
-        
-        public CurrentSpec(Current c, int dtslot, int ltslot, int opslot, int remslot, int tpslot, int stslot){
-            this.c = c;
-            this.dtslot = dtslot;
-            this.ltslot = ltslot;
-            this.opslot = opslot;
-            this.remslot = remslot;
-            this.tpslot = tpslot;
+    public void setPICManagementDelegate(PIManagementDelegate delegate){
+        this.delegate = delegate;
+    }
+    
+    public PIManagementDelegate getPICManagementDelegate(){
+        this.checkState();
+        return delegate;
+    }
+    
+    private boolean checkState(){
+        if(delegate == null){
+            inLogger.fatal("Cannot retrieve ID - no Portable Interceptor Management " +
+                    " delegate configured. Debugger is not working properly.");
+            return false;
         }
         
-        public int getDTSlot() { return dtslot; }
-        public int getOPSlot() { return opslot; }
-        public int getIDSlot() { return ltslot; }
-        public int getREMSlot() { return remslot; }
-        public int getTOPSlot() { return tpslot; }
-        public int getSTPSlot() {return stslot; }
-        public Current getCurrent() { return c; }
+        return true;
     }
 }

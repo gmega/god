@@ -138,9 +138,10 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
     private void intoService(ServerRequestInfo ri){
         try{
             Any stepInfo = ri.get_slot(stslot);
-            boolean isStepping = stepInfo.extract_boolean();
+            short isStepping = stepInfo.extract_short();
             byte context [] = new byte[1];
-            context[0] = (byte)((isStepping)?1:0);
+            
+            context[0] = (byte)(isStepping);
             
             ServiceContext stepContext = new ServiceContext();
             stepContext.context_data = context;

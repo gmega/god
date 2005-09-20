@@ -63,7 +63,8 @@ public class DebugORBInitializer extends LocalObject implements ORBInitializer {
 
         try{
             ORBHolder ch = ORBHolder.getInstance();
-            ch.registerPICurrent(current, dtslotty, idslotty, opslotty, rmslotty, tpslotty, stslotty);
+            ch.getPICManagementDelegate().registerPICurrent(current, dtslotty,
+                    idslotty, opslotty, rmslotty, tpslotty, stslotty);
 
             /* Now registers our interceptors */
             int gid = Tagger.getInstance().getGID();

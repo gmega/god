@@ -213,6 +213,7 @@ public class DistributedThreadManager implements IRequestHandler {
     public ByteMessage handleRequest(Byte gid, ByteMessage req) 
     {
         ByteMessage ret = null;
+        byte mode;
         
         VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(gid);
         assert(vmm != null);
@@ -282,12 +283,12 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf = new VirtualStackframe(op, null,
                                 lt_uuid_wrap, gid);
                         
-                        /** We set the thread initial state to be 'RUNNING'. If someone other than us
-                         * know that the state of this thread is not RUNNING (i.e., it's stepping) then 
-                         * that someone should create a deferrable request that advertises THREAD_PROMOTION 
-                         * as a precondition and change the state of the thread when it gets promoted. */
+                        /** We set the thread initial state to be 'RUNNING'. That's because we 
+                         * can't know if this thread is stepping or running. If it's not RUNNING,
+                         * then the precondition dispatch below will set this straight for us.*/
                         current = new DistributedThread(vsf, vmm
                                 .getThreadManager(), DistributedThread.RUNNING);
+                        
                         dthreads.put(dt_uuid_wrap, current);
 
                         /* Updates the local-to-distributed thread index */
@@ -308,6 +309,8 @@ public class DistributedThreadManager implements IRequestHandler {
                         StdResolutionContextImpl srci = new StdResolutionContextImpl();
                         srci.setContext(this);
                         srci.setPrecondition(spi);
+                        
+                        mode = current.getMode(); // Get the fresh mode to return to the client.
 
                         vmm.getDeferrableRequestQueue().resolveForContext(srci);
                     }
@@ -320,6 +323,9 @@ public class DistributedThreadManager implements IRequestHandler {
                     	current.lock();
                         vsf.setCallTop(st_size_wrap);
                         vsf.setOutboundOperation(op);
+                        
+                        mode = current.getMode(); 
+                        
                         current.unlock();
                         unlockAllTables();
                     }
@@ -467,11 +473,13 @@ public class DistributedThreadManager implements IRequestHandler {
                         unlockAllTables();
                     }
 
+                    mode = current.getMode();
+                    
                     /*
                      * Makes the request if and only if the thread is remote
                      * stepping
                      */
-                    if (current.getMode() == DistributedThread.STEPPING_INTO) {
+                    if (mode == DistributedThread.STEPPING_INTO) {
                         /**
                          * Old code was:
                          *                                                 
@@ -564,7 +572,7 @@ public class DistributedThreadManager implements IRequestHandler {
                     assert vf.getCallBase() == Integer.parseInt(base);
 
                     /* Resumes the current thread if it's stepping. */
-                    byte mode = current.getMode();
+                    mode = current.getMode();
                     if (mode == DistributedThread.STEPPING_INTO || mode == DistributedThread.STEPPING_OVER) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
@@ -577,7 +585,6 @@ public class DistributedThreadManager implements IRequestHandler {
                          * here so I don't feel tempted to insert this assert
                          * for the third time.
                          */
-
                         /*
                          * OK. We have to clear the step requests. Remeber this
                          * local thread is stepping.
@@ -591,18 +598,6 @@ public class DistributedThreadManager implements IRequestHandler {
                         // setClientReturnBreakpoint(vf); - not done this way
                         // anymore
                         /*
-                         * We now share our knowledge with the local agent.
-                         */
-                        ret = new ByteMessage(1);
-                        ret.setStatus(DebuggerConstants.OK);
-                        /*
-                         * How lame. I use EVENT_TYPE_IDX as if I didn't knew it
-                         * is zero, but in fact, if it's different from zero we
-                         * get an array out of bounds exception.
-                         */
-                        ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX, mode);
-
-                        /*
                          * I don't know if this thread will ever be in suspended
                          * state, but we're better safe than sorry (I have to do
                          * some thinking before removing this.)
@@ -610,8 +605,10 @@ public class DistributedThreadManager implements IRequestHandler {
                         if (tr.isSuspended()) {
                             tr.resume();
                         }
+                    }else{
+                        mh.getWarningOutput().println("");
                     }
-
+                    
                 } finally {
                     if (current != null)
                         current.unlock();
@@ -623,6 +620,7 @@ public class DistributedThreadManager implements IRequestHandler {
             default:
                 ret.setStatus(DebuggerConstants.PROTOCOL_ERR);
                 ret.setStatus(DebuggerConstants.UNKNOWN_EVENT_TYPE_ERR);
+                mode = DistributedThread.UNKNOWN;
                 break;
             }
             
@@ -630,24 +628,35 @@ public class DistributedThreadManager implements IRequestHandler {
             ret = new ByteMessage(1);
             ret.setStatus(DebuggerConstants.PROTOCOL_ERR);
             ret.writeAt(0, DebuggerConstants.HANDLER_FAILURE_ERR);
+            mode = DistributedThread.UNKNOWN;
             mh.getErrorOutput().println("Error while parsing message - format error.");
             mh.printStackTrace(e);
         } catch (IllegalAttributeException e){
             ret = new ByteMessage(1);
             ret.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             ret.setStatus(DebuggerConstants.ICW_ILLEGAL_ATTRIBUTE);
+            mode = DistributedThread.UNKNOWN;
             mh.getErrorOutput().println("Required paremeter missing - wrong message content.");
             mh.printStackTrace(e);            
         } catch(Exception e) {
             ret = new ByteMessage(0);
             ret.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
+            mode = DistributedThread.UNKNOWN;
             mh.printStackTrace(e);
         }
         
         if(ret == null){
+            /*
+             * We now share our knowledge with the local agent.
+             */
             ret = new ByteMessage(1);
             ret.setStatus(DebuggerConstants.OK);
-            ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX, DebuggerConstants.NOT_STEPPING);
+            /*
+             * How lame. I use EVENT_TYPE_IDX as if I didn't knew it
+             * is zero, but in fact, if it's different from zero we
+             * get an array out of bounds exception.
+             */
+            ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX, mode);
         }
 
         return ret;
