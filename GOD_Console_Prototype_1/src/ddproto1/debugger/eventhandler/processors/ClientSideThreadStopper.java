@@ -36,6 +36,8 @@ import ddproto1.util.traits.JDIMiscTrait;
  *
  */
 public class ClientSideThreadStopper extends BasicEventProcessor{
+    
+    public static final Object THREAD_TRAP_PROTOCOL = new Object();
 
     private static final JDIMiscTrait jmt = JDIMiscTrait.getInstance();
     private static final PolicyManager pm = PolicyManager.getInstance();
@@ -61,7 +63,9 @@ public class ClientSideThreadStopper extends BasicEventProcessor{
             String vmid = (String)bpe.request().getProperty(DebuggerConstants.VMM_KEY);
             ThreadReference tr = bpe.thread();
             
-            this.stepAndResume(tr, vmid, true).putProperty(protocolSlot, 2);
+            StepRequest sr = this.stepAndResume(tr, vmid, true);
+            sr.putProperty(protocolSlot, 2);
+            sr.putProperty(THREAD_TRAP_PROTOCOL, 0);
         }
     }
     
@@ -69,8 +73,10 @@ public class ClientSideThreadStopper extends BasicEventProcessor{
         Integer phase = (Integer)se.request().getProperty(protocolSlot);
         if(phase == null) return;
         else if ((phase == 2) || (phase == 3)){
-            this.stepAndResume(se.thread(), (String) se.request().getProperty(
-                    DebuggerConstants.VMM_KEY), true).putProperty(protocolSlot, phase+1);
+            StepRequest sr = this.stepAndResume(se.thread(), (String) se.request().getProperty(
+                    DebuggerConstants.VMM_KEY), true);
+            sr.putProperty(protocolSlot, phase+1);
+            sr.putProperty(THREAD_TRAP_PROTOCOL, 0);
         } else if (phase == 4){
             return;
         }else{

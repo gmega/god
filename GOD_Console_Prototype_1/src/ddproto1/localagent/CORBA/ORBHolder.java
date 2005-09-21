@@ -316,36 +316,46 @@ public class ORBHolder {
              */
             endPoint.set(null);
             
+            StringBuffer debugBuffer = null;
+            
             try{
-                notificationLogger.debug("Notifying global agent of SIGNAL_BOUNDARY:" +
-                        "\n  Server-side operation: " + fullOp + 
-                        "\n  Local thread stack frame base: " + callStack.length +
-                        "\n  Distributed thread ID: " + fh.uuid2Dotted(_dtid) +  
-                        "\n  Local thread: " + fh.uuid2Dotted(_ltid));
+                if(notificationLogger.isDebugEnabled()){
+                    debugBuffer = new StringBuffer();
+                    debugBuffer.append("\n  Server-side operation: " + fullOp + 
+                            "\n  Local thread stack frame base: " + callStack.length +
+                            "\n  Distributed thread ID: " + fh.uuid2Dotted(_dtid) +  
+                            "\n  Local thread: " + fh.uuid2Dotted(_ltid));
+                }
 
                 /* Pump it up to the global agent */
                 stepStats = global.syncNotify(e);
             }catch(CommException ce){
                 notificationLogger.fatal("Failed to notify the central agent of a client upcall - " +
-                		" central agent's tracking state might be inconsistent.", ce);
+                		" central agent's tracking state might be inconsistent. " + debugBuffer.toString(), ce);
                 return;
             }
             
-            if(stepStats == DebuggerConstants.STEPPING_INTO || stepStats == DebuggerConstants.STEPPING_OVER){
+            if(notificationLogger.isDebugEnabled()){
+                notificationLogger.debug("Notified global agent of SIGNAL_BOUNDARY." + 
+                                            debugBuffer.toString() + 
+                                            "\n Thread status: " + fh.statusText(stepStats));
+            }
+                                                
+            if(stepStats == DebuggerConstants.STEPPING_REMOTE || stepStats == DebuggerConstants.RUNNING){
                 Any any = ORB.init().create_any();
                 any.insert_short((short)stepStats);
                 
                 for(CurrentSpec cs : delegate.getAllPICurrents()){
                     try{
+                        if(notificationLogger.isDebugEnabled())
+                            notificationLogger.debug("Inserting short " + stepStats + " into slot " + cs.getSTPSlot() + " of one PICurrent");
                         cs.getCurrent().set_slot(cs.getSTPSlot(), any);
                     }catch(InvalidSlot ex){
                         notificationLogger.error("Cannot insert info into slot. Step mode might not operate correctly.", ex);
                     }
                 }
             }else{
-                if(stepStats != DebuggerConstants.RUNNING){
-                    notificationLogger.error("Threads that are doing requests must be either running or stepping.");
-                }
+                notificationLogger.error("Threads that are doing requests must be either running or stepping.");
             }
         }
     }

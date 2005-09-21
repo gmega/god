@@ -3,7 +3,7 @@
  * 
  * file: ReadOnlyIterator.java
  */
-package ddproto1.util.collection;
+package ddproto1.util.collection.commons;
 
 import java.util.Iterator;
 

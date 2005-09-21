@@ -8,10 +8,12 @@ package ddproto1.debugger.managing.tracker;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+
+import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
-import com.sun.jdi.event.ExceptionEvent;
 import com.sun.jdi.event.LocatableEvent;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.event.ThreadDeathEvent;
@@ -24,6 +26,7 @@ import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.exception.PropertyViolation;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
@@ -63,6 +66,8 @@ import ddproto1.util.traits.commons.ConversionTrait;
  */
 public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
 
+    private static Logger logger = Logger.getLogger(DTStateUpdater.class);
+    
     private static final VMManagerFactory vmmf = VMManagerFactory.getInstance();
     private static final ConversionTrait ct = ConversionTrait.getInstance();
     
@@ -95,7 +100,8 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
      * 
      */
     private void updateState(LocatableEvent e){
-        DistributedThread dt = acquireDT(e.thread());
+        ThreadReference tr = e.thread();
+        DistributedThread dt = acquireDT(tr);
         if(dt == null) return;
 
         /* If we got this far it means the DistributedThreadManager 
@@ -116,18 +122,57 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
 
             /* All ok. */
             if(lt_uuid.equals(vsf.getLocalThreadId())){
-                boolean inMode = false;
-                if(e instanceof StepEvent){
-                    StepRequest request = (StepRequest)e.request();
-                    inMode = (request.depth() == StepRequest.STEP_INTO)?true:false;
+                
+                /* The rule is as follows:
+                 * If we detect that the thread escaped the debugger control area,
+                 * we give up the distributed illusion.
+                 */
+                try {
+                    int callStackLength = tr.frameCount();
+                    /**
+                     * If the event has been generated below the call to the
+                     * first dispatched POA call...
+                     */
+                    byte modifier;
+                    /** ... we remove the illusion. */
+                    if (callStackLength < vsf.getCallBase()) {
+                        modifier = 0;
+                    } 
+                    /** Otherwise, we keep it. */
+                    else {
+                        modifier = DistributedThread.STEPPING_REMOTE;
+                    }
+                    
+                    if (e instanceof StepEvent) {
+                        StepRequest request = (StepRequest) e.request();
+                        /** ... we remove the STEP_REMOTE from the thread... */
+                        dt.setStepping((request.depth() == StepRequest.STEP_INTO) ? 
+                                DistributedThread.STEPPING_INTO : DistributedThread.STEPPING_OVER);
+                    } else {
+                        /** ... one way or the other. */
+                        dt.setStepping(DistributedThread.SUSPENDED);
+                    }
+                    
+                    /** Otherwise we keep the illusion. */
+                    dt.setStepping(DistributedThread.STEPPING_REMOTE | 
+                            (request));
+            
+                
+                } catch (IncompatibleThreadStateException ex) {
+                    logger.error("Failed to acquire the call stack. "
+                            + "\n Local thread id: " + ct.uuid2Dotted(lt_uuid)
+                            + "\n Distributed thread id: " + dt.getId()
+                            + "\n State may not be updated correctly.");
+                } catch (InvalidAttributeValueException ex) {
+                    throw new InternalError(
+                            "DTStateUpdater attempted to set a state that does not exist.");
                 }
-                dt.setStepping(true, inMode);
             }
-            /* Some sort of inconsistency occurred - 
-             * either the DistributedThreadManager (DTM) unnacurately
-             * reported that the current distributed thread encom-
-             * passes the local event thread or there has been a
-             * safety property violation.
+            /*
+             * Some sort of inconsistency occurred - either the
+             * DistributedThreadManager (DTM) unnacurately reported that the
+             * current distributed thread encom- passes the local event thread
+             * or there has been a safety property violation.
              */
             else {
                 String violation = "unknown";

@@ -310,9 +310,12 @@ public class DistributedThreadManager implements IRequestHandler {
                         srci.setContext(this);
                         srci.setPrecondition(spi);
                         
-                        mode = current.getMode(); // Get the fresh mode to return to the client.
-
                         vmm.getDeferrableRequestQueue().resolveForContext(srci);
+                        
+                        /** Get the freshest mode to return to the client (updated after
+                         * the precondition broadcast).
+                         */                       
+                        mode = current.getMode(); 
                     }
                     
                     else{
@@ -479,7 +482,7 @@ public class DistributedThreadManager implements IRequestHandler {
                      * Makes the request if and only if the thread is remote
                      * stepping
                      */
-                    if (mode == DistributedThread.STEPPING_INTO) {
+                    if (mode == DistributedThread.STEPPING_REMOTE) {
                         /**
                          * Old code was:
                          *                                                 
@@ -573,7 +576,7 @@ public class DistributedThreadManager implements IRequestHandler {
 
                     /* Resumes the current thread if it's stepping. */
                     mode = current.getMode();
-                    if (mode == DistributedThread.STEPPING_INTO || mode == DistributedThread.STEPPING_OVER) {
+                    if (mode == DistributedThread.STEPPING_REMOTE) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
 
@@ -676,21 +679,6 @@ public class DistributedThreadManager implements IRequestHandler {
             this.unlockAllTables();
         }
         
-    }
-    
-    private Location findLocationInCurrentMethod(List loc_list, Location old){
-        Iterator it = loc_list.iterator();
-        ReferenceType tdecl = old.declaringType();
-        Method mdecl = old.method();
-        while(it.hasNext()){
-            Location next = (Location)it.next();
-            if(next.declaringType().equals(tdecl) && next.method().equals(mdecl))
-                return next;
-        }
-        
-        mh.getErrorOutput().println("Error - could not match JDI-informed line number with " +
-        		"a valid method location (this could be a bug in JDI).");
-        return null;
     }
     
     /**

@@ -59,6 +59,7 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
         this.dtslot = dtslot;
         this.rmslot = rmslot;
         this.opslot = opslot;
+        this.stslot = stepslot;
     }
     /* (non-Javadoc)
      * @see org.omg.PortableInterceptor.ServerRequestInterceptorOperations#receive_request(org.omg.PortableInterceptor.ServerRequestInfo)
@@ -152,8 +153,8 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
             requestLogger.error("Failed to acquire the stepping context - breakpoint returns " +
                     "may not work properly.");
         }catch(BAD_OPERATION e){
-            requestLogger.error("Failed to extract the correct type from the slot assigned to conveying step information." +
-                    " Debugger might not operate correctly.");
+            requestLogger.error("Failed to extract the correct type from the slot assigned to conveying step information (" +stslot +
+                    "). Debugger might not operate correctly.",e);
         }
     }
     

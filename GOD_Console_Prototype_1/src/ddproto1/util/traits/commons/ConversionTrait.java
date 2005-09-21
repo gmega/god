@@ -185,6 +185,8 @@ public class ConversionTrait {
             return "STEPPING_INTO";
         case DebuggerConstants.STEPPING_OVER:
             return "STEPPING_OVER";
+        case DebuggerConstants.STEPPING_REMOTE:
+            return "STEPPING_REMOTE";
         default:
             return "<Unidentified or invalid state>";
         }

@@ -21,6 +21,7 @@ import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.exception.IllegalStateException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.PropertyViolation;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.interfaces.ISemaphore;
 import ddproto1.util.Semaphore;
 
@@ -36,10 +37,11 @@ public class DistributedThread {
 
     /* Possible thread states. */
     public static final byte UNKNOWN = -1;
+    public static final byte STEPPING_REMOTE = DebuggerConstants.STEPPING_REMOTE;
     public static final byte STEPPING_INTO = DebuggerConstants.STEPPING_INTO;
     public static final byte STEPPING_OVER = DebuggerConstants.STEPPING_OVER;
-    public static final byte RUNNING = 2;
-    public static final byte SUSPENDED = 3;
+    public static final byte RUNNING = DebuggerConstants.RUNNING;
+    public static final byte SUSPENDED = DebuggerConstants.SUSPENDED;
     
     /* Global Universally Unique ID for this Distributed thread. */
     private int uuid;
@@ -287,10 +289,14 @@ public class DistributedThread {
         state = RUNNING;
     }
     
-	protected void setStepping(boolean mode, boolean into){
+	protected void setStepping(byte stepMode)
+        throws InvalidAttributeValueException
+    {
 	    checkOwner();
-	    if(mode == false) state = RUNNING;
-        else state = (into)?STEPPING_INTO:STEPPING_OVER;
+	    if(stepMode != STEPPING_REMOTE && stepMode != STEPPING_OVER && stepMode != STEPPING_INTO)
+            throw new InvalidAttributeValueException("Invalid mode " + stepMode);
+        
+        state = stepMode;
 	}
 
 	/* ThreadLocal metaphors */

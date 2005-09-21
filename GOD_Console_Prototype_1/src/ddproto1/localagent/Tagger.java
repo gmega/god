@@ -8,9 +8,7 @@
 
 package ddproto1.localagent;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -52,7 +50,7 @@ public class Tagger extends TagResponsible{
     
     private byte gid;
     
-    private Map <Integer, Byte> stepping = new HashMap<Integer, Byte>();
+    private Set <Integer> stepping = new HashSet<Integer>();
     
     private ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
     private ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
@@ -95,7 +93,7 @@ public class Tagger extends TagResponsible{
     private void haltForRegistration(){ }
     
     public void stepMeOut() {
-        this.setStepping(this.currentTag(), false); // Clears the step status
+        this.unsetStepping(this.currentTag()); // Clears the step status (Do I really have to?)
     }
     
     public void untagCurrent(){
@@ -123,16 +121,11 @@ public class Tagger extends TagResponsible{
     public boolean isStepping(int uuid){
         if(getSetLogger.isDebugEnabled()) 
             getSetLogger.debug("Tagger.isStepping() called.");
-        Byte state = stepping.get(uuid);
-        if(state == null) return false;
-        return state == DebuggerConstants.STEPPING_INTO;
+        return stepping.contains(uuid);
     }
     
-    public void setStepping(int uuid, boolean into){
-        if(into == true)
-            stepping.put(uuid, DebuggerConstants.STEPPING_INTO);
-        else
-            stepping.put(uuid, DebuggerConstants.STEPPING_OVER);
+    public void setStepping(int uuid){
+        stepping.add(uuid);
     }
     
     public void unsetStepping(int uuid){
@@ -175,6 +168,7 @@ public class Tagger extends TagResponsible{
                             + dotted(currentTag()) + " is being unmarked twice as part of "
                             + "distributed thread " + dotted(uuid) +".");
         }
+        partOf.set(null);
     }
     
     public void retrieveStamp(){

@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 import ddproto1.exception.commons.UnsupportedException;
+import ddproto1.util.collection.commons.ReadOnlyIterator;
 
 /**
  * Simple decorator that denies access to all operations that perform modifications on

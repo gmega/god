@@ -135,10 +135,12 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
         
         Event e = new Event(infoMap, DebuggerConstants.CLIENT_UPCALL);
         
+        StringBuffer debugBuffer = new StringBuffer();
         try{
+            
+            
             if(requestLogger.isDebugEnabled()){
-                requestLogger.debug("Notifying global agent of CLIENT_UPCALL:" +
-                                    "\n  Remote operation: " + ri.operation() + 
+                debugBuffer.append( "\n  Remote operation: " + ri.operation() + 
                                     "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) +  
                                     "\n  Local thread: " + fh.uuid2Dotted(ltgid));
             }
@@ -146,28 +148,37 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
             byte stats = global.syncNotify(e);
             
             if(requestLogger.isDebugEnabled()){
-                requestLogger.debug("Global agent reports " +
-                        "\n Distributed thread ID:" + fh.uuid2Dotted(dtgid) + 
-                        "\n Status: " + fh.statusText(stats));
+                requestLogger.debug("Notified local agent of CLIENT_UPCALL." +
+                        debugBuffer.toString() +
+                        "\n Thread state: " + fh.statusText(stats));
             }
             
             /** Do I really have to set the local thread to step mode 
              * when doing the upcall? I don't think so. 
              * I'm removing the code below for now and setting it to the return
-             * part.  
-             */
-//            boolean into = status == DebuggerConstants.STEPPING_INTO;
-//            if(into || status == DebuggerConstants.STEPPING_OVER){
-//                if(requestLogger.isDebugEnabled()){
-//                    requestLogger.debug(" The following thread is in remote step mode: " +
-//                            "\n  Distributed thread ID: " + fh.uuid2Dotted(dtgid) + 
-//                            "\n  Local thread ID: " + fh.uuid2Dotted(ltgid));
-//                }
-//                
-//                tagger.setStepping(ltgid, into);
-//            }else{
-//                tagger.unsetStepping(ltgid);
-//            }
+             * part.
+             * 
+             * NOTE: I have to, because the other side might not be under the debuggers
+             * realm. If I don't do this:
+             * 
+             * 1) The component boundary recognizer resumes the thread.
+             * 2) The STEPPING_REMOTE information is lost.
+             * 3) We receive reply and #setForFourth won't be able to retrieve the 
+             *    current step status.
+             * 4) The instrumented code at the stub won't trap the thread and it won't
+             *    stop.
+             *    
+             * Result: The user does a step into and his/her thread simply resumes. 
+             */  
+
+            if(stats == DebuggerConstants.STEPPING_REMOTE){
+                tagger.setStepping(ltgid);
+            }else{
+                tagger.unsetStepping(ltgid);
+            }
+            
+             
+ 
         }catch(CommException ce){
             requestLogger.fatal("Failed to notify the central agent of a client upcall - " +
             		" central agent's tracking state might be inconsistent.", ce);
@@ -201,14 +212,13 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                                         "\n Status: " + fh.statusText(data[0])) ;
                 }
                 
-                boolean into = data[0] == DebuggerConstants.STEPPING_INTO;
-                if(into || data[0] == DebuggerConstants.STEPPING_OVER)
-                    tagger.setStepping(ltgid, into);
-                else if(data[0] == DebuggerConstants.RUNNING) tagger.unsetStepping(ltgid);
-                else{
-                    requestLogger.error("Unknown thread state reported by server-side debug" +
-                            " interceptor. Behavior might be erratic.");
+                boolean stepping = data[0] == DebuggerConstants.STEPPING_REMOTE;
+                if(stepping){
+                    tagger.setStepping(ltgid);
+                }else{
+                    tagger.unsetStepping(ltgid);
                 }
+                    
             }catch(BAD_PARAM bp){ 
                 /* Assymetric system - other side hasn't got the required
                  * interceptors installed. This means the other side hasn't

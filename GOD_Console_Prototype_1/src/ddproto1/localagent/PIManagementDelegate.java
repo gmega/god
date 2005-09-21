@@ -13,7 +13,7 @@ import org.apache.log4j.Logger;
 import org.omg.PortableInterceptor.Current;
 
 import ddproto1.localagent.CORBA.orbspecific.IStampRetrievalStrategy;
-import ddproto1.util.collection.ReadOnlyIterable;
+import ddproto1.util.collection.commons.ReadOnlyIterable;
 
 public class PIManagementDelegate {
     
@@ -113,6 +113,7 @@ public class PIManagementDelegate {
             this.opslot = opslot;
             this.remslot = remslot;
             this.tpslot = tpslot;
+            this.stslot = stslot;
         }
         
         public int getDTSlot() { return dtslot; }

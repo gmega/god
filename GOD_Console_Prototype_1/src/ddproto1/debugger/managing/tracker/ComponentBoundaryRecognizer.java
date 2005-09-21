@@ -24,6 +24,7 @@ import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.eventhandler.processors.BasicEventProcessor;
+import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
@@ -95,6 +96,8 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
         /* First one - we have stepped into remote object stub. */
         try {
             if (stublist.contains(klass.name())) {
+                if(isTrap((StepRequest)se.request()))
+                    return;
 
                 /* REMARK DO NOT hotswap the tagger class. */
                 if (taggerClass == null) {
@@ -122,16 +125,13 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
                     return;
                 }
 
-                StepRequest request = (StepRequest)e.request();
-                boolean into = (request.depth() == StepRequest.STEP_INTO);
-
-                /* Otherwise, marks the distributed thread as stepping. */
+                /* Otherwise, marks the distributed thread as stepping remote. */
                 try{
                     DistributedThread dt = dtm.getByUUID(dt_uuid.intValue());
-                    dt.setStepping(true, into);
+                    dt.setStepping(DistributedThread.STEPPING_REMOTE);
                 }catch(NoSuchElementError ex){
                     /* The thread hasn't yet been promoted. Creates a deferrable request to change the thread status. */
-                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), true, into);
+                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), DistributedThread.STEPPING_REMOTE);
                     parent.getDeferrableRequestQueue().addEagerlyResolve(csr);
                 }
                     
@@ -165,15 +165,20 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
         }
     }
     
+    private boolean isTrap(StepRequest se){
+        if(se.getProperty(ClientSideThreadStopper.THREAD_TRAP_PROTOCOL) != null)
+            return true;
+        return false;
+    }
+    
     private class ChangeStatusRequest implements IDeferrableRequest{
 
         private String dt_hex_id;
-        private boolean toWhich;
-        private boolean into;
+        private byte toWhich;
         private List requirements;
         
-        private ChangeStatusRequest(String dt_hex_id, boolean toWhich, boolean into){
-            this.toWhich = toWhich;
+        private ChangeStatusRequest(String dt_hex_id, byte stepState){
+            this.toWhich = stepState;
             this.dt_hex_id = dt_hex_id;
             
             /* Resolution preconditions */
@@ -181,7 +186,6 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
             spi.setClassId(dt_hex_id);
             spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
             this.requirements = new ArrayList();
-            this.into = into;
             requirements.add(spi);
         }
         
@@ -199,7 +203,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
                 /* The protocol is: if the event cannot be resolved, return null.
                  */
                 dt = dtm.getByUUID(fh.hex2Int(dt_hex_id));
-                dt.setStepping(toWhich, into);
+                dt.setStepping(toWhich);
             }catch(NoSuchElementError err){
                 return null;
             }
