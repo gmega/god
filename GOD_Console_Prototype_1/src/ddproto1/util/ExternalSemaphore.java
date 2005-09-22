@@ -41,13 +41,15 @@ public class ExternalSemaphore implements ISemaphore{
         }
     }
     
-    public synchronized void v(){
+    public void v(){
         synchronized (lock) {
             count++;
             lock.notify();
         }
     }
     
-    
+    public int getCount(){
+        return count;
+    }
     
 }

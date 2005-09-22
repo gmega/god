@@ -23,4 +23,6 @@ public interface ISemaphore {
      *
      */
     public void v();
+    
+    public int getCount();
 }

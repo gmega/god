@@ -9,8 +9,10 @@
 package ddproto1.debugger.managing;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.sun.jdi.Mirror;
@@ -86,6 +88,9 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     private ThreadManager tm;
     
     private IJDIEventProcessor next;
+    
+    /** HACK MAP. */
+    private Map<Integer, Byte> stepRequests = new HashMap<Integer, Byte>();
     
     private String name;
     private String gid;
@@ -510,4 +515,14 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     public boolean isWritable() {
         return true;
     }
+
+    /** These are hacks. */
+    public void setLastStepRequest(int tuuid, Byte mode){
+        stepRequests.put(tuuid, mode);
+    }
+    
+    public Byte getLastStepRequest(int tuuid){
+        return stepRequests.get(tuuid);
+    }
+
 }

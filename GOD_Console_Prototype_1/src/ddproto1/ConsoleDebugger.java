@@ -60,6 +60,7 @@ import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
+import ddproto1.debugger.managing.tracker.IRealFrame;
 import ddproto1.debugger.managing.tracker.VirtualStackframe;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
@@ -84,6 +85,8 @@ import ddproto1.util.PolicyManager;
 import ddproto1.util.collection.ThreadGroupIterator;
 import ddproto1.util.traits.JDIMiscTrait;
 import ddproto1.util.traits.commons.ConversionTrait;
+import ddproto1.debugger.managing.tracker.DistributedThread.VirtualStack;
+import ddproto1.debugger.managing.tracker.VirtualStackframe;
 
 /**
  * This highly inflated class represents our first attempt at constructing
@@ -519,8 +522,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
          * Command SHOW - Shows source information around the current location
          * for a given thread or displays stack information for that thread.
          * 
-         * show (radius|"stack")? (machine_id)? (thread_id)? 
-         * show "stack" dotted_id
+         * show radius? ("stack"|"output")? (machine_id)? (thread_id)? stackframe_number?  
          */
         case Token.SHOW: {
 
@@ -547,28 +549,47 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 break;
             }
             
+            int frameNumber = 0;
+            
             if(!currentMachine.equals("Global")){
                 machine = checkCurrent("command.show", false);
 
                 if (token.type == Token.MACHINE_ID)
                     advance();
 
-                if (token.type == Token.HEX_ID)
+                if (token.type == Token.HEX_ID){
                     hexy = token.text;
-            
-                advance();
+                    advance();
+                }
+                            
+                if(token.type == Token.NUMBER){
+                    frameNumber = Integer.parseInt(token.text);
+                    advance();
+                }
+                
+                
             	if (!(token.type == Token.EMPTY))
                 	badCommand("command.show");
 
-            	if(!stack) commandShow(machine, radius, hexy);
+            	if(!stack) commandShow(machine, radius, hexy, frameNumber);
             	else commandShowStackLT(machine, hexy);
 
             }else{
-                if(token.type != Token.DOTTED_ID)
+                String dottedId = null;
+                if(token.type != Token.DOTTED_ID){
                     badCommand("command.show");
+                }else{
+                    dottedId = token.text;
+                    advance();
+                }
+                            
+                if(token.type == Token.NUMBER){
+                    frameNumber = Integer.parseInt(token.text);
+                    advance();
+                }
                 
-                if(!stack) commandShowDT(token.text);
-                else commandShowStackDT(token.text);
+                if(!stack) commandShowDT(dottedId, radius, frameNumber);
+                else commandShowStackDT(dottedId);
             }
 
 
@@ -925,7 +946,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private void doStep(VirtualMachineManager vmm, ThreadReference target, int size, int depth){
         PolicyManager pm = PolicyManager.getInstance();
         /* This is a bizarre action we have to take in order to avoid DuplicateRequestExceptions */
-        jmt.clearPreviousStepRequests(target);
+        jmt.clearPreviousStepRequests(target, vmm);
         
         /* Step requests are not deferrable. Threrefore, they're set directly
          * into the VirtualMachine, without using VirtualMachineManger#makeRequest.
@@ -936,11 +957,73 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         sr.setSuspendPolicy(pm.getPolicy("request.step"));
         sr.putProperty(DebuggerConstants.VMM_KEY, vmm.getName());
         sr.enable();
+        
+        /** Ugly hack. */
+        vmm.setLastStepRequest(
+                        vmm.getThreadManager().getThreadUUID(target),
+                        (depth == StepRequest.STEP_INTO) ? DistributedThread.STEPPING_INTO
+                                : DistributedThread.STEPPING_OVER);
     }
     
-    private void commandShowDT(String dottedid){
+    private void commandShowDT(String dottedid, int radius, int frame)
+        throws CommandException
+    {
+        /** Gets the distributed thread. */
+        DistributedThread dt = Main.getDTM().getByUUID(ct.dotted2Uuid(dottedid));
         
+        if(dt == null) throw new CommandException("Invalid distributed thread - " + dottedid);
+        
+        VirtualStack stack = dt.virtualStack();
+        int count = stack.getDTRealFrameCount();
+        if(frame >= count) throw new CommandException("Invalid frame " + frame + ".");
+
+        /** Maps the frame index to a frame index in a real thread. */
+        IRealFrame rf = stack.mapToRealFrame(frame);
+        int lt_uuid = rf.getLocalThreadUUID();
+        VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(ct.guidFromUUID(lt_uuid));
+        ThreadReference theThread = vmm.getThreadManager().findThreadByUUID(lt_uuid);
+        
+        /** This thread may not have been suspended. */
+        boolean resumeAfterwards = false;
+        if(!theThread.isSuspended()){
+            theThread.suspend();
+            resumeAfterwards = true;
+        }
+        StackFrame realFrame = this.getFrame(theThread, rf.getFrame(), lt_uuid);
+        /** Prints the source at that location. */
+        this.printSourceAtLocation(realFrame.location(), radius, vmm);
+        if(resumeAfterwards) theThread.resume();
     }
+    
+    private StackFrame getFrame(ThreadReference tr, int frame, int ltid) throws CommandException{
+        try{
+            if(tr.frameCount() <= 0){
+                throw new CommandException("Local thread " + ct.uuid2Dotted(ltid) + " hasn't got a valid call stack.");
+            }else if(frame >= tr.frameCount()){
+                throw new CommandException("Invalid stack frame " + frame);
+            }
+            return tr.frame(frame);
+        }catch(IncompatibleThreadStateException ex){
+            throw new CommandException("Thread " + ct.uuid2Dotted(ltid) + " hasn't been suspended.", ex);
+        }
+    }
+    
+    
+//    private VirtualStackframe getHead(String dottedid) throws CommandException{
+//        int dt_uuid = ct.dotted2Uuid(dottedid);
+//        DistributedThreadManager dtm = Main.getDTM();
+//        DistributedThread dt = dtm.getByUUID(dt_uuid);
+//        if (dt == null) throw new CommandException("Thread " + dottedid + " is invalid or has expired.");
+//        if(!dt.isSuspended()) throw new CommandException("Cannot inspect a running thread. You must suspend it first.");
+//        
+//        VirtualStack vs = dt.virtualStack();
+//        if (vs.getVirtualFrameCount() == 0)
+//            throw new CommandException("Distributed thread " + dottedid
+//                    + " doesn't have a valid virtual stack");
+//        VirtualStackframe head = vs.getVirtualFrame(0);
+//        
+//        return head;
+//    }
     
     private void commandShowStackDT(String dottedid) 
     	throws CommandException
@@ -957,8 +1040,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     "Stack information for distributed thread " + "["
                             + dottedid + "]");
 
-            DistributedThread.VirtualStack vs = dt.virtualStack();
+            VirtualStack vs = dt.virtualStack();
 
+            int wordSize = 0;
+            for(VirtualMachineManager vmm : VMManagerFactory.getInstance().machineList()){
+                int newSize = vmm.getName().length();
+                if(wordSize < newSize) wordSize = newSize;
+            }
+            
             String stck = "";
             int acc = 0;
             for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
@@ -979,7 +1068,22 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 int top = callTop.intValue();
                 if(base == -1) base = 1;
                 if(top == -1) top = tr.frameCount();
-                stck += threadStack(tr, base, top, acc, vmm.getName());
+                
+                String vmmName = vmm.getName();
+                /* Pad the machine name */
+                int padding = wordSize - vmmName.length();
+                StringBuffer frontPadding = new StringBuffer();
+                StringBuffer backPadding = new StringBuffer();
+                
+                for(int j = 0; j < Math.floor(padding/2); j++){
+                    frontPadding.append(" ");
+                    backPadding.append(" ");
+                }
+                
+                for(int j = 0; j < padding%2; j++)
+                    frontPadding.append(" ");
+                
+                stck += threadStack(tr, base, top, acc, backPadding.toString() + vmmName + frontPadding.toString());
                 acc += top - base + 1;
                 if(doResume) tr.resume();
             }
@@ -991,7 +1095,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
     
-    private void commandShow(String machine, int radius, String hexid)
+    private void commandShow(String machine, int radius, String hexid, int frame)
     	throws CommandException, IOException
     {
    
@@ -999,26 +1103,32 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         ThreadReference target = null;
         
         target = grabSuspendedThread(hexid, vmm);
-        
-        try{
-            Location loc = target.frame(0).location();
+        StackFrame sf = this.getFrame(target, frame, ct.hex2Int(hexid));
+        Location loc = sf.location();
+        this.printSourceAtLocation(loc, radius, vmm);
+    }
+    
+    private void printSourceAtLocation(Location loc, int radius, VirtualMachineManager vmm)
+        throws CommandException {
+        try {
+
             ISourceMapper sm = vmm.getSourceMapper();
             ISource is = sm.getSource(loc);
             int line = loc.lineNumber();
-            int i = (line - radius) > 0? line - radius:0;
+            int i = (line - radius) > 0 ? line - radius : 0;
 
-            for(; i < (line + radius); i++){
-                String linestr = "["+i+"]: ";
-                if(i == line) linestr = "["+i+"]=>";
+            for (; i < (line + radius); i++) {
+                String linestr = "[" + i + "]: ";
+                if (i == line)
+                    linestr = "[" + i + "]=>";
                 mh.getStandardOutput().println(linestr + is.getLine(i));
             }
-           
-        }catch(AbsentInformationException e){
-            throw new CommandException("No valid source-code information found.");
-        }catch(Exception e){
-            mh.printStackTrace(e);
-            throw new CommandException("Failed to obtain thread location.");
-        }	
+        } catch (AbsentInformationException e) {
+            throw new CommandException(
+                    "No valid source-code information found.");
+        } catch (IOException ex) {
+            throw new CommandException("Error reading source-code file.");
+        }
     }
     
     private void commandShowStackLT(String machine, String hexy)

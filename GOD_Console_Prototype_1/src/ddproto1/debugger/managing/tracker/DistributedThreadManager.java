@@ -60,6 +60,8 @@ public class DistributedThreadManager implements IRequestHandler {
     
     private static MessageHandler mh = MessageHandler.getInstance();
     
+    private static IHeadCounter theCounter = new JDIHeadCounter();
+    
     private static ConversionTrait fmh = ConversionTrait.getInstance();
     private static JDIMiscTrait jmt = JDIMiscTrait.getInstance();
     
@@ -281,13 +283,19 @@ public class DistributedThreadManager implements IRequestHandler {
                          * once per thread).
                          */
                         vsf = new VirtualStackframe(op, null,
-                                lt_uuid_wrap, gid);
-                        
-                        /** We set the thread initial state to be 'RUNNING'. That's because we 
-                         * can't know if this thread is stepping or running. If it's not RUNNING,
-                         * then the precondition dispatch below will set this straight for us.*/
+                                lt_uuid_wrap);
+
+                        /** Thread inherits the state of the local thread. 
+                         * Since the thread got this far, it's possible states are:
+                         * 1) RUNNING
+                         * 2) STEPPING_INTO
+                         * 3) STEPPING_OVER 
+                         */
+                        Byte inmode = vmm.getLastStepRequest(lt_uuid);
+                        if(inmode == null) mode = DistributedThread.RUNNING;
+                        else mode = (byte)(inmode | DistributedThread.STEPPING_REMOTE);
                         current = new DistributedThread(vsf, vmm
-                                .getThreadManager(), DistributedThread.RUNNING);
+                                .getThreadManager(), mode, theCounter);
                         
                         dthreads.put(dt_uuid_wrap, current);
 
@@ -297,6 +305,18 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf.setCallTop(st_size_wrap);
 
                         unlockAllTables();
+
+                        /**
+                         * We remove all client-side step requests. It's the
+                         * client-side interceptor who should decide whether
+                         * or not to stop the thread when it returns.
+                         */
+                        if ((mode & DistributedThread.STEPPING_INTO) != 0
+                                || (mode & DistributedThread.STEPPING_OVER) != 0) {
+                            ThreadReference tr = vmm.getThreadManager()
+                                    .findThreadByUUID(lt_uuid);
+                            jmt.clearPreviousStepRequests(tr, vmm);
+                        }
                         
                         /*
                          * We've met a prencondition. Inform whomever might be
@@ -312,10 +332,18 @@ public class DistributedThreadManager implements IRequestHandler {
                         
                         vmm.getDeferrableRequestQueue().resolveForContext(srci);
                         
+                        /** We remove all client-side step requests. It's the client-side interceptor 
+                         * who should decide whether or not to stop the thread when it returns.
+                         */
+                        ThreadReference tr = vmm.getThreadManager().findThreadByUUID(lt_uuid);
+                        jmt.clearPreviousStepRequests(tr, vmm);
+
+                        
                         /** Get the freshest mode to return to the client (updated after
                          * the precondition broadcast).
                          */                       
-                        mode = current.getMode(); 
+                        mode = current.getMode();
+                        
                     }
                     
                     else{
@@ -460,7 +488,7 @@ public class DistributedThreadManager implements IRequestHandler {
                              * at the client-side
                              */
                             VirtualStackframe vsf = new VirtualStackframe(null, fullOp,
-                                    lt_uuid_wrap, gid);
+                                    lt_uuid_wrap);
                             vsf.setCallBase(new Integer(base));
 
                             current.lock();
@@ -480,9 +508,15 @@ public class DistributedThreadManager implements IRequestHandler {
                     
                     /*
                      * Makes the request if and only if the thread is remote
-                     * stepping
+                     * STEPPING_REMOTE and STEPPING_INTO. It matters here if 
+                     * the thread is STEPPING_INTO because if it is then we
+                     * must stop it a the server side. If the user stepped 
+                     * over the remote call, however, it doesn't matter that
+                     * the thread is in stepping mode because we should go 
+                     * over the call anyway (unless the user inserts a breakpoint
+                     * at the server side).
                      */
-                    if (mode == DistributedThread.STEPPING_REMOTE) {
+                    if ((mode & DistributedThread.STEPPING_REMOTE) != 0 && (mode & DistributedThread.STEPPING_INTO) != 0) {
                         /**
                          * Old code was:
                          *                                                 
@@ -574,9 +608,17 @@ public class DistributedThreadManager implements IRequestHandler {
                     assert vf.getInboundOperation().equals(fullOp);
                     assert vf.getCallBase() == Integer.parseInt(base);
 
-                    /* Resumes the current thread if it's stepping. */
+                    /* Resumes the current thread if it's stepping. 
+                     * The other possible states are:
+                     * 1) RUNNING - No need to resume the thread.
+                     * 2) SUSPENDED - Then it shouldn't be sending messages. 
+                     * 
+                     * It doesn't matter if the thread is STEPPING_INTO or 
+                     * STEPPING_OVER, it must be resumed if it's suspended.
+                     *  
+                     * */
                     mode = current.getMode();
-                    if (mode == DistributedThread.STEPPING_REMOTE) {
+                    if ((mode & DistributedThread.STEPPING_REMOTE) != 0) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
 
@@ -587,29 +629,27 @@ public class DistributedThreadManager implements IRequestHandler {
                          * fulfilled the next step request yet. I'll leave it
                          * here so I don't feel tempted to insert this assert
                          * for the third time.
-                         */
-                        /*
+                         * 
                          * OK. We have to clear the step requests. Remeber this
                          * local thread is stepping.
                          */
-                        jmt.clearPreviousStepRequests(tr);
+                        jmt.clearPreviousStepRequests(tr, vmm);
 
                         /*
                          * We must arrange for the caller client thread to stop
                          * when the distributed thread gets back there.
-                         */
-                        // setClientReturnBreakpoint(vf); - not done this way
-                        // anymore
-                        /*
+                         *
+                         * setClientReturnBreakpoint(vf); - not done this way
+                         * anymore
+                         *
                          * I don't know if this thread will ever be in suspended
                          * state, but we're better safe than sorry (I have to do
                          * some thinking before removing this.)
+                         * 
                          */
                         if (tr.isSuspended()) {
                             tr.resume();
                         }
-                    }else{
-                        mh.getWarningOutput().println("");
                     }
                     
                 } finally {

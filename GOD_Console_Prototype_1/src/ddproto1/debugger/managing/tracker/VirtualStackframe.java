@@ -5,9 +5,12 @@
  */
 package ddproto1.debugger.managing.tracker;
 
+import ddproto1.util.traits.commons.ConversionTrait;
+
 /**
  * The virtual stack frame is not much more than a lightweigth marker of 
- * the application thread boundaries.  
+ * the application thread boundaries.
+ * 
  * 
  * @author giuliano
  *
@@ -16,17 +19,19 @@ public class VirtualStackframe {
     
     public static final int UNDEFINED = -1;
     
+    private static final ConversionTrait ct = ConversionTrait.getInstance();
+    
     private String outOp, inOp;
     private Integer ltid;
     private Integer callBase;
     private Integer callTop;
     private Byte ltgid;
    
-    VirtualStackframe(String outOp, String inOp, Integer ltid, Byte ltgid){
+    VirtualStackframe(String outOp, String inOp, Integer ltid){
         this.outOp = outOp;
         this.inOp = inOp;
         this.ltid = ltid;
-        this.ltgid = ltgid;
+        this.ltgid = ct.guidFromUUID(ltid);
         this.callBase = new Integer(UNDEFINED);
         this.callTop = new Integer(UNDEFINED);
     }

@@ -171,7 +171,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
              * Result: The user does a step into and his/her thread simply resumes. 
              */  
 
-            if(stats == DebuggerConstants.STEPPING_REMOTE){
+            if((stats & DebuggerConstants.STEPPING_REMOTE) != 0 && (stats&DebuggerConstants.STEPPING_INTO) != 0){
                 tagger.setStepping(ltgid);
             }else{
                 tagger.unsetStepping(ltgid);
@@ -211,9 +211,8 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                                         "\n Local Thread ID: " + fh.uuid2Dotted(ltgid) +
                                         "\n Status: " + fh.statusText(data[0])) ;
                 }
-                
-                boolean stepping = data[0] == DebuggerConstants.STEPPING_REMOTE;
-                if(stepping){
+                                
+                if((data[0] & DebuggerConstants.STEPPING_REMOTE) != 0){
                     tagger.setStepping(ltgid);
                 }else{
                     tagger.unsetStepping(ltgid);

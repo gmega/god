@@ -9,6 +9,9 @@ package ddproto1.debugger.managing.tracker;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Stack;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.BreakpointRequest;
@@ -80,20 +83,25 @@ public class DistributedThread {
      * inspection operation has begun.
      * 
      */
-    protected ISemaphore stackInspectionSemaphore = new Semaphore(1);  
+    protected ReadWriteLock stackInspectionLock = new ReentrantReadWriteLock(true);  
+    private final Lock rsLock = stackInspectionLock.readLock();
+    private final Lock wsLock = stackInspectionLock.writeLock();
+    
+    private IHeadCounter counter;
 
     /* Actual thread state. */
     private byte state;
     
-    public DistributedThread(VirtualStackframe root, IVMThreadManager tm){
-        this(root, tm, UNKNOWN);
+    public DistributedThread(VirtualStackframe root, IVMThreadManager tm, IHeadCounter counter){
+        this(root, tm, UNKNOWN, counter);
     }
     
-    public DistributedThread(VirtualStackframe root, IVMThreadManager tm, byte initialState){
+    public DistributedThread(VirtualStackframe root, IVMThreadManager tm, byte initialState, IHeadCounter counter){
         this.uuid = root.getLocalThreadId().intValue();
         vs = new VirtualStack();
         vs.pushFrame(root);
         state = initialState;
+        this.counter = counter;
     }
     
     /**
@@ -198,6 +206,8 @@ public class DistributedThread {
     /**
      * Locks the current thread. No other thread will be able to
      * modify it without getting a <b>ddproto1.exception.IllegalStateException</b>.
+     * This is for when someone needs to conduct a series of operations to the thread
+     * and ensure that no-one messes it up in the meantime. 
      * 
      * @throws IllegalStateException if a thread tries to modify it without locking first.
      */
@@ -226,28 +236,35 @@ public class DistributedThread {
 	/* Control methods */
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
-        
-	    if(!((state & STEPPING_INTO)!=0) || ((state & SUSPENDED)!=0))
-	        throw new IllegalStateException(
-	                "You cannot resume a thread that hasn't been stopped.");
-	    
-	    /* This method doesn't have to be synchronized since the hipothesis is 
-	     * that the head thread is already stopped (and hence there's no risk
-	     * of it being popped).
-	     * TODO Test what happens if we kill the remote JVM.
-	     */
-	    VirtualStackframe head = getHead();
-	    IVMThreadManager tm = vmmf.getVMManager(head.getLocalThreadNodeGID())
-                .getThreadManager();
-	    
-	    ThreadReference tr = tm.findThreadByUUID(head.getLocalThreadId());
-	    if(tr == null)
-	        throw new IllegalStateException("Head thread no longer exists.");
-	    
-        state = RUNNING;
-	    tr.resume();
+        try {
+            wsLock.lock();
+            if (!((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0))
+                throw new IllegalStateException(
+                        "You cannot resume a thread that hasn't been stopped.");
 
-        stackModificationSemaphore.v();
+            /** Thread must have been previously suspended with suspend(). */
+            assert stackModificationSemaphore.getCount() == 0; 
+            
+            /*
+             * This method doesn't have to be synchronized since the hipothesis
+             * is that the head thread is already stopped (and hence there's no
+             * risk of it being popped). TODO Test what happens if we kill the
+             * remote JVM.
+             */
+            VirtualStackframe head = getHead();
+            IVMThreadManager tm = vmmf.getVMManager(
+                    head.getLocalThreadNodeGID()).getThreadManager();
+
+            ThreadReference tr = tm.findThreadByUUID(head.getLocalThreadId());
+            if (tr == null)
+                throw new IllegalStateException("Head thread no longer exists.");
+
+            state = RUNNING;
+            tr.resume();
+        } finally {
+            wsLock.unlock();
+            stackModificationSemaphore.v();
+        }
 	}
     
     public void suspend(){
@@ -283,6 +300,7 @@ public class DistributedThread {
     }
     
     protected void unsetStepping(){
+        checkOwner();
         state = RUNNING;
     }
     
@@ -374,39 +392,51 @@ public class DistributedThread {
 	public class VirtualStack {
 	    private Stack<VirtualStackframe> frameStack = new Stack<VirtualStackframe>();
 	    
-	    public synchronized void pushFrame(VirtualStackframe tr){
-	        checkOwner();
-            stackModificationSemaphore.p();
-	        frameStack.push(tr);
-            stackModificationSemaphore.v();
-	    }
-        
-        public DistributedThread parentDT(){
+	    public void pushFrame(VirtualStackframe tr) {
+            checkOwner();
+            try {
+                stackModificationSemaphore.p();
+                wsLock.lock();
+                frameStack.push(tr);
+            } finally {
+                wsLock.unlock();
+                stackModificationSemaphore.v();
+            }
+        }
+
+        public DistributedThread parentDT() {
             return DistributedThread.this;
         }
-	    
-	    public VirtualStackframe popFrame(){
-	        checkOwner();
-	        /* Popping only applies to threads that have not been suspended. If the thread
-	         * gets suspended after the pop signal has reached the server but before
-	         * the handler had a chance to actually pop the thread, then synchronization
-	         * is required.
-	         * 
-	         * What this semaphore does is block the handler thread from popping the
-	         * application thread until it gets resumed by the user who suspended it.
-	         */
-	        stackModificationSemaphore.p();
-	        VirtualStackframe popped = (VirtualStackframe)frameStack.pop();
-	        stackModificationSemaphore.v();
-	        return popped;
-	    }
+
+        public VirtualStackframe popFrame() {
+            checkOwner();
+            try {
+                /*
+                 * Popping only applies to threads that have not been suspended.
+                 * If the thread gets suspended after the pop signal has reached
+                 * the server but before the handler had a chance to actually
+                 * pop the thread, then synchronization is required.
+                 * 
+                 * What this semaphore does is block the handler thread from
+                 * popping the application thread until it gets resumed by the
+                 * user who suspended it.
+                 */
+                stackModificationSemaphore.p();
+                wsLock.lock();
+                VirtualStackframe popped = (VirtualStackframe) frameStack.pop();
+                return popped;
+            } finally {
+                wsLock.unlock();
+                stackModificationSemaphore.v();
+            }
+        }
 	    
 	    public VirtualStackframe peek() throws IllegalStateException{
             try{
-                this.checkStateAndLock();
+                rsLock.lock();
                 return this.unlockedPeek();
             }finally{
-                stackInspectionSemaphore.v();
+                rsLock.unlock();
             }
 	    }
         
@@ -416,18 +446,18 @@ public class DistributedThread {
 	    
 	    public int getVirtualFrameCount() throws IllegalStateException{
             try{
-                this.checkStateAndLock();
+                rsLock.lock();
                 return frameStack.size();
             }finally{
-                stackInspectionSemaphore.v();
+                rsLock.unlock();
             }
 	    }
 	    
 	    public VirtualStackframe getVirtualFrame(int idx)
 	    	throws NoSuchElementException, IllegalStateException
 	    {
-            try {
-                this.checkStateAndLock();
+            try{
+                rsLock.lock();
                 if (frameStack.size() <= idx)
                     throw new NoSuchElementException("Invalid index - " + idx);
 
@@ -435,31 +465,46 @@ public class DistributedThread {
                         .size()
                         - idx - 1);
             } finally {
-                stackInspectionSemaphore.v();
+                rsLock.unlock();
             }
 	    }
 	    
 	    public List <VirtualStackframe>virtualFrames(int start, int length) 
             throws NoSuchElementException, IllegalStateException
         {
-            try{
-                this.checkStateAndLock();
+             try{
+                rsLock.lock();
                 return frameStack.subList(start, start + length - 1);
             }finally{
-                stackInspectionSemaphore.v();
+                rsLock.unlock();
             }
 	    }
         
         public int getDTRealFrameCount(){
             try{
-                this.checkStateAndLock();
+                rsLock.lock();
                 
                 int frameCount = 0;
-                for(VirtualStackframe vs : frameStack)
-                    frameCount += vs.getCallTop() - vs.getCallBase() + 1;
+                int initial = frameStack.size()-1;
+                for(int k = initial; k >= 0; k--){
+                    VirtualStackframe cFrame = frameStack.get(k);
+                    int topFrame, baseFrame;
+                    
+                    if(k == initial)
+                        topFrame = counter.headFrameCount(cFrame.getLocalThreadId());
+                    else
+                        topFrame = cFrame.getCallTop();
+                    
+                    if(k == 0)
+                        baseFrame = 1;
+                    else
+                        baseFrame = cFrame.getCallBase();
+                                            
+                    frameCount += topFrame - baseFrame + 1;
+                }
                 return frameCount;
             }finally{
-                stackInspectionSemaphore.v();
+                rsLock.unlock();
             }
         }
         
@@ -467,12 +512,25 @@ public class DistributedThread {
             throws NoSuchElementException
         {
             try{
-                this.checkStateAndLock();
-                for(int k = frameStack.size()-1; k >= 0; k--){
+                rsLock.lock();
+                int initial = frameStack.size()-1;
+                for(int k = initial; k >= 0; k--){
                     VirtualStackframe cFrame = frameStack.get(k);
-                    int frames = cFrame.getCallTop() - cFrame.getCallBase() + 1;
+                    int topFrame, baseFrame;
+                    
+                    if(k == initial)
+                        topFrame = counter.headFrameCount(cFrame.getLocalThreadId());
+                    else
+                        topFrame = cFrame.getCallTop();
+                    
+                    if(k == 0)
+                        baseFrame = 1;
+                    else
+                        baseFrame = cFrame.getCallBase();
+                    
+                    int frames = topFrame - baseFrame + 1;
                     if(DTFrame - frames < 0){
-                        final int theFrame = DTFrame;
+                        final int theFrame = DTFrame + counter.headFrameCount(cFrame.getLocalThreadId(), true) - topFrame;
                         final int ltuuid = cFrame.getLocalThreadId();
                         return new IRealFrame(){
                             public int getLocalThreadUUID() { return ltuuid; }
@@ -483,16 +541,10 @@ public class DistributedThread {
                 }
                 
             }finally{
-                stackInspectionSemaphore.v();
+               rsLock.unlock();
             }
             
             throw new NoSuchElementException("Invalid frame " + DTFrame + ".");
-        }
-        
-        private void checkStateAndLock() throws IllegalStateException{
-            stackInspectionSemaphore.p();
-            if(!DistributedThread.this.isSuspended()) throw new IllegalStateException(
-                    "Cannot perform the requested operation while the thread is running.");
         }
 	}
 }

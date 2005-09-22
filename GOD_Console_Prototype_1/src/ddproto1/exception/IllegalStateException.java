@@ -23,4 +23,8 @@ public class IllegalStateException extends RuntimeException {
     private static final long serialVersionUID = 4123387618353296690L;
 
     public IllegalStateException(String reason){super(reason);}
+    
+    public IllegalStateException(Exception ex){
+        super(ex);
+    }
 }

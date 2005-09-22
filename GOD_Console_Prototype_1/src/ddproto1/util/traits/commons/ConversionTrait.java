@@ -162,6 +162,11 @@ public class ConversionTrait {
         return uid;
     }
     
+    public byte guidFromUUID(int uuid){
+        int guid = (uuid & DebuggerConstants.GID_MASK) >> (8*DebuggerConstants.THREAD_LUID_BYTES);
+        return (byte)guid;
+    }
+    
     public String simpleMethodName(String fullMethodName){
         int dotIdx = fullMethodName.lastIndexOf(".");
         int parIdx = fullMethodName.indexOf("(");
@@ -178,17 +183,21 @@ public class ConversionTrait {
     }
     
     public String statusText(int dtStatus){
-        switch(dtStatus){
-        case DebuggerConstants.RUNNING:
-            return "RUNNING";
-        case DebuggerConstants.STEPPING_INTO:
-            return "STEPPING_INTO";
-        case DebuggerConstants.STEPPING_OVER:
-            return "STEPPING_OVER";
-        case DebuggerConstants.STEPPING_REMOTE:
-            return "STEPPING_REMOTE";
-        default:
+        StringBuffer sr = new StringBuffer();
+        
+        if((dtStatus & DebuggerConstants.RUNNING) != 0)
+            sr.append("RUNNING | ");
+        if((dtStatus & DebuggerConstants.STEPPING_INTO) != 0)
+            sr.append("STEPPING_INTO | ");
+        if((dtStatus & DebuggerConstants.STEPPING_OVER) != 0)
+            sr.append("STEPPING_OVER | ");
+        if((dtStatus & DebuggerConstants.STEPPING_REMOTE) != 0)
+            sr.append("STEPPING_REMOTE | ");
+            
+        if(sr.length() == 0)
             return "<Unidentified or invalid state>";
-        }
+        
+        else
+            return sr.substring(0, sr.length()-3).toString();
     }
 }

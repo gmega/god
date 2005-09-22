@@ -89,7 +89,7 @@ public class ClientSideThreadStopper extends BasicEventProcessor{
         VirtualMachineManager vmm = vmmf.getVMManager(vmid);
         EventRequestManager erm = vmm.virtualMachine().eventRequestManager();
         
-        if(clear) jmt.clearPreviousStepRequests(tr);
+        if(clear) jmt.clearPreviousStepRequests(tr, vmm);
         
         StepRequest sr = erm.createStepRequest(tr, StepRequest.STEP_MIN, StepRequest.STEP_OUT);
         sr.putProperty(DebuggerConstants.VMM_KEY, vmid);

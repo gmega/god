@@ -145,17 +145,17 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
                     
                     if (e instanceof StepEvent) {
                         StepRequest request = (StepRequest) e.request();
-                        /** ... we remove the STEP_REMOTE from the thread... */
-                        dt.setStepping((request.depth() == StepRequest.STEP_INTO) ? 
-                                DistributedThread.STEPPING_INTO : DistributedThread.STEPPING_OVER);
+                        dt.setStepping((byte)(modifier | ((request.depth() == StepRequest.STEP_INTO) ? 
+                                DistributedThread.STEPPING_INTO : DistributedThread.STEPPING_OVER)));
                     } else {
-                        /** ... one way or the other. */
-                        dt.setStepping(DistributedThread.SUSPENDED);
+                        /** It's not really necessary to OR the modifier here as the current
+                         * version re-enables remote mode automatically when that's possible.
+                         * We should allow the user to configure that behavior, however, and this
+                         * modifier is a reminder of that.
+                         */
+                        dt.setStepping((byte)(DistributedThread.SUSPENDED | modifier));
                     }
                     
-                    /** Otherwise we keep the illusion. */
-                    dt.setStepping(DistributedThread.STEPPING_REMOTE | 
-                            (request));
             
                 
                 } catch (IncompatibleThreadStateException ex) {

@@ -340,8 +340,9 @@ public class ORBHolder {
                                             debugBuffer.toString() + 
                                             "\n Thread status: " + fh.statusText(stepStats));
             }
-                                                
-            if(stepStats == DebuggerConstants.STEPPING_REMOTE || stepStats == DebuggerConstants.RUNNING){
+                 
+            /** If I plan to support disabling of remote mode, I should probably relax these restrictions. */
+            if((stepStats & DebuggerConstants.STEPPING_REMOTE) != 0 || stepStats == DebuggerConstants.RUNNING){
                 Any any = ORB.init().create_any();
                 any.insert_short((short)stepStats);
                 

@@ -47,4 +47,8 @@ public class Semaphore implements ISemaphore {
         }
         notify();
     }
+    
+    public int getCount(){
+        return count;
+    }
 }

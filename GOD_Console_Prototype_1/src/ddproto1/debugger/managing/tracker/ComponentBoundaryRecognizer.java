@@ -96,7 +96,12 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
         /* First one - we have stepped into remote object stub. */
         try {
             if (stublist.contains(klass.name())) {
-                if(isTrap((StepRequest)se.request()))
+                
+                StepRequest request = (StepRequest)se.request();
+                /* This step event is part of the thread stopping
+                 * protocol. We shouldn't mess with it.
+                 */
+                if(isTrap(request))
                     return;
 
                 /* REMARK DO NOT hotswap the tagger class. */
@@ -120,18 +125,26 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
                     return;
                 }
 
-                /* Remote mode is disabled. Nothing to do. */
-                if (!ui.queryIsRemoteOn(dt_uuid.intValue())) {
-                    return;
-                }
+                /* Remote mode is disabled. Nothing to do. 
+                 * 
+                 * if (!ui.queryIsRemoteOn(dt_uuid.intValue())) {
+                 *     return;
+                 * }
+                 * FIX: That's the old code. Nowadays, if remote mode is disabled, we should 
+                 * not OR the STEPPING_REMOTE modifier into the thread state. I currently 
+                 * don't support disabling remote mode, though. 
+                 * 
+                 */ 
 
                 /* Otherwise, marks the distributed thread as stepping remote. */
+                byte mode = (request.depth() == StepRequest.STEP_INTO) ? DistributedThread.STEPPING_INTO
+                        : DistributedThread.STEPPING_OVER;
                 try{
                     DistributedThread dt = dtm.getByUUID(dt_uuid.intValue());
-                    dt.setStepping(DistributedThread.STEPPING_REMOTE);
+                    dt.setStepping((byte)(mode | DistributedThread.STEPPING_REMOTE));
                 }catch(NoSuchElementError ex){
                     /* The thread hasn't yet been promoted. Creates a deferrable request to change the thread status. */
-                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), DistributedThread.STEPPING_REMOTE);
+                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), (byte)(mode|DistributedThread.STEPPING_REMOTE));
                     parent.getDeferrableRequestQueue().addEagerlyResolve(csr);
                 }
                     
@@ -175,7 +188,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
 
         private String dt_hex_id;
         private byte toWhich;
-        private List requirements;
+        private List <IPrecondition>requirements;
         
         private ChangeStatusRequest(String dt_hex_id, byte stepState){
             this.toWhich = stepState;
@@ -185,7 +198,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
             StdPreconditionImpl spi = new StdPreconditionImpl();
             spi.setClassId(dt_hex_id);
             spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
-            this.requirements = new ArrayList();
+            this.requirements = new ArrayList<IPrecondition>();
             requirements.add(spi);
         }
         
@@ -214,7 +227,7 @@ public class ComponentBoundaryRecognizer extends BasicEventProcessor{
         /* (non-Javadoc)
          * @see ddproto1.debugger.request.IDeferrableRequest#getRequirements()
          */
-        public List getRequirements() {
+        public List<IPrecondition> getRequirements() {
             return requirements;
         }
 

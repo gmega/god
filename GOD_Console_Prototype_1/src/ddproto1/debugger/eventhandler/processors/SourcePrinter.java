@@ -8,7 +8,12 @@
 
 package ddproto1.debugger.eventhandler.processors;
 
+import java.util.Iterator;
+
 import com.sun.jdi.AbsentInformationException;
+import com.sun.jdi.LocalVariable;
+import com.sun.jdi.Location;
+import com.sun.jdi.Method;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.LocatableEvent;
 
@@ -74,9 +79,15 @@ public class SourcePrinter extends BasicEventProcessor{
         String lt = (String)e.request().getProperty("ltid");
         String hex = (String)e.request().getProperty("hexid");
         
+        String fullMethodName = null;
+        
         try{ 
-            src = le.location().sourceName();
-        }catch(AbsentInformationException ex) { }
+            Location loc = le.location();
+            src = loc.sourceName();
+            fullMethodName = this.makeMethodName(loc);
+        }catch(AbsentInformationException ex) { 
+            fullMethodName = "<unknown method>";
+        }
         
         String msg = ((dt == null)?"Non-distributed":"Distributed") + 
         				" thread ";
@@ -90,9 +101,33 @@ public class SourcePrinter extends BasicEventProcessor{
         }
         
         msg += ((hex != null)?"[Hex ID:"+ hex +"]":"[unknown vm id]");
-        msg += "\n    stopped at <" + machine + ">, " + src + ":";
+        msg += "\n    stopped at <" + machine + ">, " + fullMethodName + " in " + src + ":";
         msg += "\n[" + number + "]:" + line;
         mb.println(msg);
+    }
+    
+    private String makeMethodName(Location loc){
+        StringBuffer fullName = new StringBuffer();
+        fullName.append(loc.declaringType().name());
+        
+        Method mt = loc.method();
+        fullName.append("." + mt.name() + "(");
+
+        try{
+            Iterator<LocalVariable> it = mt.arguments().iterator();
+            
+            while(it.hasNext()){
+                LocalVariable lv = it.next();
+                fullName.append(lv.typeName() + " " + lv.name());
+                if(it.hasNext()) fullName.append(", ");
+            }
+        }catch(AbsentInformationException ex){
+            fullName.append("<unknown parameters>");
+        }
+        
+        fullName.append(")");
+        
+        return fullName.toString();
     }
 
 }
