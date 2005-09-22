@@ -6,8 +6,6 @@
  */
 package ddproto1.debugger.managing.tracker;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Stack;
@@ -189,9 +187,8 @@ public class DistributedThread {
     private ThreadReference getLockedHead(){
         checkOwner();
         stackModificationSemaphore.p();
-        
-        Byte nodeGID = vs.peek().getLocalThreadNodeGID();
-        Integer lt_uuid = vs.peek().getLocalThreadId();
+        Byte nodeGID = vs.unlockedPeek().getLocalThreadNodeGID();
+        Integer lt_uuid = vs.unlockedPeek().getLocalThreadId();
         ThreadReference head = vmmf.getVMManager(nodeGID).getThreadManager().findThreadByUUID(lt_uuid);
         if(head == null) throw new PropertyViolation("Error! Thread's head no longer exists. Please report this bug.");
         
@@ -230,7 +227,7 @@ public class DistributedThread {
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
         
-	    if(!(state == STEPPING_INTO) || (state == SUSPENDED))
+	    if(!((state & STEPPING_INTO)!=0) || ((state & SUSPENDED)!=0))
 	        throw new IllegalStateException(
 	                "You cannot resume a thread that hasn't been stopped.");
 	    
@@ -293,9 +290,6 @@ public class DistributedThread {
         throws InvalidAttributeValueException
     {
 	    checkOwner();
-	    if(stepMode != STEPPING_REMOTE && stepMode != STEPPING_OVER && stepMode != STEPPING_INTO)
-            throw new InvalidAttributeValueException("Invalid mode " + stepMode);
-        
         state = stepMode;
 	}
 
@@ -386,6 +380,10 @@ public class DistributedThread {
 	        frameStack.push(tr);
             stackModificationSemaphore.v();
 	    }
+        
+        public DistributedThread parentDT(){
+            return DistributedThread.this;
+        }
 	    
 	    public VirtualStackframe popFrame(){
 	        checkOwner();
@@ -403,34 +401,98 @@ public class DistributedThread {
 	        return popped;
 	    }
 	    
-	    public VirtualStackframe peek(){
-	        return (VirtualStackframe)frameStack.peek();
+	    public VirtualStackframe peek() throws IllegalStateException{
+            try{
+                this.checkStateAndLock();
+                return this.unlockedPeek();
+            }finally{
+                stackInspectionSemaphore.v();
+            }
 	    }
+        
+        protected VirtualStackframe unlockedPeek(){
+            return(VirtualStackframe) frameStack.peek();
+        }
 	    
-	    public int getVirtualFrameCount(){
-	        return frameStack.size();
+	    public int getVirtualFrameCount() throws IllegalStateException{
+            try{
+                this.checkStateAndLock();
+                return frameStack.size();
+            }finally{
+                stackInspectionSemaphore.v();
+            }
 	    }
 	    
 	    public VirtualStackframe getVirtualFrame(int idx)
-	    	throws NoSuchElementException
+	    	throws NoSuchElementException, IllegalStateException
 	    {
-	        if(frameStack.size() <= idx)
-	            throw new NoSuchElementException("Invalid index - " + idx);
-	        
-	        return (VirtualStackframe)frameStack.elementAt(frameStack.size() - idx - 1);
+            try {
+                this.checkStateAndLock();
+                if (frameStack.size() <= idx)
+                    throw new NoSuchElementException("Invalid index - " + idx);
+
+                return (VirtualStackframe) frameStack.elementAt(frameStack
+                        .size()
+                        - idx - 1);
+            } finally {
+                stackInspectionSemaphore.v();
+            }
 	    }
 	    
 	    public List <VirtualStackframe>virtualFrames(int start, int length) 
-            throws NoSuchElementException
+            throws NoSuchElementException, IllegalStateException
         {
-            stackInspectionSemaphore.p();
             try{
-                if(state != SUSPENDED)
-                    throw new IllegalThreadStateException("Cannot look at the stack of a running thread.");
+                this.checkStateAndLock();
                 return frameStack.subList(start, start + length - 1);
             }finally{
                 stackInspectionSemaphore.v();
             }
 	    }
+        
+        public int getDTRealFrameCount(){
+            try{
+                this.checkStateAndLock();
+                
+                int frameCount = 0;
+                for(VirtualStackframe vs : frameStack)
+                    frameCount += vs.getCallTop() - vs.getCallBase() + 1;
+                return frameCount;
+            }finally{
+                stackInspectionSemaphore.v();
+            }
+        }
+        
+        public IRealFrame mapToRealFrame(int DTFrame)
+            throws NoSuchElementException
+        {
+            try{
+                this.checkStateAndLock();
+                for(int k = frameStack.size()-1; k >= 0; k--){
+                    VirtualStackframe cFrame = frameStack.get(k);
+                    int frames = cFrame.getCallTop() - cFrame.getCallBase() + 1;
+                    if(DTFrame - frames < 0){
+                        final int theFrame = DTFrame;
+                        final int ltuuid = cFrame.getLocalThreadId();
+                        return new IRealFrame(){
+                            public int getLocalThreadUUID() { return ltuuid; }
+                            public int getFrame() { return theFrame; }
+                        };
+                    }
+                    DTFrame -= frames;
+                }
+                
+            }finally{
+                stackInspectionSemaphore.v();
+            }
+            
+            throw new NoSuchElementException("Invalid frame " + DTFrame + ".");
+        }
+        
+        private void checkStateAndLock() throws IllegalStateException{
+            stackInspectionSemaphore.p();
+            if(!DistributedThread.this.isSuspended()) throw new IllegalStateException(
+                    "Cannot perform the requested operation while the thread is running.");
+        }
 	}
 }
