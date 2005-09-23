@@ -7,15 +7,13 @@ package ddproto1.debugger.managing.tracker;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.apache.log4j.Logger;
 
-import com.sun.jdi.Location;
-import com.sun.jdi.Method;
-import com.sun.jdi.ReferenceType;
+
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.EventRequest;
 
@@ -26,6 +24,7 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
+import ddproto1.debugger.managing.tracker.DistributedThread.VirtualStack;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
 import ddproto1.debugger.request.DeferrableHookRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
@@ -33,6 +32,7 @@ import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdResolutionContextImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.server.IRequestHandler;
+import ddproto1.exception.DistributedStackOverflowException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.exception.NoSuchSymbolException;
@@ -40,7 +40,6 @@ import ddproto1.exception.PropertyViolation;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.ParserException;
 import ddproto1.interfaces.IUICallback;
-import ddproto1.util.MessageHandler;
 import ddproto1.util.collection.LockingHashMap;
 import ddproto1.util.traits.JDIMiscTrait;
 import ddproto1.util.traits.commons.ConversionTrait;
@@ -58,13 +57,23 @@ import ddproto1.util.traits.commons.ConversionTrait;
  */
 public class DistributedThreadManager implements IRequestHandler {
     
-    private static MessageHandler mh = MessageHandler.getInstance();
-    
-    private static IHeadCounter theCounter = new JDIHeadCounter();
+    private static final int MAXIMUM_STACK_SIZE = 99;
+    private static final Logger logger = Logger.getLogger(DistributedThreadManager.class);
+    private static final Logger stackLogger = Logger.getLogger(DistributedThreadManager.class.getName() + ".stackLogger");
     
     private static ConversionTrait fmh = ConversionTrait.getInstance();
     private static JDIMiscTrait jmt = JDIMiscTrait.getInstance();
+    private static IHeadCounter theCounter = new JDIHeadCounter();
     
+    /** This flag is for debugging purposes.
+     * When in stack builder mode, the tracker simply builds the 
+     * distributed stack without concerning itself with breakpoints 
+     * or any VMM related stuff. In fact, it avoids acessing the
+     * VMMs altogether. This allows us to run both the debugger
+     * and the debuggees under another debugger and follow their flow.
+     */
+    private static final boolean stackBuilderMode = false;
+
     private DTStateUpdater dtsu;
     
     private Map <Byte, Node> nodes;
@@ -129,7 +138,7 @@ public class DistributedThreadManager implements IRequestHandler {
         }catch (IllegalAttributeException e){
             /* Not an error - just means this node is not middleware-enabled */
         }catch(Exception e){
-            mh.getErrorOutput().println("Failed to register node " + vmm.getName() + " in the distributed thread manager.");
+            logger.error("Failed to register node " + vmm.getName() + " in the distributed thread manager.");
             return;
         }
         
@@ -218,8 +227,12 @@ public class DistributedThreadManager implements IRequestHandler {
         byte mode;
         
         VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(gid);
-        assert(vmm != null);
-        
+        if(vmm == null){
+            logger.error("Invalid gid " + gid + ". Assertion failed.");
+            throw new AssertionError("vmm == null");
+        }
+            
+                
         try {
             
             Event evt = new Event(req.getMessage());
@@ -294,8 +307,13 @@ public class DistributedThreadManager implements IRequestHandler {
                         Byte inmode = vmm.getLastStepRequest(lt_uuid);
                         if(inmode == null) mode = DistributedThread.RUNNING;
                         else mode = (byte)(inmode | DistributedThread.STEPPING_REMOTE);
-                        current = new DistributedThread(vsf, vmm
-                                .getThreadManager(), mode, theCounter);
+                        
+                        if(!stackBuilderMode){
+                            current = new DistributedThread(vsf, vmm
+                                    .getThreadManager(), mode, theCounter);
+                        }else{
+                            current = new DistributedThread(vsf, null, mode, null);
+                        }
                         
                         dthreads.put(dt_uuid_wrap, current);
 
@@ -305,6 +323,8 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf.setCallTop(st_size_wrap);
 
                         unlockAllTables();
+                        
+                        if(stackBuilderMode) break;
 
                         /**
                          * We remove all client-side step requests. It's the
@@ -464,7 +484,9 @@ public class DistributedThreadManager implements IRequestHandler {
                                 }
 
                                 /*
-                                 * Otherwise we just have to reallocate -
+                                 * Otherwise we just have to reallocate - 
+                                 * toss away the distributed thread and it'll be
+                                 * pushed into some other thread's call stack.
                                  * OPTIMIZATION Use a pool of DistributedThread
                                  * instances to minimize the effect of creating
                                  * instances non-stop.
@@ -497,7 +519,23 @@ public class DistributedThreadManager implements IRequestHandler {
                             /* Updates the local-to-distributed thread index */
                             threads2dthreads.put(lt_uuid_wrap, dt_uuid_wrap);
 
-                            current.virtualStack().pushFrame(vsf);
+                            VirtualStack vs = current.virtualStack();
+                            vs.pushFrame(vsf);
+                            
+                            if(stackLogger.isDebugEnabled()){
+                                stackLogger.debug("Pushed frame: "
+                                        + "\n Full operation: " + fullOp 
+                                        + "\n Distributed thread: " + fmh.uuid2Dotted((int)dt_uuid)
+                                        + "\n Server-side thread: " + fmh.uuid2Dotted((int)dt_uuid));
+                            }
+                            
+                            if(vs.length() >= MAXIMUM_STACK_SIZE){
+                                if(!current.isSuspended())
+                                    current.suspend();
+                                logger.error("Stack overflow. Distributed thread " + fmh.uuid2Dotted((int)dt_uuid) + " is suspended. ");
+                                throw new DistributedStackOverflowException();
+                            }
+                            
                         }
                     } finally {
                         // Releases the lock before making remote communications.
@@ -505,6 +543,8 @@ public class DistributedThreadManager implements IRequestHandler {
                     }
 
                     mode = current.getMode();
+                    
+                    if(stackBuilderMode) break;
                     
                     /*
                      * Makes the request if and only if the thread is remote
@@ -618,6 +658,9 @@ public class DistributedThreadManager implements IRequestHandler {
                      *  
                      * */
                     mode = current.getMode();
+                    
+                    if(stackBuilderMode) break;
+                    
                     if ((mode & DistributedThread.STEPPING_REMOTE) != 0) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
@@ -672,20 +715,18 @@ public class DistributedThreadManager implements IRequestHandler {
             ret.setStatus(DebuggerConstants.PROTOCOL_ERR);
             ret.writeAt(0, DebuggerConstants.HANDLER_FAILURE_ERR);
             mode = DistributedThread.UNKNOWN;
-            mh.getErrorOutput().println("Error while parsing message - format error.");
-            mh.printStackTrace(e);
+            logger.error("Error while parsing message - format error.",e);
         } catch (IllegalAttributeException e){
             ret = new ByteMessage(1);
             ret.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             ret.setStatus(DebuggerConstants.ICW_ILLEGAL_ATTRIBUTE);
             mode = DistributedThread.UNKNOWN;
-            mh.getErrorOutput().println("Required paremeter missing - wrong message content.");
-            mh.printStackTrace(e);            
+            logger.error("Required paremeter missing - wrong message content.",e);
         } catch(Exception e) {
             ret = new ByteMessage(0);
             ret.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             mode = DistributedThread.UNKNOWN;
-            mh.printStackTrace(e);
+            logger.error(e);
         }
         
         if(ret == null){

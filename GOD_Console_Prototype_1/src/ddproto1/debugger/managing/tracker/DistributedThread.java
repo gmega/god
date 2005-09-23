@@ -75,12 +75,23 @@ public class DistributedThread {
      * Since the OK is never issued if the popping is blocked, the client issuing
      * SIGNAL_BOUNDARY will also be blocked, hence things will end up working out
      * just fine (albeit "a bit" slow).
-     */    
-    protected ISemaphore stackModificationSemaphore = new Semaphore(1);
-    
-    /*
+     *     
+     * protected ISemaphore popSuspendLock = new Semaphore(1); (COMMENTED SEMAPHORE)
+     *
      * This semaphore is for avoiding that the thread gets resumed after a stack 
-     * inspection operation has begun.
+     * inspection operation has begun. (OLD COMMENT)
+     * 
+     * I realized the lock is just for avoiding modifications to the stack in two
+     * distinct situations:
+     * 
+     * 1) The thread is suspended. If the thread is suspended, no frames should be
+     *    allowed to be popped off from the stack.
+     * 2) The stack is being inspected. During inspection, the stack should not be
+     *    modified. 
+     *    
+     * I could add another lock to avoid thread resumption while a inspection operation
+     * takes place, but if I lock the stack from being modified that's already enough.
+     * Therefore, all I need is a read-write lock. 
      * 
      */
     protected ReadWriteLock stackInspectionLock = new ReentrantReadWriteLock(true);  
@@ -172,7 +183,7 @@ public class DistributedThread {
     public boolean isSuspended(){
         ThreadReference head = this.getLockedHead();
         boolean result = head.isSuspended();
-        stackModificationSemaphore.v();
+        rsLock.unlock();
         return result;
     }
     
@@ -184,7 +195,7 @@ public class DistributedThread {
     public boolean isStepping(){
         ThreadReference head = this.getLockedHead();
         boolean result = head.isSuspended();
-        stackModificationSemaphore.v();
+        rsLock.unlock();
         return result;
     }
     
@@ -194,7 +205,7 @@ public class DistributedThread {
      */
     private ThreadReference getLockedHead(){
         checkOwner();
-        stackModificationSemaphore.p();
+        rsLock.lock();
         Byte nodeGID = vs.unlockedPeek().getLocalThreadNodeGID();
         Integer lt_uuid = vs.unlockedPeek().getLocalThreadId();
         ThreadReference head = vmmf.getVMManager(nodeGID).getThreadManager().findThreadByUUID(lt_uuid);
@@ -237,14 +248,10 @@ public class DistributedThread {
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
         try {
-            wsLock.lock();
             if (!((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0))
                 throw new IllegalStateException(
                         "You cannot resume a thread that hasn't been stopped.");
 
-            /** Thread must have been previously suspended with suspend(). */
-            assert stackModificationSemaphore.getCount() == 0; 
-            
             /*
              * This method doesn't have to be synchronized since the hipothesis
              * is that the head thread is already stopped (and hence there's no
@@ -262,8 +269,7 @@ public class DistributedThread {
             state = RUNNING;
             tr.resume();
         } finally {
-            wsLock.unlock();
-            stackModificationSemaphore.v();
+            rsLock.unlock();
         }
 	}
     
@@ -277,7 +283,7 @@ public class DistributedThread {
 	     * it has been suspended. Any threads that signalled popping will 
 	     * be blocked. 
 	     */
-	    stackModificationSemaphore.p();
+	    rsLock.lock();
 	    VirtualStackframe head = getHead();
 	    IVMThreadManager tm = vmmf.getVMManager(head.getLocalThreadNodeGID())
                 .getThreadManager();
@@ -395,12 +401,10 @@ public class DistributedThread {
 	    public void pushFrame(VirtualStackframe tr) {
             checkOwner();
             try {
-                stackModificationSemaphore.p();
                 wsLock.lock();
                 frameStack.push(tr);
             } finally {
                 wsLock.unlock();
-                stackModificationSemaphore.v();
             }
         }
 
@@ -421,13 +425,11 @@ public class DistributedThread {
                  * popping the application thread until it gets resumed by the
                  * user who suspended it.
                  */
-                stackModificationSemaphore.p();
                 wsLock.lock();
                 VirtualStackframe popped = (VirtualStackframe) frameStack.pop();
                 return popped;
             } finally {
                 wsLock.unlock();
-                stackModificationSemaphore.v();
             }
         }
 	    
@@ -506,6 +508,10 @@ public class DistributedThread {
             }finally{
                 rsLock.unlock();
             }
+        }
+        
+        public int length(){
+            return frameStack.size();
         }
         
         public IRealFrame mapToRealFrame(int DTFrame)

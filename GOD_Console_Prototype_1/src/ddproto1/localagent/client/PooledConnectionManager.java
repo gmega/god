@@ -31,6 +31,8 @@ import ddproto1.exception.commons.CommException;
  *
  */
 public class PooledConnectionManager implements IConnectionManager {
+
+    private static final Logger logger = Logger.getLogger(PooledConnectionManager.class);
     
     private static final int REAP_INTERVAL=300000;
     private static final long CONN_TIMEOUT=60000;
@@ -43,9 +45,8 @@ public class PooledConnectionManager implements IConnectionManager {
     private InetAddress address;
     private int port;
     private ConnectionReaper reaper;
-    private Logger logger;
     
-    public PooledConnectionManager(int poolsize, String address, int port, Logger logger)
+    public PooledConnectionManager(int poolsize, String address, int port)
     	throws UnknownHostException
     {
         pooled = new LinkedList <ConnectionImpl> ();
@@ -54,7 +55,6 @@ public class PooledConnectionManager implements IConnectionManager {
         connMax = poolsize;
         this.port = port;
         this.address = InetAddress.getByName(address);
-        this.logger = logger;
         
         /* Starts the connection reaper */
         reaper = new ConnectionReaper(REAP_INTERVAL);

@@ -93,9 +93,10 @@ public abstract class ClientSideAgent {
             try{
                 URL url = new URL(logfile);
                 PropertyConfigurator.configure(url);
+                System.err.println("Log4j configured from source " + url);
                 return;
             }catch(Exception ex){ 
-                // On exception rollbacks to default configuration.                
+                System.err.println("Failed to configure logger. Falling back to default configuration.");      
             }
         }
         

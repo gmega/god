@@ -52,8 +52,7 @@ public class GlobalAgentFactory {
             throw new IllegalArgumentException("Malformed address string - must be of the form IP-address:port");
 
         IConnectionManager icmgr = new PooledConnectionManager(
-                DEFAULT_POOLSIZE, hostSpec[0], Integer.parseInt(hostSpec[1]),
-                logger);
+                DEFAULT_POOLSIZE, hostSpec[0], Integer.parseInt(hostSpec[1]));
         
         the_agent = new GlobalAgentProxyImpl(icmgr, localgid);
                         

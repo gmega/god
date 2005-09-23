@@ -124,19 +124,19 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
     /* (non-Javadoc)
      * @see org.omg.PortableInterceptor.ServerRequestInterceptorOperations#send_exception(org.omg.PortableInterceptor.ServerRequestInfo)
      */
-    public void send_exception(ServerRequestInfo ri) throws ForwardRequest { this.intoService(ri); }
+    public void send_exception(ServerRequestInfo ri) throws ForwardRequest { this.intoService(ri, "send_exception"); }
 
     /* (non-Javadoc)
      * @see org.omg.PortableInterceptor.ServerRequestInterceptorOperations#send_other(org.omg.PortableInterceptor.ServerRequestInfo)
      */
-    public void send_other(ServerRequestInfo ri) throws ForwardRequest { this.intoService(ri); }
+    public void send_other(ServerRequestInfo ri) throws ForwardRequest { this.intoService(ri, "send_other"); }
 
     /* (non-Javadoc)
      * @see org.omg.PortableInterceptor.ServerRequestInterceptorOperations#send_reply(org.omg.PortableInterceptor.ServerRequestInfo)
      */
-    public void send_reply(ServerRequestInfo ri) { this.intoService(ri); }
+    public void send_reply(ServerRequestInfo ri) { this.intoService(ri, "send_reply"); }
     
-    private void intoService(ServerRequestInfo ri){
+    private void intoService(ServerRequestInfo ri, String pathway){
         try{
             Any stepInfo = ri.get_slot(stslot);
             short isStepping = stepInfo.extract_short();
@@ -154,7 +154,9 @@ public class SDebugInterceptor extends LocalObject implements ServerRequestInter
                     "may not work properly.");
         }catch(BAD_OPERATION e){
             requestLogger.error("Failed to extract the correct type from the slot assigned to conveying step information (" +stslot +
-                    "). Debugger might not operate correctly.",e);
+                    "). \n Debugger might not operate correctly." +
+                    "\n Operation was: " + ri.operation() +  
+                    "\n Interceptor reply operation was: " + pathway, e);
         }
     }
     

@@ -48,6 +48,7 @@ public class ORBHolder {
     
     private Logger inLogger = Logger.getLogger(ORBHolder.class.getName() + ".inLogger");
     private Logger notificationLogger = Logger.getLogger(ORBHolder.class.getName() + ".notificationLogger");
+    private Logger insertLogger = Logger.getLogger(ORBHolder.class.getName() + ".insertLogger");
     
     private PIManagementDelegate delegate;
     
@@ -340,7 +341,7 @@ public class ORBHolder {
                                             debugBuffer.toString() + 
                                             "\n Thread status: " + fh.statusText(stepStats));
             }
-                 
+
             /** If I plan to support disabling of remote mode, I should probably relax these restrictions. */
             if((stepStats & DebuggerConstants.STEPPING_REMOTE) != 0 || stepStats == DebuggerConstants.RUNNING){
                 Any any = ORB.init().create_any();
@@ -349,7 +350,11 @@ public class ORBHolder {
                 for(CurrentSpec cs : delegate.getAllPICurrents()){
                     try{
                         if(notificationLogger.isDebugEnabled())
-                            notificationLogger.debug("Inserting short " + stepStats + " into slot " + cs.getSTPSlot() + " of one PICurrent");
+                            insertLogger.debug(" Inserting short: " + stepStats + 
+                                             "\n Into slot: " + cs.getSTPSlot() + 
+                                             "\n of PICurrent for operation: " + fullOp + 
+                                             "\n Status inserted was: " + fh.statusText(stepStats) + 
+                                             "\n Distributed thread ID: " + fh.uuid2Dotted(_dtid));
                         cs.getCurrent().set_slot(cs.getSTPSlot(), any);
                     }catch(InvalidSlot ex){
                         notificationLogger.error("Cannot insert info into slot. Step mode might not operate correctly.", ex);

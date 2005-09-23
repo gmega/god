@@ -9,6 +9,7 @@ package ddproto1;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 
 
 import ddproto1.commons.DebuggerConstants;
@@ -287,8 +289,20 @@ public class Main {
          * must set it up. 
          * REFACTORME My idea is moving everyone to the log4j Logger.
          */
-        Logger.getLogger("agent.global");
-        /* TODO Allow custom configuration file for global agent logger */
+        String log4jurl = System.getProperty("log4j.config.url");
+        if (log4jurl != null) {
+            try {
+                URL url = new URL(log4jurl);
+                System.err.println("Using logger configuration from " + url);
+                PropertyConfigurator.configure(url);
+                return;
+            } catch (Exception e) {
+                System.err
+                        .println("Failed to configure logger. Rolling back to default configuration.");
+                e.printStackTrace();
+            }
+        }
+        
         BasicConfigurator.configure();
     }
     
