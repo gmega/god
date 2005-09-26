@@ -14,6 +14,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -465,14 +466,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         case Token.RESUME:
             
             advance();
+
+            if(currentMachine.equals("Global")){
+                if(token.type == Token.DOTTED_ID)
+                    commandResumeDT(token.text);
+                break;
+            }
+            
             machine = checkCurrent("command.resume", false);
         
         	if(token.type == Token.MACHINE_ID) advance();
-            
-            if(token.type == Token.DOTTED_ID && machine.equals("Global")){
-                commandResumeDT(token.text);
-                break;
-            }
             
             if(!(token.type == Token.HEX_ID))
         	    badCommand("command.resume");
@@ -485,21 +488,31 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
          * Command SUSPEND - Suspends a local thread.
          *  
          * suspend (machine_id)? thread_id
+         * suspend distributed_thread_dotted_id -> Global mode only.
          */
         case Token.SUSPEND:
             
-            machine = checkCurrent("command.suspend");
+            if(!currentMachine.equals("Global")){
+                machine = checkCurrent("command.suspend");
         
-        	if(token.type == Token.MACHINE_ID) advance();
+                if(token.type == Token.MACHINE_ID) advance();
             
-        	if(!(token.type == Token.HEX_ID))
-        	    badCommand("command.suspend");
+                if(!(token.type == Token.HEX_ID))
+                    badCommand("command.suspend");
         	
-        	commandSuspend(machine, token.text);
+                commandSuspend(machine, token.text);
+            }else{
+                advance();
+                if(token.type == Token.DOTTED_ID){
+                    commandSuspendDT(token.text);
+                }else{
+                    badCommand("command.suspend.global");
+                }
+            }
             break;
 
         /**
-         * Command EXIT - Exits the debugger. User must specify wether we should
+         * Command EXIT - Exits the debugger. User must specify whether we should
          * just disconnect from debugee JVMs or kill them all.
          * 
          * exit nokill|kill
@@ -1008,23 +1021,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
     
-    
-//    private VirtualStackframe getHead(String dottedid) throws CommandException{
-//        int dt_uuid = ct.dotted2Uuid(dottedid);
-//        DistributedThreadManager dtm = Main.getDTM();
-//        DistributedThread dt = dtm.getByUUID(dt_uuid);
-//        if (dt == null) throw new CommandException("Thread " + dottedid + " is invalid or has expired.");
-//        if(!dt.isSuspended()) throw new CommandException("Cannot inspect a running thread. You must suspend it first.");
-//        
-//        VirtualStack vs = dt.virtualStack();
-//        if (vs.getVirtualFrameCount() == 0)
-//            throw new CommandException("Distributed thread " + dottedid
-//                    + " doesn't have a valid virtual stack");
-//        VirtualStackframe head = vs.getVirtualFrame(0);
-//        
-//        return head;
-//    }
-    
     private void commandShowStackDT(String dottedid) 
     	throws CommandException
     {
@@ -1083,7 +1079,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 for(int j = 0; j < padding%2; j++)
                     frontPadding.append(" ");
                 
-                stck += threadStack(tr, base, top, acc, backPadding.toString() + vmmName + frontPadding.toString());
+                stck += threadStack(tr, base, top, acc, backPadding.toString() + vmmName + frontPadding.toString(), true);
                 acc += top - base + 1;
                 if(doResume) tr.resume();
             }
@@ -1143,7 +1139,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     "Stack information for thread " + "[" + target.name()
                             + "], id [" + hexy + "]");
             
-            mh.getStandardOutput().println(threadStack(target, 1, target.frameCount(), 0, null));
+            mh.getStandardOutput().println(threadStack(target, 1, target.frameCount(), 0, null, false));
             
         }catch(IncompatibleThreadStateException e){
             throw new CommandException(e);
@@ -1169,17 +1165,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
 
-    private String threadStack(ThreadReference target, int base, int top, int begin, String machine)
+    private String threadStack(ThreadReference target, int base, int top, int begin, String machine, boolean showMonitors)
     	throws IncompatibleThreadStateException
     {
-        
-        StringBuffer pr = new StringBuffer();
         
         base = Math.max(0, target.frameCount() - base);
         top = Math.max(0, target.frameCount() - top);
         
         assert(top <= base);
         
+        StringBuffer pr = new StringBuffer();
         
         String space = null;
         if(machine != null){
@@ -1188,6 +1183,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 spacing.append(" ");
             space = spacing.toString();
         }
+        
+        List<String> stackLines = new ArrayList<String>();
         
         for(int i = top; i <= base; i++, begin++){
             StackFrame currentFrame = target.frame(i);
@@ -1226,10 +1223,43 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             }
             
             
-            pr.append("):" + source + "[" + lineNumber + "]\n");
+            pr.append("):" + source + "[" + lineNumber + "]");
+            
+            if(showMonitors && i == top){
+                pr.append("   ");
+                pr.append("[");
+                pr.append(monitorList(target, machine.trim()));
+                pr.append("]");
+            }
+                
+            pr.append("\n");
         }
         
         return pr.toString();
+    }
+    
+    private String monitorList(ThreadReference target, String machine)
+        throws IncompatibleThreadStateException
+    {
+        VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(machine);
+        String gid = vmm.getGID();
+        
+        StringBuffer monitorList = new StringBuffer();
+        
+        for(ObjectReference monitor : target.ownedMonitors()){
+            monitorList.append(gid);
+            monitorList.append(".");
+            monitorList.append(ct.long2Hex(monitor.uniqueID()));
+            monitorList.append(",");
+        }
+        
+        ObjectReference contended = target.currentContendedMonitor();
+        if(contended != null)
+            monitorList.append("*"+gid+"."+ct.long2Hex(contended.uniqueID()));
+        else
+            monitorList.deleteCharAt(monitorList.length()-1);
+        
+        return monitorList.toString();
     }
     
     private void commandRunscript(String file)
@@ -1282,6 +1312,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
         /* All fine. Suspend it. */
         target.suspend();
+    }
+    
+    private void commandSuspendDT(String dottedId){
+        DistributedThreadManager dtm = Main.getDTM();
+        DistributedThread dt = dtm.getByUUID(ct.dotted2Uuid(dottedId));
+        dt.suspend();
+        mh.getStandardOutput().println("Distributed thread " + dottedId + " suspended." +
+                "\n Please resume it through global mode or things go bad. ");
     }
     
     private void commandResume(String machine, String hexy) 
@@ -1731,6 +1769,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private class Node{
         private IObjectSpec spec;
         private JVMShellLauncher launcher;
+    }
+    
+    private class DisassembledStackFrame{
+        String line;
+        String monitorList;
+        String machineName;
     }
    
 }
