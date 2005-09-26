@@ -1055,12 +1055,17 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     tr.suspend();
                     doResume = true;
                 }
-                int base = callBase.intValue();
-                int top = callTop.intValue();
-                if(base == -1) base = 1;
-                if(top == -1) top = tr.frameCount();
+                int base;
+                int top;
+                
+                if(i == (vs.getVirtualFrameCount() - 1)) base = 1;
+                else base = callBase.intValue();
+                
+                if(i == 0) top = tr.frameCount();
+                else top = callTop.intValue();
                 
                 frames.addAll(threadStack(tr, base, top, acc, vmm.getName(), true));
+                acc += top - base + 1;
                 
                 if(doResume) tr.resume();
             }
@@ -1158,6 +1163,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         for(int i = 0; i < STRING_INFO; i++){
             maxes[i] = 0;
             for(DisassembledStackFrame dsf : sf ){
+            	if(dsf.strData[i] == null) continue;
                 if(maxes[i] < dsf.strData[i].length()) 
                     maxes[i] = dsf.strData[i].length();
             }
@@ -1166,8 +1172,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         for(DisassembledStackFrame dsf : sf){
             for(int i = 0; i < STRING_INFO; i++){
                 pr.append(stackRenderers[i].renderColumn(dsf.strData[i], maxes[i], dsf.booData));
-                pr.append("\n");
             }
+            pr.append("\n");
         }
         
         return pr.toString();
@@ -1187,7 +1193,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         for(int i = top; i <= base; i++, begin++){
             DisassembledStackFrame dsf = new DisassembledStackFrame();
             StringBuffer pr = new StringBuffer();
-            dsf.strData[MACHINE_NAME] = machine.trim();
+            dsf.strData[MACHINE_NAME] = (machine != null)?machine.trim():null;
             dsf.booData[TOP_LINE] = i == top;
             dsf.booData[BOTTOM_LINE] = i == base;
             dsf.booData[MIDDLE_LINE] = (i == (top+base)/2);
@@ -1223,12 +1229,14 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                         
             pr.append("):" + source + "[" + lineNumber + "]");
             
+            dsf.strData[MONITOR_LIST] = "";
+            
             if(showMonitors && i == top){
                 String monList = monitorList(target, machine.trim());
-                dsf.strData[MONITOR_LIST] = (monList == null)?"":monList;
+                if(monList != null) dsf.strData[MONITOR_LIST] = monList;
             }
             
-            dsf.strData[LINE] = pr.append("\n").toString();
+            dsf.strData[LINE] = pr.toString();
             
             stackframeInfo.add(dsf);
  
@@ -1770,9 +1778,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     }
     
     /** Printing stuff */
-    public static int LINE = 0;
-    public static int MACHINE_NAME = 1;
-    public static int MONITOR_LIST = 2;
+    public static int MACHINE_NAME = 0; // First Column
+    public static int LINE = 1;         // Second Column
+    public static int MONITOR_LIST = 2; // Third Column
     public static int STRING_INFO = 3;
     
     public static int MIDDLE_LINE = 0;
@@ -1786,7 +1794,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     }
     
     private ColumnRenderer [] stackRenderers = new ColumnRenderer[]{
-        new MachineRenderer(), new StackFrameLineRenderer(), new NullRenderer()
+        new MachineRenderer(), new StackFrameLineRenderer(), new MonitorListRenderer()
     };
     
     private interface ColumnRenderer{
@@ -1801,6 +1809,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             /* Pad the machine name */
             StringBuffer frontPadding = new StringBuffer();
             StringBuffer backPadding = new StringBuffer();
+            
+            length = length - data.length() + 2;
             
             for(int j = 0; j < Math.floor(length/2); j++){
                 frontPadding.append(" ");
@@ -1818,9 +1828,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             StringBuffer line = new StringBuffer();
             
             if(flags[TOP_LINE] || flags[BOTTOM_LINE]) 
-                line.append((flags[MIDDLE_LINE]?"["+machineName+"]<---":machineName.replaceAll("."," ")) + "+---->");
+                line.append((flags[MIDDLE_LINE]?machineName+"<---":machineName.replaceAll("."," ") + "    ") + "+---->");
             else 
-                line.append( flags[MIDDLE_LINE]?("["+machineName+"]<---|     "):(machineName.replaceAll("."," ") + "|     "));
+                line.append( flags[MIDDLE_LINE]?(machineName+"<---|     "):(machineName.replaceAll("."," ") + "    |     "));
             
             return line.toString();
         }
@@ -1830,15 +1840,25 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         public String renderColumn(String data, int padding, boolean[] flags) {
             StringBuffer line = new StringBuffer();
             line.append(data);
-            for(int i = data.length(); i <= padding; i++)
+            int length = padding - data.length();
+            for(int i = 0; i <= length ; i++)
                 line.append(" ");
             
             return line.toString();
         }
     }
     
-    private class NullRenderer implements ColumnRenderer{
-        public String renderColumn(String data, int padding, boolean[] flags) { return data; }
+    private class MonitorListRenderer implements ColumnRenderer{
+        public String renderColumn(String data, int padding, boolean[] flags) {
+        	StringBuffer sr = new StringBuffer();
+        	sr.append("| ");
+        	if(data.length() > 0){
+        		sr.append("[");
+        		sr.append(data);
+        		sr.append("]");
+        	}
+        	return sr.toString(); 
+        }
     }
     
 }
