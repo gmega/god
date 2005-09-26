@@ -1038,14 +1038,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
 
             VirtualStack vs = dt.virtualStack();
 
-            int wordSize = 0;
-            for(VirtualMachineManager vmm : VMManagerFactory.getInstance().machineList()){
-                int newSize = vmm.getName().length();
-                if(wordSize < newSize) wordSize = newSize;
-            }
-            
-            String stck = "";
             int acc = 0;
+            
+            List<DisassembledStackFrame> frames = new ArrayList<DisassembledStackFrame>();
             for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
                 VirtualStackframe vf = vs.getVirtualFrame(i);
                 VirtualMachineManager vmm = VMManagerFactory.getInstance()
@@ -1065,26 +1060,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 if(base == -1) base = 1;
                 if(top == -1) top = tr.frameCount();
                 
-                String vmmName = vmm.getName();
-                /* Pad the machine name */
-                int padding = wordSize - vmmName.length();
-                StringBuffer frontPadding = new StringBuffer();
-                StringBuffer backPadding = new StringBuffer();
+                frames.addAll(threadStack(tr, base, top, acc, vmm.getName(), true));
                 
-                for(int j = 0; j < Math.floor(padding/2); j++){
-                    frontPadding.append(" ");
-                    backPadding.append(" ");
-                }
-                
-                for(int j = 0; j < padding%2; j++)
-                    frontPadding.append(" ");
-                
-                stck += threadStack(tr, base, top, acc, backPadding.toString() + vmmName + frontPadding.toString(), true);
-                acc += top - base + 1;
                 if(doResume) tr.resume();
             }
             
-            mh.getStandardOutput().print(stck);
+            mh.getStandardOutput().print(assembleStackFrames(frames));
             
         } catch (Exception e) {
             throw new CommandException(e);
@@ -1139,7 +1120,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                     "Stack information for thread " + "[" + target.name()
                             + "], id [" + hexy + "]");
             
-            mh.getStandardOutput().println(threadStack(target, 1, target.frameCount(), 0, null, false));
+            List<DisassembledStackFrame> frames = threadStack(target, 1, target.frameCount(), 0, null, false);
+            
+            mh.getStandardOutput().println(assembleStackFrames(frames));
             
         }catch(IncompatibleThreadStateException e){
             throw new CommandException(e);
@@ -1164,8 +1147,33 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             throw new CommandException(ex);
         }
     }
+    
+    private String assembleStackFrames(List<DisassembledStackFrame> sf){
+                
+        StringBuffer pr = new StringBuffer();
+        
+        /** Preprocesses all data for padding. */
+        int [] maxes = new int[STRING_INFO];
+                
+        for(int i = 0; i < STRING_INFO; i++){
+            maxes[i] = 0;
+            for(DisassembledStackFrame dsf : sf ){
+                if(maxes[i] < dsf.strData[i].length()) 
+                    maxes[i] = dsf.strData[i].length();
+            }
+        }
+        
+        for(DisassembledStackFrame dsf : sf){
+            for(int i = 0; i < STRING_INFO; i++){
+                pr.append(stackRenderers[i].renderColumn(dsf.strData[i], maxes[i], dsf.booData));
+                pr.append("\n");
+            }
+        }
+        
+        return pr.toString();
+    }
 
-    private String threadStack(ThreadReference target, int base, int top, int begin, String machine, boolean showMonitors)
+    private List<DisassembledStackFrame> threadStack(ThreadReference target, int base, int top, int begin, String machine, boolean showMonitors)
     	throws IncompatibleThreadStateException
     {
         
@@ -1174,19 +1182,16 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         
         assert(top <= base);
         
-        StringBuffer pr = new StringBuffer();
-        
-        String space = null;
-        if(machine != null){
-            StringBuffer spacing = new StringBuffer(machine.length() + 6);
-            for(int i = 0; i < machine.length() + 6; i++)
-                spacing.append(" ");
-            space = spacing.toString();
-        }
-        
-        List<String> stackLines = new ArrayList<String>();
+        List<DisassembledStackFrame> stackframeInfo = new ArrayList<DisassembledStackFrame>();
         
         for(int i = top; i <= base; i++, begin++){
+            DisassembledStackFrame dsf = new DisassembledStackFrame();
+            StringBuffer pr = new StringBuffer();
+            dsf.strData[MACHINE_NAME] = machine.trim();
+            dsf.booData[TOP_LINE] = i == top;
+            dsf.booData[BOTTOM_LINE] = i == base;
+            dsf.booData[MIDDLE_LINE] = (i == (top+base)/2);
+            
             StackFrame currentFrame = target.frame(i);
             Location loc = currentFrame.location();
             String lineNumber = "<unknown line number>";
@@ -1198,14 +1203,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                         
             Method m = loc.method();
 
-            if(machine != null){
-                if(i == top || i == base) pr.append(((i == (top+base)/2)?"["+machine+"]<---":space) + "+---->");
-                else pr.append( (i == (top+base)/2)?("["+machine+"]<---|     "):(space + "|     "));
-            }
-
             pr.append(begin + " " + loc.declaringType().name() + "."
                             + m.name() + "(");
-            
             
             Iterator it = 
                 m.argumentTypeNames().iterator();
@@ -1221,21 +1220,20 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
                 pr.append((String)it.next() + " " + arg);
                 if(it.hasNext()) pr.append(",");
             }
-            
-            
+                        
             pr.append("):" + source + "[" + lineNumber + "]");
             
             if(showMonitors && i == top){
-                pr.append("   ");
-                pr.append("[");
-                pr.append(monitorList(target, machine.trim()));
-                pr.append("]");
+                String monList = monitorList(target, machine.trim());
+                dsf.strData[MONITOR_LIST] = (monList == null)?"":monList;
             }
-                
-            pr.append("\n");
+            
+            dsf.strData[LINE] = pr.append("\n").toString();
+            
+            stackframeInfo.add(dsf);
+ 
         }
-        
-        return pr.toString();
+        return stackframeInfo;
     }
     
     private String monitorList(ThreadReference target, String machine)
@@ -1771,10 +1769,76 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         private JVMShellLauncher launcher;
     }
     
+    /** Printing stuff */
+    public static int LINE = 0;
+    public static int MACHINE_NAME = 1;
+    public static int MONITOR_LIST = 2;
+    public static int STRING_INFO = 3;
+    
+    public static int MIDDLE_LINE = 0;
+    public static int TOP_LINE = 1;
+    public static int BOTTOM_LINE = 2;
+    public static int BOOLEAN_INFO = 3;
+
     private class DisassembledStackFrame{
-        String line;
-        String monitorList;
-        String machineName;
+        public String [] strData = new String[STRING_INFO];
+        public boolean [] booData = new boolean[BOOLEAN_INFO];
+    }
+    
+    private ColumnRenderer [] stackRenderers = new ColumnRenderer[]{
+        new MachineRenderer(), new StackFrameLineRenderer(), new NullRenderer()
+    };
+    
+    private interface ColumnRenderer{
+        public String renderColumn(String data, int padding, boolean [] flags);
     }
    
+    private class MachineRenderer implements ColumnRenderer{
+        public String renderColumn(String data, int length, boolean[] flags) {
+            
+            if(data == null) return "";
+            
+            /* Pad the machine name */
+            StringBuffer frontPadding = new StringBuffer();
+            StringBuffer backPadding = new StringBuffer();
+            
+            for(int j = 0; j < Math.floor(length/2); j++){
+                frontPadding.append(" ");
+                backPadding.append(" ");
+            }
+            
+            for(int j = 0; j < length%2; j++)
+                frontPadding.append(" ");
+            
+            backPadding.setCharAt(0, '[');
+            frontPadding.setCharAt(frontPadding.length()-1, ']');
+            
+            String machineName = backPadding.append(data).append(frontPadding).toString();
+            
+            StringBuffer line = new StringBuffer();
+            
+            if(flags[TOP_LINE] || flags[BOTTOM_LINE]) 
+                line.append((flags[MIDDLE_LINE]?"["+machineName+"]<---":machineName.replaceAll("."," ")) + "+---->");
+            else 
+                line.append( flags[MIDDLE_LINE]?("["+machineName+"]<---|     "):(machineName.replaceAll("."," ") + "|     "));
+            
+            return line.toString();
+        }
+    }
+    
+    private class StackFrameLineRenderer implements ColumnRenderer{
+        public String renderColumn(String data, int padding, boolean[] flags) {
+            StringBuffer line = new StringBuffer();
+            line.append(data);
+            for(int i = data.length(); i <= padding; i++)
+                line.append(" ");
+            
+            return line.toString();
+        }
+    }
+    
+    private class NullRenderer implements ColumnRenderer{
+        public String renderColumn(String data, int padding, boolean[] flags) { return data; }
+    }
+    
 }

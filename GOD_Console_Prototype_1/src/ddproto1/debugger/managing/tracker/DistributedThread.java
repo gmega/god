@@ -93,8 +93,11 @@ public class DistributedThread {
      * takes place, but if I lock the stack from being modified that's already enough.
      * Therefore, all I need is a read-write lock. 
      * 
+     * 
+     * ReentrantReadWriteLock is buggy when set to fair mode. Therefore we'll use it in 
+     * unfair mode.
      */
-    protected ReadWriteLock stackInspectionLock = new ReentrantReadWriteLock(true);  
+    protected ReadWriteLock stackInspectionLock = new ReentrantReadWriteLock(false);  
     private final Lock rsLock = stackInspectionLock.readLock();
     private final Lock wsLock = stackInspectionLock.writeLock();
     
@@ -248,7 +251,7 @@ public class DistributedThread {
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
         try {
-            if (!((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0))
+            if (!(((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0)))
                 throw new IllegalStateException(
                         "You cannot resume a thread that hasn't been stopped.");
 

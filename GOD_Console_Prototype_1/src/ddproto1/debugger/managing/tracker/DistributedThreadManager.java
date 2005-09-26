@@ -84,8 +84,8 @@ public class DistributedThreadManager implements IRequestHandler {
 
     public DistributedThreadManager(IUICallback ui){ 
         nodes = new HashMap<Byte, Node>();
-        dthreads = new LockingHashMap<Integer, DistributedThread>(true);
-        threads2dthreads = new LockingHashMap<Integer, Integer>(true);
+        dthreads = new LockingHashMap<Integer, DistributedThread>(false); // Fair read-write lock deadlocks.
+        threads2dthreads = new LockingHashMap<Integer, Integer>(false);   // Fair read-write lock deadlocks.
         this.ui = ui;
         dtsu = new DTStateUpdater(this);
     }
@@ -276,14 +276,16 @@ public class DistributedThreadManager implements IRequestHandler {
             	/* Thread promotion occurs here (local thread becomes
                  * distributed thread).
                  */
+                boolean unlocked = true;
             	try {
                     /*
                      * Only starts playing around with objects if we can
                      * provide atomic modifications to table readers.
                      */
             	    lockAllTables();
-            	    
-            	    VirtualStackframe vsf;
+                    unlocked = false;
+
+                    VirtualStackframe vsf;
 
                     if (!dthreads.containsKey(dt_uuid_wrap)) {
                         /*
@@ -315,6 +317,7 @@ public class DistributedThreadManager implements IRequestHandler {
                             current = new DistributedThread(vsf, null, mode, null);
                         }
                         
+                        current.lock();
                         dthreads.put(dt_uuid_wrap, current);
 
                         /* Updates the local-to-distributed thread index */
@@ -323,6 +326,7 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf.setCallTop(st_size_wrap);
 
                         unlockAllTables();
+                        unlocked = true;
                         
                         if(stackBuilderMode) break;
 
@@ -376,16 +380,12 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf.setOutboundOperation(op);
                         
                         mode = current.getMode(); 
-                        
-                        current.unlock();
-                        unlockAllTables();
                     }
                 
-            	} catch(RuntimeException e) {
-                    unlockAllTables();
+            	} finally {
+                    if(!unlocked) unlockAllTables();
                     if(current != null)
                         current.unlock();
-                    throw e;
                 }
                 break;
             }
