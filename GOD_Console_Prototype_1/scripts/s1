@@ -1,4 +1,5 @@
-run <CORBA Server 1>
-select <CORBA Client 1>
+run <JacORB NS>
+run <Reuters Server>
+select <CORBA Client>
 break Client$RunnableRequester.run():0
 run

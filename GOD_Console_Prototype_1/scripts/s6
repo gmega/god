@@ -1,0 +1,3 @@
+run <JacORB NS>
+run <Reuters Server>
+run <CORBA Client>
