@@ -184,10 +184,13 @@ public class DistributedThread {
      * @return
      */
     public boolean isSuspended(){
-        ThreadReference head = this.getLockedHead();
-        boolean result = head.isSuspended();
-        rsLock.unlock();
-        return result;
+        try{
+            ThreadReference head = this.getLockedHead();
+            boolean result = head.isSuspended();
+            return result;
+        }finally{
+            rsLock.unlock();
+        }
     }
     
     /**
@@ -253,8 +256,11 @@ public class DistributedThread {
 	/* Control methods */
 	public void resume(){
 	    checkOwner();  // Only one thread per time.
+        /** It doesn't hurt to acquire the read lock. */
         try {
-            if (!(((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0)))
+            rsLock.lock();
+//            if (!(((state & STEPPING_INTO) != 0) || ((state & SUSPENDED) != 0)))
+            if(!isSuspended())
                 throw new IllegalStateException(
                         "You cannot resume a thread that hasn't been stopped.");
 
@@ -276,6 +282,13 @@ public class DistributedThread {
             tr.resume();
         } finally {
             rsLock.unlock();
+            try{
+                rsLock.unlock();
+            }catch(IllegalMonitorStateException ex){ 
+                /** It's all right, just means the thread wasn't suspended through
+                 * DistributedThread#suspend();
+                 */
+            }
         }
 	}
     

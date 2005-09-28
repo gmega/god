@@ -1667,6 +1667,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
         VMManagerFactory vmmf = VMManagerFactory.getInstance();
         DistributedThreadManager dtm = Main.getDTM();
         mh.getStandardOutput().println("Now halting DTM...");
+        boolean firstUnstopped = true;
 
         /* Starts by locking the DTM */
         try {
@@ -1683,12 +1684,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
                 }catch(VMDisconnectedException ex){
                     continue;
                 }
-                if (!tm.isVMSuspended())
-                    mh
-                            .getStandardOutput()
-                            .println(
-                                    "Warning - one or more Virtual Machines haven't been stopped. "
+                if (!tm.isVMSuspended() && !firstUnstopped){
+                    mh.getStandardOutput().println(
+                            "Warning - one or more Virtual Machines haven't been stopped. "
                                             + "Snapshot might not be consistent (TODO list).");
+                    firstUnstopped = true;
+                }
                 List tlist = tm.getThreadIDList();
                 Iterator tit = tlist.iterator();
                 while (tit.hasNext()) {
