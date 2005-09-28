@@ -16,5 +16,16 @@ Debugger:
 - When a machine dies or gets reinserted, we must clean system-wide information about its threads. This includes
   the thread UUID registry and god knows what else.
   
-- Make step overs work. 
-- Test the full <CORBA Client>-<Reuters Server>-<JacORB NS> cycle.
+- OK. Make step overs work. 
+- OK. Test the full <CORBA Client>-<Reuters Server>-<JacORB NS> cycle.
+
+- Requests must be reworked. They currently advertise preconditions that never get satisfied and thus stay
+  forever into the deferrable request queue. Internally they work because they acquire loaded classes. I think
+  the ideal solution would be to eliminate the return null/non-null protocol and add a callback so that the request
+  can adjust their advertised preconditions. 
+  
+Critical:
+
+- I hadn't taken classloader into consideration when I first built the deferrable request subsystem.
+  It'll need some serious reworking to work properly when we have the same class being loaded by more
+  than one classloader.

@@ -160,7 +160,8 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     	ThreadReference specific;
     	VirtualMachine vm;
     	
-    	checkResolved();
+        // TODO Eliminate this hack I do to get around the fact that we don't adjust the precondition list.
+    	if(resolved) return new Boolean(true);
     	
         /* First precondition has been met - we might be able to set the breakpoint. */
     	if(rc.getPrecondition().getType().eventType() == IDeferrableRequest.VM_CONNECTION){

@@ -58,13 +58,14 @@ hex_id=[0-9]+"x"[0-9a-zA-Z]+
 	"kill"				{return makeToken(Token.KILL);}
 	"select"			{return makeToken(Token.SELECT);}
 	"thread"			{return makeToken(Token.THREAD, yytext());}
-	"break"				{return makeToken(Token.BREAKPOINT);}
+	"break"				{return makeToken(Token.BREAKPOINT, yytext());}
 	"show" 				{return makeToken(Token.SHOW, yytext());}
 	"ls" 				{return makeToken(Token.LIST, yytext());}
 	"exit" 				{return makeToken(Token.EXIT, yytext());}
 	"step" 				{return makeToken(Token.STEP, yytext());}
 	"script"			{return makeToken(Token.RUNSCRIPT, yytext());}
 	"eval"				{return makeToken(Token.EVAL, yytext());}
+	"detect"			{return makeToken(Token.DETECT, yytext());}
 
 
 	{method}":"{number}		{return makeToken(Token.METHOD_BREAKSPEC, yytext());}	

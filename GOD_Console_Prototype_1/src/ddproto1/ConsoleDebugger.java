@@ -39,6 +39,7 @@ import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
+import com.sun.jdi.StringReference;
 import com.sun.jdi.ThreadGroupReference;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
@@ -47,6 +48,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.StepRequest;
 import com.sun.tools.example.debug.expr.ExpressionParser;
 import com.sun.tools.example.debug.expr.ParseException;
+import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.commons.IConfigurationConstants;
@@ -646,10 +648,10 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
             }else{
                 badCommand("command.eval");
             }
-            
+
             if(value == null){
                 mh.getStandardOutput().println("Expression " + expression + " value is null.");
-            }else if(value instanceof ObjectReference){
+            }else if((value instanceof ObjectReference) && !(value instanceof StringReference)){
                 ObjectReference obj = (ObjectReference) value;
                 this.dump(obj, obj.referenceType(), obj.referenceType());
             }else {
@@ -1523,7 +1525,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
                 throws IncompatibleThreadStateException {
                     return tr.frame(0);
                 }
-            };
+        };
 
         try{
             result = ExpressionParser.evaluate(expression, vmm.virtualMachine(), frameGetter);

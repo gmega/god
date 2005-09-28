@@ -14,8 +14,7 @@
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
 	<classpathentry kind="var" path="WORKSPACE_ROOT/GOD Console Prototype 1/lib/xercesImpl.jar"/>
 	<classpathentry kind="var" path="JRE_HOME/lib/tools.jar"/>
-	<classpathentry kind="con" path="SWT_CONTAINER/PLATFORM"/>
-	<classpathentry kind="lib" path="/opt/eclipse/eclipse-3.1/plugins/org.eclipse.jface_3.1.0.jar"/>
-	<classpathentry kind="lib" path="/opt/eclipse/eclipse-3.1/plugins/org.eclipse.core.runtime_3.1.0.jar"/>
+	<classpathentry kind="con" path="SWT_CONTAINER/JFACE/PLATFORM"/>
+	<classpathentry kind="lib" path="/home/giuliano/workspace/GOD Console Prototype 1/lib/jgrapht-0.6.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

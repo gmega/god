@@ -141,7 +141,12 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                         : DistributedThread.STEPPING_OVER;
                 try{
                     DistributedThread dt = dtm.getByUUID(dt_uuid.intValue());
-                    dt.setStepping((byte)(mode | DistributedThread.STEPPING_REMOTE));
+                    try{
+                        dt.lock();
+                        dt.setStepping((byte)(mode | DistributedThread.STEPPING_REMOTE));
+                    }finally{
+                        dt.unlock();
+                    }
                 }catch(NoSuchElementError ex){
                     /* The thread hasn't yet been promoted. Creates a deferrable request to change the thread status. */
                     ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), (byte)(mode|DistributedThread.STEPPING_REMOTE));
