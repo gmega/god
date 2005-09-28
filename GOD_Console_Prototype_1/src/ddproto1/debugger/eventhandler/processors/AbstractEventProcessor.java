@@ -18,20 +18,21 @@ import ddproto1.debugger.managing.IDebugContext;
  * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor
  *
  */
-public abstract class BasicEventProcessor implements IJDIEventProcessor {
+public abstract class AbstractEventProcessor implements IJDIEventProcessor {
     
     private IJDIEventProcessor next = null;
-    private boolean enabled = true;
+    protected boolean enabled = true;
     protected IDebugContext dc = null;
     
     public void process(Event e){
-        specializedProcess(e);
+        if(this.enabled)
+            specializedProcess(e);
         if(next == null) return;
         
         // This eliminates recursion when possible
-        for(IJDIEventProcessor el = next; el != null; el = (BasicEventProcessor)el.getNext()){
-            if(el instanceof BasicEventProcessor){
-                BasicEventProcessor ep = (BasicEventProcessor)el;
+        for(IJDIEventProcessor el = next; el != null; el = (AbstractEventProcessor)el.getNext()){
+            if(el instanceof AbstractEventProcessor){
+                AbstractEventProcessor ep = (AbstractEventProcessor)el;
                 if(ep.enabled)
                     ep.specializedProcess(e);
             }else{
@@ -42,7 +43,7 @@ public abstract class BasicEventProcessor implements IJDIEventProcessor {
     }
     
     public void setNext(IJDIEventProcessor el){
-        next = (BasicEventProcessor)el;
+        next = (AbstractEventProcessor)el;
     }
     
     public IJDIEventProcessor getNext(){

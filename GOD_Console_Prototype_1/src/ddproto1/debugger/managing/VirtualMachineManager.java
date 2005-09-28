@@ -11,7 +11,6 @@ package ddproto1.debugger.managing;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,7 +34,7 @@ import ddproto1.debugger.eventhandler.EventDispatcher;
 import ddproto1.debugger.eventhandler.DelegatingHandler;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IVotingManager;
-import ddproto1.debugger.eventhandler.processors.BasicEventProcessor;
+import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.DeferredEventExecutor;
 import ddproto1.debugger.eventhandler.processors.ExceptionHandler;
@@ -50,8 +49,8 @@ import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdResolutionContextImpl;
 import ddproto1.debugger.request.StdTypeImpl;
+import ddproto1.exception.IllegalStateException;
 import ddproto1.exception.InternalError;
-import ddproto1.exception.InvalidStateException;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
@@ -59,10 +58,10 @@ import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.exception.commons.UnsupportedException;
-import ddproto1.launcher.JVMShellLauncher;
 import ddproto1.sourcemapper.ISourceMapper;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
+import ddproto1.util.PolicyManager;
 
 
 /**
@@ -86,6 +85,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     private ISourceMapper smapper;
     private VirtualMachine jvm;
     private ThreadManager tm;
+    private AbstractEventProcessor aed;
     
     private IJDIEventProcessor next;
     
@@ -264,6 +264,12 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             
     }
     
+    public void setApplicationExceptionDetector(AbstractEventProcessor aep){
+        if(this.isConnected()) throw new IllegalStateException("Cannot set the abstract event processor after " +
+                "the virtual machine has been launched.");
+        this.aed = aep;
+    }
+    
     private IObjectSpec acquireMetaObject(){
         try{
             IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry()
@@ -280,6 +286,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
         ExceptionRequest er = jvm.eventRequestManager().createExceptionRequest(
                 null, false, true);
         er.putProperty(DebuggerConstants.VMM_KEY, name);
+        er.setSuspendPolicy(PolicyManager.getInstance().getPolicy("request.exception"));
         er.enable();
         
         // Listen to all thread start events
@@ -349,6 +356,8 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
         
         MessageHandler mh = MessageHandler.getInstance();
         
+        /** TODO This section should definitely go to a file. */
+        
         try{
             // Configures the Source Mapper for this JVM.
             IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry().locate("service locator");
@@ -360,43 +369,34 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
              */ 
             
             // This guy will retry deferred requests
-            BasicEventProcessor dee = new DeferredEventExecutor(queue);
+            AbstractEventProcessor dee = new DeferredEventExecutor(queue);
             dee.setDebugContext(dc);
 
             // This guy will set thread information for the source printer 
             // and whomever might get interested in it.
-            BasicEventProcessor tig = new ThreadInfoGatherer();
+            AbstractEventProcessor tig = new ThreadInfoGatherer();
             
             // This one resumes client-side threads.
-            BasicEventProcessor csts = new ClientSideThreadStopper();
+            AbstractEventProcessor csts = new ClientSideThreadStopper();
             
             // This one will print source code.
-            BasicEventProcessor sp = new SourcePrinter(smapper, mh.getStandardOutput());
+            AbstractEventProcessor sp = new SourcePrinter(smapper, mh.getStandardOutput());
             sp.setDebugContext(dc);
             
             // Exception handler (prints remote unhandled exceptions on-screen)
-            BasicEventProcessor eh = new ExceptionHandler();
+            AbstractEventProcessor eh = new ExceptionHandler();
             eh.setDebugContext(dc);
             
             // Updates the "current thread" in the thread manager. 
-            BasicEventProcessor tu = new ThreadUpdater();
+            AbstractEventProcessor tu = new ThreadUpdater();
             tu.setDebugContext(dc);
+            
             
             /* Forces all processing chains into which it's installed
              * to resume their execution.
              */
-            BasicEventProcessor rct = new ResumingChainTerminator();
+            AbstractEventProcessor rct = new ResumingChainTerminator();
 
-            // REMARK No longer necessary? ---------------------------------
-            /* Initializes thread information as soon as the tagger class gets loaded.
-             * Please be careful and don't mess around with the LocalLauncher. The
-             * Tagger class must be loaded as soon as the LocalLauncher class gets
-             * loaded, that is, just before the VMStartEvent is issued. 
-             */
-            //           this.makeRequest(tm); 
-            // -------------------------------------------------------------
-            
-            
             /* Registers the thread manager as a listener for events regarding
              * non-distributed thread births and deaths. 
              */
@@ -439,6 +439,14 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, disp);
             /* Notifies us so we can reset the event request queue. */
             handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, this);
+            
+            /* Inserts the application exception detector before our exception
+             * printer.
+             */
+            if(aed != null){
+                handler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, aed);
+                aed.setDebugContext(dc);
+            }
             
             /* Prints data about caught/uncaught exceptions so we know what's
                happening at the remote JVM. */

@@ -28,7 +28,7 @@ import ddproto1.sourcemapper.ISourceMapper;
  * @author giuliano
  *
  */
-public class SourcePrinter extends BasicEventProcessor{
+public class SourcePrinter extends AbstractEventProcessor{
 
     public static final String NO_SOURCE = "NO_SOURCE";
     

@@ -23,13 +23,16 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.ExceptionEvent;
 
+import ddproto1.debugger.eventhandler.IProcessingContext;
+import ddproto1.debugger.eventhandler.ProcessingContextManager;
+import ddproto1.exception.NoSuchElementError;
 import ddproto1.util.MessageHandler;
 
 /**
  * @author giuliano
  *
  */
-public class ExceptionHandler extends BasicEventProcessor{
+public class ExceptionHandler extends AbstractEventProcessor{
     
     private static MessageHandler mh = MessageHandler.getInstance();
 
@@ -37,6 +40,13 @@ public class ExceptionHandler extends BasicEventProcessor{
      * @see ddproto1.debugger.eventhandler.processors.EventProcessor#specializedProcess(com.sun.jdi.event.Event)
      */
     protected void specializedProcess(Event e) {
+        /** We'll execute only if the ApplicationExceptionDetector hasn't already. */
+        ProcessingContextManager pcm = ProcessingContextManager.getInstance();
+        IProcessingContext ipc = pcm.getProcessingContext();
+        try{
+            if(ipc.getResults(ApplicationExceptionDetector.NO_EXCEPTION_PRINTING) > 0) return;
+        }catch(NoSuchElementError ex) { /** The ApplicationExceptionDetector isn't even registered. */ }
+        
         ExceptionEvent ee = (ExceptionEvent) e;
         
         Location l = ee.catchLocation();

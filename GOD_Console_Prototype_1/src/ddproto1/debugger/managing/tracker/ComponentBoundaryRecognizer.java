@@ -23,7 +23,7 @@ import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
-import ddproto1.debugger.eventhandler.processors.BasicEventProcessor;
+import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
 import ddproto1.debugger.managing.VMManagerFactory;
@@ -53,7 +53,7 @@ import ddproto1.util.traits.commons.ConversionTrait;
  * @author giuliano
  *
  */
-public class ComponentBoundaryRecognizer extends BasicEventProcessor{
+public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     
     private static final String module = "ComponentBoundaryRecognizer -";
     

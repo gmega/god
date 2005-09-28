@@ -25,7 +25,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class DeferredEventExecutor extends BasicEventProcessor {
+public class DeferredEventExecutor extends AbstractEventProcessor {
 
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
     

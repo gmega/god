@@ -23,7 +23,7 @@ import ddproto1.util.traits.commons.ConversionTrait;
  * @author giuliano
  *
  */
-public class ThreadInfoGatherer extends BasicEventProcessor {
+public class ThreadInfoGatherer extends AbstractEventProcessor {
 
     private static final MessageHandler mh = MessageHandler.getInstance();
     private static final ConversionTrait ct = ConversionTrait.getInstance();

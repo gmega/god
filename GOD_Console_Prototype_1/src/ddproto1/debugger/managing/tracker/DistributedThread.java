@@ -113,7 +113,7 @@ public class DistributedThread {
     public DistributedThread(VirtualStackframe root, IVMThreadManager tm, byte initialState, IHeadCounter counter){
         this.uuid = root.getLocalThreadId().intValue();
         vs = new VirtualStack();
-        vs.pushFrame(root);
+        vs.pushFrameInternal(root);
         state = initialState;
         this.counter = counter;
     }
@@ -227,6 +227,9 @@ public class DistributedThread {
      */
     public synchronized void lock() {
         try{
+            Thread current = Thread.currentThread();
+            if(current.equals(owner)) return; // reentrant lock.
+            
             while(owner != null){
                 this.wait();
             }
@@ -357,7 +360,7 @@ public class DistributedThread {
 	protected void checkOwner()
 		throws IllegalStateException
 	{
-	    if(owner == null) return;
+	    //if(owner == null) return; - Why?!?!
 	    if(!Thread.currentThread().equals(owner))
 	        throw new IllegalStateException("Current thread not owner.");
 	}
@@ -405,10 +408,14 @@ public class DistributedThread {
             checkOwner();
             try {
                 wsLock.lock();
-                frameStack.push(tr);
+                this.pushFrameInternal(tr);
             } finally {
                 wsLock.unlock();
             }
+        }
+        
+        private void pushFrameInternal(VirtualStackframe vsf){
+            frameStack.push(vsf);
         }
 
         public DistributedThread parentDT() {

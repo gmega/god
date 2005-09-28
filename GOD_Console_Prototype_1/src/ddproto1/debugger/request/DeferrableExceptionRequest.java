@@ -5,8 +5,12 @@
  */
 package ddproto1.debugger.request;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
@@ -14,8 +18,10 @@ import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.ExceptionRequest;
 
+import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.util.PolicyManager;
+import ddproto1.util.traits.JDIMiscTrait;
 
 
 /**
@@ -30,32 +36,48 @@ public class DeferrableExceptionRequest implements IDeferrableRequest{
 
     private boolean caught;
     private boolean uncaught;
+    private int countFilter = DebuggerConstants.UNKNOWN;
     
     private List <String> classFilters = new LinkedList <String> ();
     private List <String> classExclusions = new LinkedList <String> ();
     
+    private List <String> pendingLoads = new LinkedList<String> ();
+    private List <ReferenceType> loadedClasses = new LinkedList<ReferenceType> ();
+    
     private List <IResolutionListener> listeners = new LinkedList <IResolutionListener> ();
     private List <IPrecondition> preconList = new LinkedList<IPrecondition>();
     
-    private static IPrecondition connp;
+    private Map<Object, Object> properties = new HashMap<Object, Object>();
     
-    static {
-        StdPreconditionImpl sip = new StdPreconditionImpl();
-        sip.setClassId(null);
-        sip.setType(new StdTypeImpl(IDeferrableRequest.VM_CONNECTION, IDeferrableRequest.MATCH_ONCE));
-        connp = sip;
-    }
-        
-    public DeferrableExceptionRequest(String vmid, String target, boolean caught, boolean uncaught) {
+    private String vmid;
+    private String targetException;
+    
+    public DeferrableExceptionRequest(String vmid, String targetException,
+            List<String> realClassFilters, boolean caught, boolean uncaught) {
         this.caught = caught;
         this.uncaught = uncaught;
+        this.vmid = vmid;
+        this.targetException = targetException;
         
-        /* The target class must be loaded. */
+        /* The only precondition is that the target exception class must be loaded. */
         StdPreconditionImpl loadp = new StdPreconditionImpl();
-        loadp.setClassId(target);
+        loadp.setClassId(targetException);
         loadp.setType(new StdTypeImpl(IDeferrableRequest.CLASSLOADING, IDeferrableRequest.MATCH_ONCE));
-        preconList.add(connp);
         preconList.add(loadp);
+        pendingLoads.add(targetException);
+        
+        for(String realClass : realClassFilters){
+            StdPreconditionImpl rClassLoad = new StdPreconditionImpl();
+            rClassLoad.setClassId(realClass);
+            rClassLoad.setType(new StdTypeImpl(IDeferrableRequest.CLASSLOADING, IDeferrableRequest.MATCH_ONCE));
+            preconList.add(rClassLoad);
+            pendingLoads.add(realClass);
+        }
+        
+        StdPreconditionImpl startVM = new StdPreconditionImpl();
+        startVM.setClassId(null);
+        startVM.setType(new StdTypeImpl(IDeferrableRequest.VM_CONNECTION, IDeferrableRequest.MATCH_ONCE));
+        preconList.add(startVM);
     }
     
     public void addClassExclusionFilter(String classPattern) { 
@@ -65,64 +87,78 @@ public class DeferrableExceptionRequest implements IDeferrableRequest{
     public void addClassFilter(String classPattern) {
         classFilters.add(classPattern);
     }
-   
+    
+    public void setCountFilter(int countFilter){
+        this.countFilter = countFilter;
+    }
+    
     /* (non-Javadoc)
      * @see ddproto1.debugger.request.IDeferrableRequest#resolveNow(ddproto1.debugger.request.IDeferrableRequest.IResolutionContext)
      */
     public Object resolveNow(IResolutionContext context) throws Exception {
         IDeferrableRequest.IPrecondition precond = context.getPrecondition();
         
-        /* If the VM is already running, 
-         * we must check if the target class has already been loaded. */
-        if(precond.getType().eventType() != IDeferrableRequest.VM_CONNECTION &&
-                precond.getType().eventType() != IDeferrableRequest.CLASSLOADING){
+        if(precond.getType().eventType() == IDeferrableRequest.VM_CONNECTION){
+            /** We got connection. Checks which classes have already been loaded. */
+            JDIMiscTrait jmt = JDIMiscTrait.getInstance(); 
+            VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
+            
+            /** Places class prepare requests for everyone */
+            List<DeferrableClassPrepareRequest> requests = new ArrayList<DeferrableClassPrepareRequest>();
+            for(String clsName : pendingLoads){
+                DeferrableClassPrepareRequest dcpr = new DeferrableClassPrepareRequest(vmm.getName());
+                dcpr.addClassFilter(clsName);
+                requests.add(dcpr);
+            }
+            /** Now we make the actual requests. This might even resolve ourselves. */
+            for(DeferrableClassPrepareRequest dcpr : requests) vmm.getDeferrableRequestQueue().addEagerlyResolve(dcpr);
+                        
+            return new Boolean(true);
+            
+        }else if(precond.getType().eventType() == IDeferrableRequest.CLASSLOADING){
+            String loadedClass = precond.getClassId();
+            if(!pendingLoads.contains(loadedClass)) 
+                throw new InternalError("Received load notification for an unwanted class.");
+            
+            ReferenceType currentClass = (ReferenceType)context.getContext();
+            loadedClasses.add(currentClass);
+            if(!(pendingLoads.size() == loadedClasses.size())) return new Boolean(true); 
+
+        }else{
             throw new InternalError("Unrecognized precondition.");
         }
         
-        /* Well, it doesn't matter which precondition has been reached - the VM should
-         * already be connected. */
-        VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
-        VirtualMachine vm = vmm.virtualMachine();
-        EventRequestManager erm = vm.eventRequestManager();
         
-        List <ReferenceType> allException = vm.classesByName(Throwable.class.toString());
+        /** All classes has been loaded, we place our exception request. */
+        ReferenceType exceptionClass = this.getExceptionClass();
+        ExceptionRequest er = exceptionClass.virtualMachine()
+                .eventRequestManager().createExceptionRequest(exceptionClass, caught, uncaught);
         
-        /* No classes have been loaded. */
-        if(allException.size() == 0){
-            /* FIXME We have to change this protocol. It makes no sense to 
-             * return a non-null object, it would be better if we could just 
-             * return true or false.
-             */
-            return new Boolean(true);
-        }
+        /** Apply filters. */
+        for(ReferenceType realClass : loadedClasses) er.addClassFilter(realClass);
+        for(String exclusion : classExclusions) er.addClassExclusionFilter(exclusion);
+        for(String inclusion : classFilters) er.addClassFilter(inclusion);
+        if(countFilter != DebuggerConstants.UNKNOWN) er.addCountFilter(countFilter);
+
+        er.putProperty(DebuggerConstants.VMM_KEY, vmid);
         
-        List <EventRequest> requests = new LinkedList<EventRequest>();
-        
-        for(ReferenceType target : allException){
-            ExceptionRequest trueEr = erm.createExceptionRequest(target, caught, uncaught);
-            
-            /* Applies the predefined filters. */
-            for(String included : classFilters){
-                trueEr.addClassFilter(included);
+        for(Object key : properties.keySet())
+            er.putProperty(key, properties.get(key));
+        er.setSuspendPolicy(PolicyManager.getInstance().getPolicy("request.exception"));
+        er.enable();
+        return er;
+    }
+    
+    private ReferenceType getExceptionClass(){
+        for(Iterator<ReferenceType> it = loadedClasses.iterator(); it.hasNext();){
+            ReferenceType rType = it.next();
+            if(rType.name().equals(targetException)){
+                it.remove();
+                return rType;
             }
-        
-            for(String excluded : classExclusions ){
-                trueEr.addClassExclusionFilter(excluded);
-            }
-            
-            PolicyManager pm = PolicyManager.getInstance();
-            trueEr.setSuspendPolicy(pm.getPolicy("request.exception"));
-            trueEr.enable();
-            
-            requests.add(trueEr);
         }
         
-        /* Notifies the resolution of this event request to all registered listeners. */
-        for(IResolutionListener listener : listeners){
-            listener.notifyResolution(this, requests);
-        }
-        
-        return requests;
+        return null;
     }
 
     /* (non-Javadoc)
@@ -144,6 +180,10 @@ public class DeferrableExceptionRequest implements IDeferrableRequest{
      */
     public List getRequirements() {
         return preconList;
+    }
+    
+    public void setProperty(Object key, Object value){
+        properties.put(key, value);
     }
 
 }

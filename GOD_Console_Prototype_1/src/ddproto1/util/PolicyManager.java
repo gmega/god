@@ -31,7 +31,7 @@ public class PolicyManager {
     
     public int getPolicy(String eventType){
         
-        if(eventType.equals("request.breakpoint") || eventType.equals("request.step")){
+        if(eventType.equals("request.breakpoint") || eventType.equals("request.step") || eventType.equals("request.exception")){
             return EventRequest.SUSPEND_EVENT_THREAD;
         }
         

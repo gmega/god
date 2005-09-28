@@ -22,10 +22,11 @@ import com.sun.jdi.event.EventQueue;
 import com.sun.jdi.event.EventSet;
 import com.sun.jdi.event.VMDisconnectEvent;
 
-import ddproto1.debugger.eventhandler.processors.BasicEventProcessor;
+import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.managing.IDebugContext;
 import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.exception.IllegalStateException;
+import ddproto1.exception.NoSuchElementError;
 import ddproto1.interfaces.ISemaphore;
 import ddproto1.util.ExternalSemaphore;
 import ddproto1.util.MessageHandler;
@@ -34,7 +35,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class EventDispatcher extends BasicEventProcessor implements IVotingManager {
+public class EventDispatcher extends AbstractEventProcessor implements IVotingManager {
     
     private static final int MAX_SIMULTANEOUS_EVENTS = 8;
     
@@ -394,7 +395,7 @@ public class EventDispatcher extends BasicEventProcessor implements IVotingManag
         private Integer checkupGet(String vote, boolean active)
         {
             if(!voteSet.contains(vote))
-            	throw new RuntimeException("Invalid vote type.");
+            	throw new NoSuchElementError("Invalid vote type.");
             
             Integer v = votes.get(vote);
             if(v == null){

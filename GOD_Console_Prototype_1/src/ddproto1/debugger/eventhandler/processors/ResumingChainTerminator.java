@@ -14,7 +14,7 @@ import ddproto1.debugger.eventhandler.ProcessingContextManager;
  * @author giuliano
  *
  */
-public class ResumingChainTerminator extends BasicEventProcessor {
+public class ResumingChainTerminator extends AbstractEventProcessor {
 
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
     

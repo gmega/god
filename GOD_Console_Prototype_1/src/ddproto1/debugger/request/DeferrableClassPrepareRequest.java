@@ -7,10 +7,12 @@ package ddproto1.debugger.request;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.ClassPrepareRequest;
 
@@ -18,6 +20,7 @@ import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.util.collection.AbstractMultiMap;
 import ddproto1.util.collection.OrderedMultiMap;
 import ddproto1.util.collection.UnorderedMultiMap;
+import ddproto1.util.traits.JDIMiscTrait;
 
 
 /**
@@ -69,12 +72,43 @@ public class DeferrableClassPrepareRequest implements IDeferrableRequest{
         if(!context.getPrecondition().equals(preconds.get(0)))
             throw new InternalError("Invalid precondition.");
         
-        VirtualMachine vm = ((VirtualMachineManager)context.getContext()).virtualMachine();
+        VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
+        VirtualMachine vm = vmm.virtualMachine();
         
         List <String> toAdd = new ArrayList<String>();
         
         // Cannot change the request anymore.
         synchronized(this){
+            
+            /** It might be that the class has already been loaded. If that's the case, the 
+             * class prepare request has already been fulfilled.
+             */
+            
+            // This is just to get things working for now.
+            JDIMiscTrait jmt = JDIMiscTrait.getInstance();
+            for(Iterator <String>it = classFilters.iterator(); it.hasNext();){
+                String clsName = it.next();
+
+                /* Patterned requests never get fulfilled. */
+                if(clsName.startsWith("*") || clsName.endsWith("*")) continue;
+
+                List<ReferenceType> rtList = jmt.getLoadedClassesFrom(vmm, clsName);
+                if(rtList.size() == 1){
+                    it.remove();
+                    StdPreconditionImpl spi = new StdPreconditionImpl();
+                    spi.setClassId(clsName);
+                    spi.setType(new StdTypeImpl(
+                            IDeferrableRequest.CLASSLOADING,
+                            IDeferrableRequest.MATCH_ONCE));
+                    StdResolutionContextImpl res = new StdResolutionContextImpl();
+                    res.setContext(rtList.get(0));
+                    res.setPrecondition(spi);
+                    vmm.getDeferrableRequestQueue().resolveForContext(res);
+                }else if(rtList.size()> 1){
+                    throw new InternalError("Classloading bug manifested.");
+                }
+                
+            }
             
             /* We create the class prepare request here. It might be discarded, but its
              * an acceptable tradeoff to reduce the chances of an exception below the critical

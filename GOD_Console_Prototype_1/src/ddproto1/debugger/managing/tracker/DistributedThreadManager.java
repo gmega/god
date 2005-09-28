@@ -726,7 +726,7 @@ public class DistributedThreadManager implements IRequestHandler {
             ret = new ByteMessage(0);
             ret.setStatus(DebuggerConstants.HANDLER_FAILURE_ERR);
             mode = DistributedThread.UNKNOWN;
-            logger.error(e);
+            logger.error("Caught exception", e);
         }
         
         if(ret == null){

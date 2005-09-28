@@ -21,7 +21,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -45,17 +44,17 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
-import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 import com.sun.tools.example.debug.expr.ExpressionParser;
 import com.sun.tools.example.debug.expr.ParseException;
-import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.configurator.newimpl.IServiceLocator;
-import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
+import ddproto1.debugger.auto.DeadlockDetector;
+import ddproto1.debugger.eventhandler.processors.ApplicationExceptionDetector;
+import ddproto1.debugger.eventhandler.processors.IApplicationExceptionListener;
 import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
@@ -64,15 +63,14 @@ import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.debugger.managing.tracker.IRealFrame;
 import ddproto1.debugger.managing.tracker.VirtualStackframe;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
-import ddproto1.debugger.request.IDeferrableRequest;
+import ddproto1.debugger.request.DeferrableExceptionRequest;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.CommandException;
 import ddproto1.exception.InvalidStateException;
 import ddproto1.exception.NoSuchElementError;
-import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
-import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.launcher.IApplicationLauncher;
 import ddproto1.launcher.JVMShellLauncher;
@@ -87,7 +85,6 @@ import ddproto1.util.collection.ThreadGroupIterator;
 import ddproto1.util.traits.JDIMiscTrait;
 import ddproto1.util.traits.commons.ConversionTrait;
 import ddproto1.debugger.managing.tracker.DistributedThread.VirtualStack;
-import ddproto1.debugger.managing.tracker.VirtualStackframe;
 
 /**
  * This highly inflated class represents our first attempt at constructing
@@ -97,7 +94,7 @@ import ddproto1.debugger.managing.tracker.VirtualStackframe;
  * @author giuliano
  *
  */
-public class ConsoleDebugger implements IDebugger, IUICallback{
+public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExceptionListener{
 
     private static final String module = "ConsoleDebugger -";
     private static final String iprompt = "command >";
@@ -620,6 +617,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             break;
         }
         
+        /**
+         * Command EVAL - Evaluates a very simple java expression and dumps its
+         *                result in a rather raw form. 
+         *                
+         * eval framenumber (hex_id|dotted_id) java_expression
+         */
         case Token.EVAL:{
             machine = checkCurrent("command.eval");
 
@@ -658,7 +661,67 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             
             break;
         }
-            
+        
+        /**
+         * Command DETECT - Controls detectors and fires detection algorithms.
+         * 
+         * detect (("deadlock" (thread_list|"all")) |("application-exceptions" "on"|"off" machine_id?))
+         */
+        case Token.DETECT:
+        {
+            advance();
+            if(token.type == Token.WORD && token.text.equals("deadlock")){
+                advance();
+                if(token.type == Token.ALL){
+                    DistributedThreadManager dtm = Main.getDTM();
+                    mh.getStandardOutput().println("Warning - this is still pretty experimental.");
+                    try{
+                        mh.getStandardOutput().print("Locking DTM...");
+                        dtm.beginSnapshot();
+                        mh.getStandardOutput().println("[ok]");
+                        commandDetectDeadlock(null);
+                        break;
+                    }finally{
+                        mh.getStandardOutput().print("Unlocking DTM...");
+                        dtm.endSnapshot();
+                        mh.getStandardOutput().println("[ok]");
+                    }
+                    
+                }
+                List<String> dtIds = new ArrayList<String>();
+                while(token.type != Token.EMPTY){
+                    if(token.type == Token.DOTTED_ID)
+                        dtIds.add(token.text);
+                    else{
+                        if(token.text.equals(",")) continue;
+                        mh.getErrorOutput().println("Sorry, this type of id is unsupported.");
+                    }
+                    advance();
+                }
+                commandDetectDeadlock(dtIds);
+            }else if(token.type == Token.WORD && token.text.equals("applicationExceptions")){
+                advance();
+                String mode = token.text; 
+                machine = this.checkCurrent("command.detect.application-exceptions");
+                Node node = vmid2ninfo.get(machine);
+                
+                boolean to;
+                if(mode.equals("on")) to = true;
+                else if(mode.equals("off")) to = false;
+                else throw new CommandException("Unrecognized toggling mode " + mode);
+                
+                if(node.detector == null){
+                    mh.getStandardOutput().println("Set deferred application-level exception detection request to '" + mode + "'");
+                    node.enableDetector = to;
+                }else{
+                    mh.getStandardOutput().println("Toggled application-level exception detection request '" + mode + "'");
+                    node.detector.setNotificationEnabled(to);
+                }
+                                
+            }
+            break;
+        }
+           
 
         /**
          * Allows for repeatable commands.
@@ -734,6 +797,32 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private void commandAttach(String vmid) throws CommandException {
         VMManagerFactory vmf = VMManagerFactory.getInstance();
         VirtualMachineManager vmm = vmf.getVMManager(vmid);
+
+        try{
+            Node node = vmid2ninfo.get(vmid);
+            String applicationClasses = node.spec.getAttribute(IConfigurationConstants.SKELETON_LIST);
+            if(applicationClasses.length() > 0){
+                ApplicationExceptionDetector aed = new ApplicationExceptionDetector(Main.getDTM());
+                for(String appClass : applicationClasses.split(IConfigurationConstants.LIST_SEPARATOR_CHAR)){
+                    aed.addApplicationClass(appClass);
+                    List <String>appClassList = new LinkedList<String>();
+                    appClassList.add(appClass);
+                    DeferrableExceptionRequest der = new DeferrableExceptionRequest(
+                            vmid, "java.lang.Throwable", appClassList, true,
+                            true);
+                    der.setProperty(ApplicationExceptionDetector.class, new Object());
+                    vmm.getDeferrableRequestQueue().addEagerlyResolve(der);
+                }
+                node.detector = aed;
+                aed.addApplicationExceptionListener(this);
+                aed.setNotificationEnabled(node.enableDetector);
+                vmm.setApplicationExceptionDetector(aed);
+            }
+                        
+        }catch(AttributeAccessException ex) { 
+        }catch(Exception ex){
+            throw new CommandException("Failed to place exception requests. Attach failed.", ex);
+        }
         if(vmm == null)
         	throw new CommandException(" Cannot attach: Invalid JVM id " + vmid
                     + " specified.");
@@ -1025,56 +1114,60 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     	throws CommandException
     {
         try {
-            Integer dt_uuid = new Integer(ct.dotted2Uuid(dottedid));
-            DistributedThreadManager dtm = Main.getDTM();
 
-            DistributedThread dt = dtm.getByUUID(dt_uuid);
-
-            assert (dt != null);
-
-            mh.getStandardOutput().println(
-                    "Stack information for distributed thread " + "["
-                            + dottedid + "]");
-
-            VirtualStack vs = dt.virtualStack();
-
-            int acc = 0;
-            
-            List<DisassembledStackFrame> frames = new ArrayList<DisassembledStackFrame>();
-            for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
-                VirtualStackframe vf = vs.getVirtualFrame(i);
-                VirtualMachineManager vmm = VMManagerFactory.getInstance()
-                        .getVMManager(vf.getLocalThreadNodeGID());
-
-                ThreadReference tr = vmm.getThreadManager().findThreadByUUID(
-                        vf.getLocalThreadId());
-                Integer callBase = vf.getCallBase();
-                Integer callTop = vf.getCallTop();
-                boolean doResume = false;
-                if(!tr.isSuspended()){
-                    tr.suspend();
-                    doResume = true;
-                }
-                int base;
-                int top;
-                
-                if(i == (vs.getVirtualFrameCount() - 1)) base = 1;
-                else base = callBase.intValue();
-                
-                if(i == 0) top = tr.frameCount();
-                else top = callTop.intValue();
-                
-                frames.addAll(threadStack(tr, base, top, acc, vmm.getName(), true));
-                acc += top - base + 1;
-                
-                if(doResume) tr.resume();
-            }
-            
-            mh.getStandardOutput().print(assembleStackFrames(frames));
+            StringBuffer outInfo = new StringBuffer();
+            outInfo.append("Stack information for distributed thread " + "[" + dottedid + "]:\n");
+            outInfo.append(renderDTStack(dottedid));
+            mh.getStandardOutput().println(outInfo.toString());
             
         } catch (Exception e) {
             throw new CommandException(e);
         }
+    }
+    
+    private String renderDTStack(String dottedid)
+        throws IncompatibleThreadStateException
+    {
+        Integer dt_uuid = new Integer(ct.dotted2Uuid(dottedid));
+        DistributedThreadManager dtm = Main.getDTM();
+
+        DistributedThread dt = dtm.getByUUID(dt_uuid);
+        assert (dt != null);
+        VirtualStack vs = dt.virtualStack();
+
+        int acc = 0;
+        
+        List<DisassembledStackFrame> frames = new ArrayList<DisassembledStackFrame>();
+        for (int i = 0; i < vs.getVirtualFrameCount(); i++) {
+            VirtualStackframe vf = vs.getVirtualFrame(i);
+            VirtualMachineManager vmm = VMManagerFactory.getInstance()
+                    .getVMManager(vf.getLocalThreadNodeGID());
+
+            ThreadReference tr = vmm.getThreadManager().findThreadByUUID(
+                    vf.getLocalThreadId());
+            Integer callBase = vf.getCallBase();
+            Integer callTop = vf.getCallTop();
+            boolean doResume = false;
+            if(!tr.isSuspended()){
+                tr.suspend();
+                doResume = true;
+            }
+            int base;
+            int top;
+            
+            if(i == (vs.getVirtualFrameCount() - 1)) base = 1;
+            else base = callBase.intValue();
+            
+            if(i == 0) top = tr.frameCount();
+            else top = callTop.intValue();
+            
+            frames.addAll(threadStack(tr, base, top, acc, vmm.getName(), true));
+            acc += top - base + 1;
+            
+            if(doResume) tr.resume();
+        }
+        
+        return assembleStackFrames(frames);
     }
     
     private void commandShow(String machine, int radius, String hexid, int frame)
@@ -1259,11 +1352,19 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             monitorList.append(",");
         }
         
+        String wQual = "<unknown>";
+        
+        if(target.status() == ThreadReference.THREAD_STATUS_MONITOR){
+            wQual = "<blocked>";
+        }else if(target.status() == ThreadReference.THREAD_STATUS_WAIT){
+            wQual = "<waiting>";
+        }
+        
         ObjectReference contended = target.currentContendedMonitor();
         if(contended != null)
-            monitorList.append("*"+gid+"."+ct.long2Hex(contended.uniqueID()));
+            monitorList.append(wQual + gid+"."+ct.long2Hex(contended.uniqueID()));
         else
-            monitorList.deleteCharAt(monitorList.length()-1);
+            if(monitorList.length() > 0) monitorList.deleteCharAt(monitorList.length()-1);
         
         return monitorList.toString();
     }
@@ -1298,6 +1399,30 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
     
+    private void commandDetectDeadlock(List<String> dtIds)
+        throws CommandException
+    {
+        DistributedThreadManager dtm = Main.getDTM();
+        Iterator<Integer> idList;
+                
+        if(dtIds == null){
+            idList = dtm.getThreadIDList();
+        }else{
+            List<Integer> dtIntegerIds = new ArrayList<Integer>();
+            for(String dtId : dtIds) dtIntegerIds.add(ct.dotted2Uuid(dtId));
+            idList = dtIntegerIds.iterator();
+        }
+                
+        Set<DistributedThread> dtSet = new HashSet<DistributedThread>();
+        while(idList.hasNext()){
+            int uuid = idList.next();
+            DistributedThread dt = dtm.getByUUID(uuid);
+            dtSet.add(dt);
+        }
+        DeadlockDetector detector = new DeadlockDetector();
+        detector.detect(dtSet, new HashSet<ThreadReference>());
+    }
+    
     private void commandSuspend(String machine, String hexy)
     	throws CommandException
     {
@@ -1323,7 +1448,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private void commandSuspendDT(String dottedId){
         DistributedThreadManager dtm = Main.getDTM();
         DistributedThread dt = dtm.getByUUID(ct.dotted2Uuid(dottedId));
-        dt.suspend();
+        try{
+            dt.lock();
+            dt.suspend();
+        }finally{
+            dt.unlock();
+        }
         mh.getStandardOutput().println("Distributed thread " + dottedId + " suspended." +
                 "\n Please resume it through global mode or things go bad. ");
     }
@@ -1406,6 +1536,25 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
             throw new CommandException(ex);
         }
         return result;
+    }
+    
+    public void exceptionOccurred(String cause, ObjectReference exception, int dt_uuid, int lt_uuid){
+        MessageHandler mh = MessageHandler.getInstance();
+        StringBuffer exceptionReport = new StringBuffer();
+        exceptionReport.append("- Application level exception detected."
+                                + "\n- Exception is: " + exception.referenceType().name()  
+                                + "\n- Reported cause is :" + cause
+                                + "\n- Distributed Stack trace: \n");
+        
+        try{
+            exceptionReport.append(this.renderDTStack(ct.uuid2Dotted(dt_uuid)));
+            mh.getStandardOutput().println(exceptionReport.toString());
+        }catch(Exception ex){
+            mh.getStandardOutput().println(
+                            exceptionReport.toString()
+                                    + "\n Sorry, there was an error while acquiring the stack trace.");
+            mh.printStackTrace(ex);
+        }
     }
     
     private void dump(ObjectReference obj, ReferenceType refType,
@@ -1589,10 +1738,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         while(it.hasNext()){
             ThreadGroupReference tgr = (ThreadGroupReference)it.next();
             if(tgr == null) continue;
-            String spacing = "";
-            // REMARK Highly inefficient (couldn't remember the sane way of doing this)
+            StringBuffer spacing = new StringBuffer();
             for(int i = it.currentLevel(); i > 0; i--){
-                spacing += "  ";
+                spacing.append("  ");
             }
             String group = ((it.currentLevel() == 1)?spacing + "+Group":spacing.substring(2) + "+-+Subgroup") + " [" + tgr.name() + "]";
             mh.getStandardOutput().println(group);
@@ -1708,28 +1856,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         // Loads the information into VMManagers.
         // REMARK This method is very important. It's here that the gap between
         // launchers and attachers is closed.
-        
-        
-        
         for (IObjectSpec node : nodeList) {
             try {
-
-                VMManagerFactory vmf = VMManagerFactory.getInstance();
-                                                
-                /*
-                 * This will create filter that calls us back whenever a
-                 * suspending event is produced.
-                 */
                 String mname = node.getAttribute(IConfigurationConstants.NAME_ATTRIB);
-                Set <Integer> filters = new HashSet <Integer> ();
-                filters.add(new Integer(EventRequest.SUSPEND_ALL));
-                filters.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
-
                 Node nodeStruct = new Node();
                 nodeStruct.spec = node;
-                
                 vmid2ninfo.put(mname, nodeStruct);
-
             } catch (IllegalAttributeException e) {
                 throw new InternalError(
                         module
@@ -1743,24 +1875,6 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
         }
     }
 
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IEventProcessor#setNext(ddproto1.debugger.eventhandler.processors.IEventProcessor)
-     */
-    public void setNext(IJDIEventProcessor iep) { throw new UnsupportedException(); }
-
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IEventProcessor#getNext()
-     */
-    public IJDIEventProcessor getNext() { throw new UnsupportedException(); }
-
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IEventProcessor#enable(boolean)
-     */
-    public void enable(boolean status) { throw new UnsupportedException(); }
-
-    /* (non-Javadoc)
-     * @see ddproto1.interfaces.IUICallback#queryIsRemoteOn(int)
-     */
     public boolean queryIsRemoteOn(int uuid) {
         return true;
     }
@@ -1775,6 +1889,8 @@ public class ConsoleDebugger implements IDebugger, IUICallback{
     private class Node{
         private IObjectSpec spec;
         private JVMShellLauncher launcher;
+        private ApplicationExceptionDetector detector;
+        boolean enableDetector = false;
     }
     
     /** Printing stuff */

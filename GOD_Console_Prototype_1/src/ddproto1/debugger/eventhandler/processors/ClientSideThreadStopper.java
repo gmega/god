@@ -35,7 +35,7 @@ import ddproto1.util.traits.JDIMiscTrait;
  * @author giuliano
  *
  */
-public class ClientSideThreadStopper extends BasicEventProcessor{
+public class ClientSideThreadStopper extends AbstractEventProcessor{
     
     public static final Object THREAD_TRAP_PROTOCOL = new Object();
 

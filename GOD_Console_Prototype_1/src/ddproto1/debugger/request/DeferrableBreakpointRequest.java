@@ -170,6 +170,9 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
                 /* Resolution will fail only if this method throws an exception 
                  * That's why there's no returning null here.*/
                 rt = checkLoaded(classId);
+                
+                // TODO Loaded classes are fulfilled preconditions and should no longer
+                //      be part of the advertised preconditions.
             
                 /* We must ask the VM to notify us when our target class actually
                  * gets loaded. */

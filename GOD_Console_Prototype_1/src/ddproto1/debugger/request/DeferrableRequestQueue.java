@@ -20,6 +20,7 @@ import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
 import ddproto1.debugger.managing.VMManagerFactory;
+import ddproto1.debugger.request.IDeferrableRequest.IPrecondition;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.exception.commons.UnsupportedException;
@@ -50,6 +51,8 @@ public class DeferrableRequestQueue {
     public static final int ALLOW_DUPLICATES = 0;
     public static final int DISALLOW_DUPLICATES = 1;
     public static final int WARN_DUPLICATES = 2;
+    
+    private int duplicatePolicy;
     
     private static final MessageHandler mh = MessageHandler.getInstance();
     private static final byte STATIC = 1;
@@ -98,6 +101,7 @@ public class DeferrableRequestQueue {
     public DeferrableRequestQueue(String vmid, int duplicatePolicy){
         this();
         this.vmid = vmid;
+        this.duplicatePolicy = duplicatePolicy;
     }
     
     /** Attempts to solve an event eagerly. 
@@ -199,9 +203,13 @@ public class DeferrableRequestQueue {
             throw new UnsupportedException("Only static preconditions can be met.");
         
         if(metPreconditions.containsKey(rc.getPrecondition())){
-            mh.getWarningOutput().println(
+            if(duplicatePolicy == WARN_DUPLICATES){
+                mh.getWarningOutput().println(
                     "Warning - duplicate precondition " + rc.getPrecondition()
                             + ".");
+            }else if(duplicatePolicy == DISALLOW_DUPLICATES){
+                throw new InternalError("Duplicate precondition " + rc.getPrecondition() + " detected.");
+            }
         }
         
         metPreconditions.put(rc.getPrecondition(), rc);
@@ -309,13 +317,14 @@ public class DeferrableRequestQueue {
     private void resolveEagerly(IDeferrableRequest evt)
     	throws Exception
     {
+        
         for(IDeferrableRequest.IPrecondition requirement : evt.getRequirements()){
 
             /**
              * First acquires all resolved preconditions that could solve this requirement
              * by matching the requirement precondition agains all cached preconditions.
              */
-            List<IDeferrableRequest.IPrecondition> matches = matchPreconditions(
+            List<IPrecondition> matches = matchPreconditions(
                     requirement, metPreconditions.keySet(), STATIC);
             
             if(matches.size() == 0)
@@ -393,7 +402,6 @@ public class DeferrableRequestQueue {
             }
         }
     }
-    
     
     private List<IDeferrableRequest.IPrecondition> matchPreconditions(
             IDeferrableRequest.IPrecondition precond,

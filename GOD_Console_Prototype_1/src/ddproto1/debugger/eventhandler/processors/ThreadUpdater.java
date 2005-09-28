@@ -19,7 +19,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class ThreadUpdater extends BasicEventProcessor{
+public class ThreadUpdater extends AbstractEventProcessor{
     
     private static final String module = "ThreadUpdater -";
     

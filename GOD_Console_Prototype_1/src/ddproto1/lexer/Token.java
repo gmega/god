@@ -24,6 +24,7 @@ public class Token {
     public static final int KILL = 5;
     public static final int EXIT = 6;
     public static final int EVAL = 24;
+    public static final int DETECT = 25;
     public static final int METHOD_BREAKSPEC = 7;
     public static final int CLASS_BREAKSPEC = 23;
     public static final int INFO = 8;
