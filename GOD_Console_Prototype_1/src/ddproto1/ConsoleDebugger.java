@@ -48,6 +48,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.StepRequest;
 import com.sun.tools.example.debug.expr.ExpressionParser;
 import com.sun.tools.example.debug.expr.ParseException;
+import com.sun.tools.example.debug.expr.ExpressionParser.GetFrame;
 import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
@@ -626,7 +627,12 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
          * eval framenumber (hex_id|dotted_id) java_expression
          */
         case Token.EVAL:{
-            machine = checkCurrent("command.eval");
+            if(!currentMachine.equals("Global"))
+                machine = checkCurrent("command.eval");
+            else{
+                machine = currentMachine;
+                advance();
+            }
 
             int frameNumber;
             
@@ -642,9 +648,11 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
             String expression = currentCommand.substring(exprIdx+1, currentCommand.length());
             
             if(token.type == Token.HEX_ID){
-                value = commandEvalExpression(expression,machine,token.text);
+                if(machine.equals("Global")) throw new CommandException("Only dotted ids while in global mode.");
+                value = commandEvalExpression(expression,machine,token.text, frameNumber);
             }else if(token.type == Token.DOTTED_ID){
-                value = null;
+                if(!machine.equals("Global")) throw new CommandException("Only hex ids while outside of global mode.");
+                value = commandEvalExpressionDT(expression, token.text, frameNumber);
             }else{
                 badCommand("command.eval");
             }
@@ -1511,7 +1519,45 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
         mh.getStandardOutput().print("Virtual machine <" + machine + "> has been killed.");
     }
     
-    private Value commandEvalExpression(String expression, String vmid, String hexy)
+    private Value commandEvalExpressionDT(String expression, String dotted, int frame)
+        throws CommandException
+    {
+        Value result = null;
+        ExpressionParser.GetFrame frameGetter = null;
+
+        DistributedThreadManager dtm = Main.getDTM();
+        DistributedThread dt = dtm.getByUUID(ct.dotted2Uuid(dotted));
+        try{
+            dt.lock();
+            if(!dt.isSuspended()) throw new CommandException("You must suspend thread " + dotted + " first.");
+        }finally{
+            dt.unlock();
+        }
+        VirtualStack vs = dt.virtualStack();
+        
+        if(vs.getDTRealFrameCount() <= frame) throw new CommandException("Invalid frame.");
+        IRealFrame rf = vs.mapToRealFrame(frame);
+        VirtualMachineManager vmm = VMManagerFactory.getInstance()
+                .getVMManager(ct.guidFromUUID(rf.getLocalThreadUUID()));
+        final ThreadReference tr = vmm.getThreadManager().findThreadByUUID(rf.getLocalThreadUUID());
+        boolean resume = false;
+        try{
+            while(!tr.isSuspended()){ tr.suspend(); resume = true; }
+            final int _frame = rf.getFrame();
+            frameGetter = new ExpressionParser.GetFrame() {
+                public StackFrame get()
+                    throws IncompatibleThreadStateException {
+                        return tr.frame(_frame);
+                    }
+            };
+        
+            return doGetValue(expression, frameGetter, tr.virtualMachine());
+        }finally{
+            if(resume && tr.isSuspended()) tr.resume();
+        }
+    }
+    
+    private Value commandEvalExpression(String expression, String vmid, String hexy, int frame)
         throws CommandException
     {
         Value result = null;
@@ -1520,24 +1566,39 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
         VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vmid);
         
         final ThreadReference tr = this.grabSuspendedThread(hexy, vmm);
+        final int _frame = frame;
+        
         frameGetter = new ExpressionParser.GetFrame() {
             public StackFrame get()
                 throws IncompatibleThreadStateException {
-                    return tr.frame(0);
+                    return tr.frame(_frame);
                 }
         };
 
-        try{
-            result = ExpressionParser.evaluate(expression, vmm.virtualMachine(), frameGetter);
+        try {
+            if(tr.frameCount() <= frame) throw new CommandException("Invalid frame.");
+        } catch (IncompatibleThreadStateException e) {
+            throw new CommandException(e);
+        }
+
+        return this.doGetValue(expression, frameGetter, tr.virtualMachine());
+    }
+    
+    private Value doGetValue(String expression, GetFrame gt, VirtualMachine vm) 
+        throws CommandException
+    {
+        try {
+            return ExpressionParser.evaluate(expression,
+                    vm, gt);
         } catch (InvocationException ie) {
-            mh.getErrorOutput().println("Exception in expression:" +  ie.exception()
-                    .referenceType().name());
+            mh.getErrorOutput().println(
+                    "Exception in expression:"
+                            + ie.exception().referenceType().name());
             throw new CommandException(ie);
         } catch (Exception ex) {
             mh.printStackTrace(ex);
             throw new CommandException(ex);
         }
-        return result;
     }
     
     public void exceptionOccurred(String cause, ObjectReference exception, int dt_uuid, int lt_uuid){
