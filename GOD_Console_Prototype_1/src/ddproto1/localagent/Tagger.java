@@ -14,6 +14,7 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * The tagger class is responsible for managing local VM tags for running
@@ -45,6 +46,7 @@ public class Tagger extends TagResponsible{
     private static Tagger instance;
     private static Logger getSetLogger = Logger.getLogger(Tagger.class.getName() + ".getSetLogger");
     private static Logger stepPartLogger = Logger.getLogger(Tagger.class.getName() + ".stepPartLogger");
+    private static ConversionTrait ct = ConversionTrait.getInstance();
    
     private boolean gidSet = false;
     
@@ -93,6 +95,11 @@ public class Tagger extends TagResponsible{
     private void haltForRegistration(){ }
     
     public void stepMeOut() {
+    	if(stepPartLogger.isDebugEnabled()){
+    		Integer lt_uuid = this.currentTag();
+    		String id = (lt_uuid == null)?"<unregistered>":ct.uuid2Dotted(lt_uuid);
+    		stepPartLogger.debug("Thread " + id + " entering stepping mode protocol.");
+    	}
         this.unsetStepping(this.currentTag()); // Clears the step status (Do I really have to?)
     }
     
@@ -152,6 +159,10 @@ public class Tagger extends TagResponsible{
                                     : "different distributed threads (THIS IS REALLY BAD)") + ".");
         }
         partOf.set(new Integer(uuid));
+    }
+    
+    public Integer getEnclosingDT(){
+    	return partOf.get();
     }
     
     public void unmakePartOf(int uuid){

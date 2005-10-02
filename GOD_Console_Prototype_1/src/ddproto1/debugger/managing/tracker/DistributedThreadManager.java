@@ -131,9 +131,11 @@ public class DistributedThreadManager implements IRequestHandler {
             spec.cbr = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, cbr, policySet);
             spec.dtsu_td = new DeferrableHookRequest(vmm.getName(), IEventManager.THREAD_DEATH_EVENT, dtsu, null);
             spec.dtsu_step = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, dtsu, null);
+            spec.dtsu_break = new DeferrableHookRequest(vmm.getName(), IEventManager.BREAKPOINT_EVENT, dtsu, null);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.cbr);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_td);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_step);
+            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_break);
                         
         }catch (IllegalAttributeException e){
             /* Not an error - just means this node is not middleware-enabled */
@@ -231,8 +233,9 @@ public class DistributedThreadManager implements IRequestHandler {
             logger.error("Invalid gid " + gid + ". Assertion failed.");
             throw new AssertionError("vmm == null");
         }
-            
-                
+        
+        Node node = nodes.get(gid);
+               
         try {
             
             Event evt = new Event(req.getMessage());
@@ -272,7 +275,27 @@ public class DistributedThreadManager implements IRequestHandler {
             	Integer st_size_wrap = new Integer(st_size);
             	
             	DistributedThread current = null;
-
+            	
+                /** Thread inherits the state of the local thread. 
+                 * Since the thread got this far, it's possible states are:
+                 *
+                 * 1) RUNNING 
+                 *   This part of the code assumes the distributed thread is running
+                 *   if there are no pending step requests with 'into' depth on it.
+                 *   This never happens because the step into requests are processed
+                 *   by the ComponentBoundaryRecognizer, which will apply modifiers
+                 *   later if that's the case.
+                 * 
+                 * 2) STEPPING
+                 *   Never happens. The ComponentBoundaryRecognizer is responsible for
+                 *   knowing if the thread was stepping or not when it was resumed. 
+                 *  
+                 *  Note that if the thread is actually stepping into we won't
+                 *  be able to figure this out from here, but that's OK because
+                 *  the ComponentBoundaryRecognizer will.
+                 *  
+                 */
+            	mode = DistributedThread.RUNNING | DistributedThread.ILLUSION;
             	/* Thread promotion occurs here (local thread becomes
                  * distributed thread).
                  */
@@ -300,16 +323,6 @@ public class DistributedThreadManager implements IRequestHandler {
                         vsf = new VirtualStackframe(op, null,
                                 lt_uuid_wrap);
 
-                        /** Thread inherits the state of the local thread. 
-                         * Since the thread got this far, it's possible states are:
-                         * 1) RUNNING
-                         * 2) STEPPING_INTO
-                         * 3) STEPPING_OVER 
-                         */
-                        Byte inmode = vmm.getLastStepRequest(lt_uuid);
-                        if(inmode == null) mode = DistributedThread.RUNNING;
-                        else mode = (byte)(inmode | DistributedThread.STEPPING_REMOTE);
-                        
                         if(!stackBuilderMode){
                             current = new DistributedThread(vsf, vmm
                                     .getThreadManager(), mode, theCounter);
@@ -329,44 +342,6 @@ public class DistributedThreadManager implements IRequestHandler {
                         unlocked = true;
                         
                         if(stackBuilderMode) break;
-
-                        /**
-                         * We remove all client-side step requests. It's the
-                         * client-side interceptor who should decide whether
-                         * or not to stop the thread when it returns.
-                         */
-                        if ((mode & DistributedThread.STEPPING_INTO) != 0
-                                || (mode & DistributedThread.STEPPING_OVER) != 0) {
-                            ThreadReference tr = vmm.getThreadManager()
-                                    .findThreadByUUID(lt_uuid);
-                            jmt.clearPreviousStepRequests(tr, vmm);
-                        }
-                        
-                        /*
-                         * We've met a prencondition. Inform whomever might be
-                         * interested.
-                         */
-                        StdPreconditionImpl spi = new StdPreconditionImpl();
-                        spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
-                        spi.setClassId(ltuid);
-
-                        StdResolutionContextImpl srci = new StdResolutionContextImpl();
-                        srci.setContext(this);
-                        srci.setPrecondition(spi);
-                        
-                        vmm.getDeferrableRequestQueue().resolveForContext(srci);
-                        
-                        /** We remove all client-side step requests. It's the client-side interceptor 
-                         * who should decide whether or not to stop the thread when it returns.
-                         */
-                        ThreadReference tr = vmm.getThreadManager().findThreadByUUID(lt_uuid);
-                        jmt.clearPreviousStepRequests(tr, vmm);
-
-                        
-                        /** Get the freshest mode to return to the client (updated after
-                         * the precondition broadcast).
-                         */                       
-                        mode = current.getMode();
                         
                     }
                     
@@ -378,9 +353,15 @@ public class DistributedThreadManager implements IRequestHandler {
                     	current.lock();
                         vsf.setCallTop(st_size_wrap);
                         vsf.setOutboundOperation(op);
-                        
-                        mode = current.getMode(); 
                     }
+                    
+                    current.setStepping(mode);
+                    /** Apply post-upcall state modifiers, if any. */
+                    ComponentBoundaryRecognizer cbr = (ComponentBoundaryRecognizer)node.cbr.getProcessor();
+                    cbr.applyPostUpcallModifiers(current);
+                    
+                    mode = current.getMode();
+
                 
             	} finally {
                     if(!unlocked) unlockAllTables();
@@ -556,7 +537,7 @@ public class DistributedThreadManager implements IRequestHandler {
                      * over the call anyway (unless the user inserts a breakpoint
                      * at the server side).
                      */
-                    if ((mode & DistributedThread.STEPPING_REMOTE) != 0 && (mode & DistributedThread.STEPPING_INTO) != 0) {
+                    if ((mode & DistributedThread.ILLUSION) != 0 && (mode & DistributedThread.STEPPING) != 0) {
                         /**
                          * Old code was:
                          *                                                 
@@ -584,8 +565,9 @@ public class DistributedThreadManager implements IRequestHandler {
                     }
 
             	} finally {
-                    if (current != null)
+                    if (current != null){
                         current.unlock();
+                    }
                 }
             	            	
                 break;
@@ -649,19 +631,19 @@ public class DistributedThreadManager implements IRequestHandler {
                     assert vf.getCallBase() == Integer.parseInt(base);
 
                     /* Resumes the current thread if it's stepping. 
-                     * The other possible states are:
-                     * 1) RUNNING - No need to resume the thread.
-                     * 2) SUSPENDED - Then it shouldn't be sending messages. 
                      * 
-                     * It doesn't matter if the thread is STEPPING_INTO or 
-                     * STEPPING_OVER, it must be resumed if it's suspended.
+                     * We check if the thread is stepping by examining
+                     * if there are pending step requests for it.
                      *  
                      * */
-                    mode = current.getMode();
+                    Byte inmode = jmt.getPendigStepRequestMode(lt_uuid, vmm, false);
+                    if(inmode == null) mode = DistributedThread.ILLUSION | DistributedThread.RUNNING;
+                    else mode = (byte)(inmode | DistributedThread.ILLUSION);
                     
                     if(stackBuilderMode) break;
                     
-                    if ((mode & DistributedThread.STEPPING_REMOTE) != 0) {
+                    if ((mode & DistributedThread.ILLUSION) != 0 &&
+                    		(mode & DistributedThread.STEPPING) != 0) {
                         ThreadReference tr = vmm.getThreadManager()
                                 .findThreadByUUID(lt_uuid);
 
@@ -811,5 +793,6 @@ public class DistributedThreadManager implements IRequestHandler {
         protected DeferrableHookRequest cbr;
         protected DeferrableHookRequest dtsu_td;
         protected DeferrableHookRequest dtsu_step;
+        protected DeferrableHookRequest dtsu_break;
     }
 }

@@ -240,7 +240,7 @@ public class EventDispatcher extends AbstractEventProcessor implements IVotingMa
     private synchronized void die(){
         Thread c = Thread.currentThread();
         if(markToDie.contains(c)) markToDie.remove(Thread.currentThread());
-        mh.getDebugOutput().println("Thread " + c.getName() + " called die().");
+        //mh.getDebugOutput().println("Thread " + c.getName() + " called die().");
         handlerThreads--;
         assert handlerThreads >= 0;
     }
@@ -274,7 +274,7 @@ public class EventDispatcher extends AbstractEventProcessor implements IVotingMa
         
         /* We become the current handler thread */
         owner = t;
-        mh.getDebugOutput().println("Thread " + t.getName() + " is now being started.");
+        //mh.getDebugOutput().println("Thread " + t.getName() + " is now being started.");
         t.start();
     }
     

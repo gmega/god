@@ -112,9 +112,6 @@ public class DeferrableRequestQueue {
     public boolean addEagerlyResolve(IDeferrableRequest evt) 
     	throws Exception
     {
-        if(evt instanceof DeferrableBreakpointRequest){
-            System.out.println("Hello-ou");
-        }
         return addEagerlyResolve(evt, null);
     }
 

@@ -187,12 +187,10 @@ public class ConversionTrait {
         
         if((dtStatus & DebuggerConstants.RUNNING) != 0)
             sr.append("RUNNING | ");
-        if((dtStatus & DebuggerConstants.STEPPING_INTO) != 0)
-            sr.append("STEPPING_INTO | ");
-        if((dtStatus & DebuggerConstants.STEPPING_OVER) != 0)
-            sr.append("STEPPING_OVER | ");
-        if((dtStatus & DebuggerConstants.STEPPING_REMOTE) != 0)
-            sr.append("STEPPING_REMOTE | ");
+        if((dtStatus & DebuggerConstants.STEPPING) != 0)
+            sr.append("STEPPING | ");
+        if((dtStatus & DebuggerConstants.ILLUSION) != 0)
+            sr.append("ILLUSION | ");
             
         if(sr.length() == 0)
             return "<Unidentified or invalid state>";

@@ -41,6 +41,7 @@ import ddproto1.debugger.eventhandler.processors.ExceptionHandler;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.eventhandler.processors.ResumingChainTerminator;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
+import ddproto1.debugger.eventhandler.processors.StepRequestClearer;
 import ddproto1.debugger.eventhandler.processors.ThreadInfoGatherer;
 import ddproto1.debugger.eventhandler.processors.ThreadUpdater;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
@@ -391,7 +392,9 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             AbstractEventProcessor tu = new ThreadUpdater();
             tu.setDebugContext(dc);
             
-            
+            // Clears fulfilled step requests.
+            AbstractEventProcessor sc = new StepRequestClearer();
+                        
             /* Forces all processing chains into which it's installed
              * to resume their execution.
              */
@@ -409,15 +412,18 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
              * meaning of the following line: 
              */
             handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, tm);            
-               
-            
+                        
             /* Gathers thread information for LocatableEvents of interest. */
             handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, tig);
             handler.addEventListener(DelegatingHandler.STEP_EVENT, tig);
             handler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, tig);
             
+            /* Clears fulfilled step requests. This guy should come before any processors
+             * that make step requests. */
+            handler.addEventListener(DelegatingHandler.STEP_EVENT, sc);
+            
             /* Protocol for resuming threads should be processed just below the
-             * thread information gatherer.
+             * thread information gatherer and after the step request clearer.
              */
             handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, csts);
             handler.addEventListener(DelegatingHandler.STEP_EVENT, csts);
@@ -430,7 +436,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             
             /* Retries deferred requests whenever a new class is loaded. */
             handler.addEventListener(DelegatingHandler.CLASSPREPARE_EVENT, dee);
-                                    
+                                
             /* Prints source code whenever a breakpoint is hit or when a
                stepping event is commanded. */
             handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, sp);

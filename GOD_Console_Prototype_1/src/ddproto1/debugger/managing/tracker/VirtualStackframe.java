@@ -5,6 +5,8 @@
  */
 package ddproto1.debugger.managing.tracker;
 
+import ddproto1.debugger.managing.VMManagerFactory;
+import ddproto1.util.traits.JDIMiscTrait;
 import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
@@ -19,13 +21,17 @@ public class VirtualStackframe {
     
     public static final int UNDEFINED = -1;
     
+    private static final JDIMiscTrait jmt = JDIMiscTrait.getInstance();
     private static final ConversionTrait ct = ConversionTrait.getInstance();
+    private static final VMManagerFactory vmmf = VMManagerFactory.getInstance();
     
     private String outOp, inOp;
     private Integer ltid;
     private Integer callBase;
     private Integer callTop;
     private Byte ltgid;
+    
+    private boolean cleared = false;
    
     VirtualStackframe(String outOp, String inOp, Integer ltid){
         this.outOp = outOp;
@@ -34,6 +40,14 @@ public class VirtualStackframe {
         this.ltgid = ct.guidFromUUID(ltid);
         this.callBase = new Integer(UNDEFINED);
         this.callTop = new Integer(UNDEFINED);
+    }
+    
+    protected boolean isCleared(){
+    	return cleared;
+    }
+    
+    protected void clear(){
+    	cleared = true;
     }
     
     public String getOutboundOperation(){

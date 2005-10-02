@@ -17,7 +17,11 @@ Debugger:
   the thread UUID registry and god knows what else.
   
 - OK. Make step overs work. 
-- OK. Test the full <CORBA Client>-<Reuters Server>-<JacORB NS> cycle.
+- OK. Test the full <CORBA Client>-<Reuters Server>-<JacORB NS> cycle. 
+
+- The thread state relies heavily in pending step requests. However, the resume/suspend
+  methods clear the step requests. Investigate how that affects the illusions, especially
+  from the user point of view.
 
 - Requests must be reworked. They currently advertise preconditions that never get satisfied and thus stay
   forever into the deferrable request queue. Internally they work because they acquire loaded classes. I think

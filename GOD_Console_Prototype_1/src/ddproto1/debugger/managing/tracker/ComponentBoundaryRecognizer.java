@@ -6,7 +6,9 @@
 package ddproto1.debugger.managing.tracker;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.sun.jdi.ClassType;
@@ -34,6 +36,7 @@ import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.exception.RequestProcessorException;
+import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.interfaces.IUICallback;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
@@ -55,6 +58,8 @@ import ddproto1.util.traits.commons.ConversionTrait;
  */
 public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     
+	private static ConversionTrait ct = ConversionTrait.getInstance();
+	
     private static final String module = "ComponentBoundaryRecognizer -";
     
     private DistributedThreadManager dtm;
@@ -62,6 +67,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     private IUICallback ui;
     private Set stublist;
     private ClassType taggerClass;
+    private Map<Integer, Byte> pendingModifiers = new HashMap<Integer, Byte>();
     
     private static MessageHandler mh = MessageHandler.getInstance();
     private static TaggerProxy tagger = TaggerProxy.getInstance();
@@ -137,33 +143,9 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                  */ 
 
                 /* Otherwise, marks the distributed thread as stepping remote. */
-                byte mode = (request.depth() == StepRequest.STEP_INTO) ? DistributedThread.STEPPING_INTO
-                        : DistributedThread.STEPPING_OVER;
-                try{
-                    DistributedThread dt = dtm.getByUUID(dt_uuid.intValue());
-                    try{
-                        dt.lock();
-                        dt.setStepping((byte)(mode | DistributedThread.STEPPING_REMOTE));
-                    }finally{
-                        dt.unlock();
-                    }
-                }catch(NoSuchElementError ex){
-                    /* The thread hasn't yet been promoted. Creates a deferrable request to change the thread status. */
-                    ChangeStatusRequest csr = new ChangeStatusRequest(fh.int2Hex(dt_uuid.intValue()), (byte)(mode|DistributedThread.STEPPING_REMOTE));
-                    parent.getDeferrableRequestQueue().addEagerlyResolve(csr);
-                }
-                    
-
-                /* Creates a step return request so we can retake from where we were. */
-                // REMARK I must find out why the heck I have to do this every time I need to create a new step request.
-                // FIXME This step request should vanish away. It can't handle server-side breakpoints.
-//                jdim.clearPreviousStepRequests(te);
-//                StepRequest old = (StepRequest)e.request();
-//                StepRequest sr = vm.eventRequestManager().createStepRequest(te, old.size(), StepRequest.STEP_OUT);
-//                sr.setSuspendPolicy(pm.getPolicy("request.step"));
-//                sr.putProperty(DebuggerConstants.VMM_KEY, e.request().getProperty(DebuggerConstants.VMM_KEY));
-//                sr.addCountFilter(1);
-//                sr.enable();
+                byte mode = (request.depth() == StepRequest.STEP_INTO) ? DistributedThread.STEPPING
+                        : DistributedThread.RUNNING;
+                pendingModifiers.put(dt_uuid.intValue(), (byte)(mode | DistributedThread.ILLUSION));
 
                 /* There should be no source printing in this processing chain.
                  * Otherwise we'll see part of the stub code (something we don't really want to).
@@ -181,6 +163,23 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                     "Error while processing request. Maybe tagger class hasn't been loaded?",
                     ex);
         }
+    }
+    
+    protected void applyPostUpcallModifiers(DistributedThread dt){
+    	int dt_uuid = dt.getId();
+    	Byte modifier = pendingModifiers.get(dt_uuid);
+    	if(modifier == null) return;
+    	else{
+    		pendingModifiers.remove(dt_uuid);
+    		try {
+				dt.setStepping(modifier);
+			} catch (InvalidAttributeValueException e) {
+				mh.getErrorOutput().println(
+						"Error setting deferred modifiers in thread "
+								+ ct.uuid2Dotted(dt_uuid));
+				mh.printStackTrace(e);
+			}
+    	}
     }
     
     private boolean isTrap(StepRequest se){
@@ -240,7 +239,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
          * @see ddproto1.debugger.request.IDeferrableRequest#addResolutionListener(ddproto1.debugger.request.IResolutionListener)
          */
         public void addResolutionListener(IResolutionListener listener) {
-            
+        	
         }
 
         /* (non-Javadoc)

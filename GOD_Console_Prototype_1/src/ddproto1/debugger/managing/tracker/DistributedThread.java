@@ -14,17 +14,22 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.BreakpointRequest;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
+import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.exception.IllegalStateException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.PropertyViolation;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.interfaces.ISemaphore;
+import ddproto1.util.MessageHandler;
 import ddproto1.util.Semaphore;
+import ddproto1.util.traits.JDIMiscTrait;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * This class represents the actual Distributed Thread.
@@ -37,10 +42,9 @@ public class DistributedThread {
     private static final VMManagerFactory vmmf = VMManagerFactory.getInstance();
 
     /* Possible thread states. */
-    public static final byte UNKNOWN = -1;
-    public static final byte STEPPING_REMOTE = DebuggerConstants.STEPPING_REMOTE;
-    public static final byte STEPPING_INTO = DebuggerConstants.STEPPING_INTO;
-    public static final byte STEPPING_OVER = DebuggerConstants.STEPPING_OVER;
+    public static final byte UNKNOWN = DebuggerConstants.MODE_UNKNOWN;
+    public static final byte ILLUSION = DebuggerConstants.ILLUSION;
+    public static final byte STEPPING = DebuggerConstants.STEPPING;
     public static final byte RUNNING = DebuggerConstants.RUNNING;
     public static final byte SUSPENDED = DebuggerConstants.SUSPENDED;
     
@@ -277,7 +281,7 @@ public class DistributedThread {
             ThreadReference tr = tm.findThreadByUUID(head.getLocalThreadId());
             if (tr == null)
                 throw new IllegalStateException("Head thread no longer exists.");
-
+            
             state = RUNNING;
             tr.resume();
         } finally {
@@ -295,7 +299,7 @@ public class DistributedThread {
     public void suspend(){
         checkOwner();
         
-	    if(!(state == RUNNING))
+	    if(this.isSuspended())
 	        throw new IllegalStateException(
 	                "You cannot suspend a thread that is not running.");
 	    /* Downs the semaphore to avoid that our thread gets popped after
@@ -310,6 +314,18 @@ public class DistributedThread {
 	    if(tr == null)
 	        throw new InternalError("Error while suspending: head thread no longer exists.");
 	    tr.suspend();
+	    
+        /** We must clear all pending step requests for this distributed thread,
+         * because there might be a pending step over somewhere along the stack. */
+        for(VirtualStackframe vsf : vs.frameStack){
+        	/** TODO I can move this behind an interface later, this part of the code should be
+        	 * language-neutral.                                                                 */
+        	if(vsf.isCleared()) continue;
+        	VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vsf.getLocalThreadNodeGID());
+        	ThreadReference target = vmm.getThreadManager().findThreadByUUID(vsf.getLocalThreadId());
+        	JDIMiscTrait.getInstance().clearPreviousStepRequests(target, vmm);
+        	vsf.clear();
+        }
 	    state = SUSPENDED;
 	}
 
@@ -333,6 +349,10 @@ public class DistributedThread {
         throws InvalidAttributeValueException
     {
 	    checkOwner();
+	    ConversionTrait ct = ConversionTrait.getInstance();
+	    MessageHandler.getInstance().getDebugOutput().println(
+	    		"DT " + ct.uuid2Dotted(this.uuid) + " state set to "
+	    		+ ct.statusText(stepMode));
         state = stepMode;
 	}
 

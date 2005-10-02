@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.log4j.Logger;
+
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.ThreadReference;
 import com.sun.jdi.VirtualMachine;
@@ -16,8 +18,10 @@ import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.StepRequest;
 
+import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.request.DeferrableClassPrepareRequest;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * @author giuliano
@@ -25,6 +29,7 @@ import ddproto1.debugger.request.DeferrableClassPrepareRequest;
  */
 public class JDIMiscTrait {
     private static JDIMiscTrait instance = null;
+    private static Logger remLogger = Logger.getLogger(JDIMiscTrait.class.getName() + ".removalLogger");
 
     public synchronized static JDIMiscTrait getInstance(){
         return (instance == null)?(instance = new JDIMiscTrait()):(instance);
@@ -33,6 +38,14 @@ public class JDIMiscTrait {
     private JDIMiscTrait(){ }
     
     public void clearPreviousStepRequests(ThreadReference thread, VirtualMachineManager parent){
+    	if(remLogger.isDebugEnabled()){
+    		String theId = "non-registered";
+    		Integer id = parent.getThreadManager().getThreadUUID(thread);
+    		if(id != null) theId = ConversionTrait.getInstance().uuid2Dotted(id);
+    		
+    		remLogger.debug("Removing step requests. \n" +
+    				"Thread id: " + theId);
+    	}
         EventRequestManager mgr = thread.virtualMachine().eventRequestManager();
         List requests = mgr.stepRequests();
         Iterator iter = requests.iterator();
@@ -71,5 +84,16 @@ public class JDIMiscTrait {
             cpr.addClassFilter(clsName);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(cpr);
         }
+    }
+    
+    public Byte getPendigStepRequestMode(int lt_uuid, VirtualMachineManager vmm, boolean overIsRunning){
+    	ThreadReference tr = vmm.getThreadManager().findThreadByUUID(lt_uuid);
+    	List<StepRequest> srs = vmm.virtualMachine().eventRequestManager().stepRequests();
+    	for(StepRequest sr : srs){
+    		if(sr.thread().equals(tr)) 
+    			return (sr.depth() == StepRequest.STEP_INTO)?DebuggerConstants.STEPPING:((overIsRunning)?DebuggerConstants.RUNNING:DebuggerConstants.STEPPING);
+    	}
+    	
+    	return null;
     }
 }

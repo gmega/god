@@ -1058,7 +1058,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
     private void doStep(VirtualMachineManager vmm, ThreadReference target, int size, int depth){
         PolicyManager pm = PolicyManager.getInstance();
         /* This is a bizarre action we have to take in order to avoid DuplicateRequestExceptions */
-        jmt.clearPreviousStepRequests(target, vmm);
+//        jmt.clearPreviousStepRequests(target, vmm);
         
         /* Step requests are not deferrable. Threrefore, they're set directly
          * into the VirtualMachine, without using VirtualMachineManger#makeRequest.
@@ -1069,12 +1069,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
         sr.setSuspendPolicy(pm.getPolicy("request.step"));
         sr.putProperty(DebuggerConstants.VMM_KEY, vmm.getName());
         sr.enable();
-        
-        /** Ugly hack. */
-        vmm.setLastStepRequest(
-                        vmm.getThreadManager().getThreadUUID(target),
-                        (depth == StepRequest.STEP_INTO) ? DistributedThread.STEPPING_INTO
-                                : DistributedThread.STEPPING_OVER);
+
     }
     
     private void commandShowDT(String dottedid, int radius, int frame)

@@ -171,7 +171,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
              * Result: The user does a step into and his/her thread simply resumes. 
              */  
 
-            if((stats & DebuggerConstants.STEPPING_REMOTE) != 0 && (stats&DebuggerConstants.STEPPING_INTO) != 0){
+            if((stats & DebuggerConstants.ILLUSION) != 0 && (stats&DebuggerConstants.STEPPING) != 0){
                 tagger.setStepping(ltgid);
             }else{
                 tagger.unsetStepping(ltgid);
@@ -188,13 +188,28 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
     
     private void setForFourth(ClientRequestInfo ri){
         int ltgid;
+        StringBuffer debugBuffer = new StringBuffer();
+        if(requestLogger.isDebugEnabled()){
+            debugBuffer.append(name);
+            debugBuffer.append(" - Client-side interceptor receiving reply for ");
+            debugBuffer.append(ri.operation());
+
+        }
         try{
-            ltgid = ri.get_slot(ltslot).extract_long();
-            
+        	/* Plain wrong. The local thread to be stopped might not be
+        	 * the base thread. So the line below is wrong.
+        	 * 
+        	 * ltgid = ri.get_slot(ltslot).extract_long();
+        	 * 
+        	 * This line should be used for retrieving information about
+        	 * the currently assigned local thread. 
+        	 */
+        	int assertltgid = ri.get_slot(ltslot).extract_long();
+        	ltgid = Tagger.getInstance().currentTag();
             if(requestLogger.isDebugEnabled()){
-                requestLogger.debug(name + " - Client-side interceptor receiving reply for "
-                        + ri.operation() + "\n on behalf of local application thread " +
-                        " globally unique id " + fh.uuid2Dotted(ltgid));
+                debugBuffer.append("\n on behalf of local application thread ");
+                debugBuffer.append(" globally unique id ");
+                debugBuffer.append(fh.uuid2Dotted(ltgid));
             }
             
             ServiceContext ctx = null;
@@ -207,33 +222,36 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                 byte [] data = ctx.context_data;
                 
                 if(requestLogger.isDebugEnabled()){
-                    requestLogger.debug(" Operation name: " + ri.operation() + 
-                                        "\n Local Thread ID: " + fh.uuid2Dotted(ltgid) +
-                                        "\n Status: " + fh.statusText(data[0])) ;
+                	debugBuffer.append("\n Local Thread ID: " + fh.uuid2Dotted(ltgid));
+                	debugBuffer.append("\n Status: " + fh.statusText(data[0])) ;
                 }
                                 
-                if((data[0] & DebuggerConstants.STEPPING_REMOTE) != 0){
+                if((data[0] & DebuggerConstants.ILLUSION) != 0 &&
+                		(data[0] & DebuggerConstants.STEPPING) != 0){
+                	if(requestLogger.isDebugEnabled()){
+                		debugBuffer.append("Marked thread for halt. ");
+                	}
                     tagger.setStepping(ltgid);
                 }else{
                     tagger.unsetStepping(ltgid);
                 }
-                    
             }catch(BAD_PARAM bp){ 
+
+            	debugBuffer.append("Other side hasn't got debug interceptors installed");
                 /* Assymetric system - other side hasn't got the required
                  * interceptors installed. This means the other side hasn't
                  * got the debugger attached and therefore 'thread state' means
                  * only our state - we don't have to do anything.
                  */
             }
-            
-        }catch(InvalidSlot e){
-            requestLogger.error(name + " - Error! Invalid context slot specified.", e);
-            return;
+        }catch(InvalidSlot ex){
+        	requestLogger.error("No distributed thread associated with current request. ");
         }catch(BAD_OPERATION e){
+        	if(requestLogger.isDebugEnabled()) requestLogger.debug(debugBuffer.toString());
             requestLogger.debug("No id while processing operation - " + ri.operation());
             return;
         }
-        
+        if(requestLogger.isDebugEnabled()) requestLogger.debug(debugBuffer.toString());
     }
     
 

@@ -6,6 +6,7 @@
 package ddproto1.debugger.managing.tracker;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -23,10 +24,12 @@ import com.sun.jdi.request.StepRequest;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
+import ddproto1.debugger.managing.tracker.DistributedThread.VirtualStack;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.exception.PropertyViolation;
 import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.util.traits.JDIMiscTrait;
 import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
@@ -140,14 +143,23 @@ public class DTStateUpdater implements IJDIEventProcessor, IResolutionListener {
                     } 
                     /** Otherwise, we keep it. */
                     else {
-                        modifier = DistributedThread.STEPPING_REMOTE;
+                        modifier = DistributedThread.ILLUSION;
                     }
                     
                     if (e instanceof StepEvent) {
-                        StepRequest request = (StepRequest) e.request();
-                        dt.setStepping((byte)(modifier | ((request.depth() == StepRequest.STEP_INTO) ? 
-                                DistributedThread.STEPPING_INTO : DistributedThread.STEPPING_OVER)));
+                        dt.setStepping((byte)(modifier | DistributedThread.STEPPING));
                     } else {
+                    	List<VirtualStackframe> frames = vs.virtualFrames(0, vs.getVirtualFrameCount());
+                        /** We must clear all pending step requests for this distributed thread,
+                         * because there might be a pending step over somewhere along the stack. */
+                        for(VirtualStackframe frame : frames){
+                        	if(frame.isCleared()) continue;
+                        	VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(frame.getLocalThreadNodeGID());
+                        	ThreadReference target = vmm.getThreadManager().findThreadByUUID(frame.getLocalThreadId());
+                        	JDIMiscTrait.getInstance().clearPreviousStepRequests(target, vmm);
+                        	frame.clear();
+                        }
+
                         /** It's not really necessary to OR the modifier here as the current
                          * version re-enables remote mode automatically when that's possible.
                          * We should allow the user to configure that behavior, however, and this
