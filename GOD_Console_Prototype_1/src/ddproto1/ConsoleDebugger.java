@@ -1599,7 +1599,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
     public void exceptionOccurred(String cause, ObjectReference exception, int dt_uuid, int lt_uuid){
         MessageHandler mh = MessageHandler.getInstance();
         StringBuffer exceptionReport = new StringBuffer();
-        exceptionReport.append("- Application level exception detected."
+        exceptionReport.append("- Application-level exception detected."
+                                + "\n- Distributed thread id: " + ct.uuid2Dotted(dt_uuid)
+                                + "\n- Local thread globally unique id: " + ct.uuid2Dotted(lt_uuid)
                                 + "\n- Exception is: " + exception.referenceType().name()  
                                 + "\n- Reported cause is :" + cause
                                 + "\n- Distributed Stack trace: \n");
