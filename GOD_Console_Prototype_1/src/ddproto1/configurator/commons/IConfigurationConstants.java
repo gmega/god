@@ -31,6 +31,7 @@ public interface IConfigurationConstants {
     
     /** Client constants (attribute keys, essentially). */
     public static final String NODE_LIST = "node-list";
+    public static final String NODE = "node";
     public static final String PORT = "cdwp-port";
     public static final String MAX_QUEUE_LENGTH = "connection-queue-size";
     public static final String GLOBAL_AGENT_ADDRESS = "global-agent-address";
@@ -55,4 +56,5 @@ public interface IConfigurationConstants {
     public static final String FILE_URL_PREFIX = "file:";
     public static final String EXTENSION_SEPARATOR_CHAR=".";
     public static final String LIST_SEPARATOR_CHAR = ";";
+    public static final String URL_FILE_PROTOCOL="file";
 }

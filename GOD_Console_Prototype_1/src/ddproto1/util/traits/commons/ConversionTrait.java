@@ -8,6 +8,9 @@
 
 package ddproto1.util.traits.commons;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -197,5 +200,17 @@ public class ConversionTrait {
         
         else
             return sr.substring(0, sr.length()-3).toString();
+    }
+    
+    public URI makeEncodedURI(String uriSpec)
+        throws URISyntaxException
+    {
+        int idx = uriSpec.indexOf(":");
+        if(idx == -1) throw new URISyntaxException(uriSpec, "Invalid URI - no scheme. Only absolute " +
+                "hierarchical URIs are allowed.", 0);
+        String scheme = uriSpec.substring(0, idx);
+        String rest   = uriSpec.substring(idx+1, uriSpec.length());
+        
+        return new URI(scheme, null, rest, null);
     }
 }

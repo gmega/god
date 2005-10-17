@@ -16,11 +16,13 @@
 	<property name="util-commons-subdir" value="ddproto1/util/commons"/>
 	<property name="traits-commons-subdir" value="ddproto1/util/traits/commons"/>
 	<property name="collections-commons-subdir" value="ddproto1/util/collection/commons"/>
-
-
+	
+	<target name="prepare">
+		<mkdir dir="${jar-dir}"/>
+	</target>
+	
 	<!-- Generates the client side instrumentation agent jar. -->	
-	<target name="gen-client-agent-jar">
-    	<mkdir dir="${jar-dir}"/>
+	<target name="gen-client-agent-jar" depends="prepare">
 		<jar destfile="${jar-dir}/local-agent.jar">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
@@ -49,10 +51,30 @@
 			
 			<zipfileset dir="${bin-dir}/${collections-commons-subdir}" 
 				includes="**/*.class" prefix="${collections-commons-subdir}"/>
-
-
 		</jar>
 	</target>	
 	
-	<target name="all" depends="gen-client-agent-jar"/>
+	<!-- Generates the server-side derived jar file w/o any interface -->
+	<target name="gen-server-jar" depends="prepare">
+		<jar destfile="${jar-dir}/god.jar">
+			<!-- Includes everything except the console code and the local agent code. -->
+			<fileset dir="${bin-dir}">
+				<include name="ddproto1/**/*.class"/>
+				<exclude name="ddproto1/localagent/**"/>
+				<exclude name="ddproto1/*.class"/>
+<!-- 				<exclude name="ddproto1/**/*Test*"/> -->
+			</fileset>
+		</jar>
+	</target>
+	
+	<!-- Generates the console jar file. -->
+	<target name="gen-console-jar" depends="gen-server-jar">
+		<jar destfile="${jar-dir}/god-console.jar">
+			<fileset dir="${bin-dir}">
+				<include name="ddproto1/*.class"/>
+			</fileset>
+		</jar>
+	</target>
+	
+	<target name="all" depends="gen-client-agent-jar, gen-console-jar"/>
 </project>

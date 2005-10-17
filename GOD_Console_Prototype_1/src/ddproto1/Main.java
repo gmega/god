@@ -8,6 +8,9 @@
 package ddproto1;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -65,7 +68,8 @@ public class Main {
     private static String basedir =  null;
     private static IUICallback ui = null;
     
-    private static boolean debugEnabled = true;
+    private static boolean debugEnabled = false;
+    private static boolean fakeConsole = false;
     
     /* REMARK This attribute confuses the semantics of the Main class (which is not
      * a class at all) with the semantics of the (yet inexistent) DistributedSystem 
@@ -82,10 +86,10 @@ public class Main {
         
         // Parses parameters and sets I/O functions
         parseParameters(args);
-        setIO();
         
         // Loads classes, launches remote configuration server and debugger
         try{
+            setIO();
             /** Loads the custom user interface class */
             Class debug = Class.forName(debuggerclass);
             IDebugger dbg = (IDebugger)debug.newInstance();
@@ -95,11 +99,12 @@ public class Main {
             if(basedir == null) basedir = System.getProperty("user.dir");
             String separator = File.separator;
             if(!basedir.endsWith(separator)) basedir += separator;
+            if(!basedir.startsWith(separator)) basedir = separator + basedir;
 
             /** Creates a new XML configuration parser, assuming that all constraint
              * specs are located in basedir/SPECS_DIR, including the TOC.
              */
-            String url = "file://" + basedir + IConfigurationConstants.SPECS_DIR;
+            String url = "file:" + basedir + IConfigurationConstants.SPECS_DIR;
             List <String> specPath = new ArrayList<String>();
             specPath.add(url);
             XMLConfigurationParser cfg = new XMLConfigurationParser(new SpecLoader(specPath, url));
@@ -221,8 +226,9 @@ public class Main {
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--help")) printUsage();
             if (args[i].startsWith("--")) {
-                String arg = args[i].substring(3);
+                String arg = args[i].substring(2);
                 String[] spec = arg.split("=");
+                arg = spec[0];
 
                 if (!(spec.length == 2)) {
                     System.out.println("Error - wrong parameter format.");
@@ -232,7 +238,11 @@ public class Main {
                     debuggerclass = spec[1];
                 } else if (arg.equals("basedir")) {
                     basedir = spec[1];
-                } else {
+                } else if (arg.equals("fakeconsole")){
+                    fakeConsole = spec[1].equals("true");
+                }else if(arg.equals("debug")){
+                    debugEnabled = spec[1].equals("true");
+                }else {
                     System.out.print("Error - invalid parameter " + spec[1]);
                     printUsage();
                 }
@@ -245,7 +255,7 @@ public class Main {
         }
     }
     
-    private static void setIO(){
+    private static void setIO() throws IllegalArgumentException, ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException{
         
         IMessageBox dummy = new IMessageBox(){
             public void println(String s) { }
@@ -277,8 +287,10 @@ public class Main {
         
         MessageHandler mh = MessageHandler.getInstance();
         
-        if(debugEnabled)
-            mh.setDebugOutput(createWindow("Debug Window"));
+        if(debugEnabled){
+            if(fakeConsole == true) mh.setDebugOutput(createWindow("Debug Window"));
+            else mh.setDebugOutput(stdout);
+        }
         else mh.setDebugOutput(dummy);
         
         mh.setErrorOutput(stdout);
@@ -306,18 +318,27 @@ public class Main {
         BasicConfigurator.configure();
     }
     
-    private static DisplayWindow createWindow(String title){
+    private static IMessageBox createWindow(String title)
+        throws ClassNotFoundException, NoSuchMethodException, IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException
+    {
         final ISemaphore sema = new Semaphore(0);
         IOpenListener theListener = new IOpenListener(){
             public void notifyOpening() {
                 sema.v();
             }
         };
-        DisplayWindow dWindow = new DisplayWindow("Debug Window");
-        dWindow.addOpenListener(theListener);
-        dWindow.openAsync();
+        
+        /** Avoids eager loading of the display class. */
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        Class dWindowCl = cl.loadClass("ddproto1.primitiveGUI.DisplayWindow");
+        Constructor cons = dWindowCl.getConstructor(new Class[]  { String.class });
+        Method addOpenListener = dWindowCl.getMethod("addOpenListener", new Class[] {IOpenListener.class});
+        Method openAsync = dWindowCl.getMethod("openAsync", new Class[] { });
+        Object theWindow = cons.newInstance(new Object[] {title});
+        addOpenListener.invoke(theWindow, new Object[] { theListener });
+        openAsync.invoke(theWindow, new Object[] { });
         sema.p();
-        return dWindow;
+        return (IMessageBox)theWindow;
     }
     
     private static void printUsage(){

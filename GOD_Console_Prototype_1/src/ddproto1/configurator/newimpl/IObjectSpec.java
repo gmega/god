@@ -124,5 +124,5 @@ public interface IObjectSpec extends IQueriableConfigurable{
      * before generating an exception.
      * 
      */
-    public int allowedChildrenOfType(String type);   
+    public int allowedChildrenOfType(String type);
 }

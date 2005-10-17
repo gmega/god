@@ -8,6 +8,8 @@ package ddproto1.configurator.newimpl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
+import ddproto1.util.traits.commons.ConversionTrait;
 
 /**
  * Default implementation for the <i>ISpecLoader</i> interface. It represents a mapping
@@ -57,6 +60,8 @@ import ddproto1.exception.commons.InvalidAttributeValueException;
  */
 public class SpecLoader implements ISpecLoader, IConfigurationConstants{
 
+    private static final ConversionTrait ct = ConversionTrait.getInstance();
+    
     // TODO: Move all this stuff to a configuration file (maybe the TOC?).
     private static final String ACTION_SPLIT_CHAR = ";";
     private static final String TOC_FILENAME = "TOC.xml";
@@ -68,6 +73,7 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
     
     private String tocLocation;
     private List<String> specLocations;
+    private Map<String, IURLLister> entryFinders;
     
     private static ThreadLocal<SpecLoader> context = new ThreadLocal<SpecLoader>();
 
@@ -96,7 +102,15 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         // TOC and spec cache
         this.loadedSpecs = new HashMap<String, ObjectSpecTypeImpl>();
         
+        // Initializes default URL finders.
+        entryFinders = new HashMap<String, IURLLister>();
+        entryFinders.put(IConfigurationConstants.URL_FILE_PROTOCOL, new FileLister());
+        
         SpecLoader.setContextSpecLoader(this);
+    }
+    
+    public synchronized void registerURLLister(IURLLister lister, String protocol){
+        entryFinders.put(protocol, lister);
     }
     
     public synchronized ObjectSpecTypeImpl specForName(String concreteType,
@@ -141,10 +155,13 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         if(specMap != null) return specMap;
         
         URLConnection conn = null;
-        URL url = new URL(tocLocation + (tocLocation.endsWith("/")?"":"/") + TOC_FILENAME );
      
         try{
+            URI uri = ct.makeEncodedURI(tocLocation + (tocLocation.endsWith("/")?"":"/"));
             specMap = new HashMap<String, TocEntry>();
+            IURLLister finder = entryFinders.get(uri.getScheme());
+            if(finder == null) throw new SAXException("Invalid URI protocol " + uri.getScheme() + ". Can't load TOC.");
+            URL url = finder.getEntry(uri, TOC_FILENAME);
             conn = url.openConnection();
             InputStream is = conn.getInputStream();
             InputSource src = new InputSource(is);
@@ -159,6 +176,9 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         }catch(SAXException e){
             specMap = null;
             throw e;
+        }catch(URISyntaxException ex){
+            specMap = null;
+            throw new SAXException("Invalid TOC URI " + tocLocation, ex);
         }
     }
     
@@ -182,11 +202,17 @@ public class SpecLoader implements ISpecLoader, IConfigurationConstants{
         
         for(String urlspec : specLocations){
             try{
-                URL url = new URL(urlspec + (urlspec.endsWith("/")?"":"/") + cType);
+                URI uri = ct.makeEncodedURI(urlspec + (urlspec.endsWith("/")?"":"/"));
+                IURLLister finder = entryFinders.get(uri.getScheme());
+                if(finder == null) continue;
+                
+                URL url = finder.getEntry(uri, cType);
                 URLConnection conn = url.openConnection();
                 target = conn.getInputStream();
                 break;
+                
             }catch(MalformedURLException ex){ 
+            }catch(URISyntaxException ex) {
             }catch(IOException ex) { }
         }
         
