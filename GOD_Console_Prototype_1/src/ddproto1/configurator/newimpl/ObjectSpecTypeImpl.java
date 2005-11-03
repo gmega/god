@@ -885,6 +885,70 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
         	throw new UnsupportedOperationException("Cloneable not available yet.");
         }
         
+        public boolean isEquivalentTo(IObjectSpec iSpec){
+            if(!iSpec.getType().equals(this.getType())) return false;
+            
+            Set<String> attKeys = iSpec.getAttributeKeys();
+            Set<String> ourAttKeys = this.getAttributeKeys();
+            if(attKeys.size() != ourAttKeys.size()) return false;
+            
+            /** Compares all attributes, key by key. */
+            for(String key : ourAttKeys){
+                String ourVal = null;
+                String othVal = null;
+                boolean init = false;
+                try{
+                    try{
+                        ourVal = this.getAttribute(key);
+                        init = true;
+                    }catch(UninitializedAttributeException ex) { }
+                
+                    try{
+                        othVal = iSpec.getAttribute(key);
+                        if(init == false) return false;
+                    }catch(UninitializedAttributeException ex) { 
+                        if(init == true) return false;
+                    }
+                }catch(IllegalAttributeException ex) {
+                    throw new InternalError("Reported key set doesn't match supported key set." +
+                            " Concurrent access modification?");
+                }
+                /** They must be both null or non-null */
+                if((ourVal == null) ^ (othVal == null)) return false;
+                /** If one of them is non-null, they must be equal. */
+                if((ourVal != null) && !ourVal.equals(othVal)) return false;
+            }
+            
+            /** Check for children equality. This is darn expensive. */
+            List<IObjectSpec> ourChildren = this.getChildren();
+            List<IObjectSpec> othChildren = iSpec.getChildren();
+            
+            /** It's quadratic because there might be duplicate children. */
+            for(IObjectSpec ourChild : ourChildren){
+                boolean found = false;
+                for(IObjectSpec othChild : othChildren){
+                    if(othChild.isEquivalentTo(ourChild)){
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) return false;
+            }
+            
+            for(IObjectSpec ourChild : othChildren){
+                boolean found = false;
+                for(IObjectSpec othChild : ourChildren){
+                    if(othChild.isEquivalentTo(ourChild)){
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) return false;
+            }
+                        
+            return true;
+        }
+        
         public int allowedChildrenOfType(String xmlType){
             IIntegerInterval constraint = internal
                     .computeResultingChildrenConstraints(xmlType,

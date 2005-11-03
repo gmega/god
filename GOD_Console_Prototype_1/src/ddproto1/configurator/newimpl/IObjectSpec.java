@@ -125,4 +125,6 @@ public interface IObjectSpec extends IQueriableConfigurable{
      * 
      */
     public int allowedChildrenOfType(String type);
+    
+    public boolean isEquivalentTo(IObjectSpec spec);
 }

@@ -6,8 +6,6 @@
 package ddproto1.test;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.interfaces.IMessageBox;

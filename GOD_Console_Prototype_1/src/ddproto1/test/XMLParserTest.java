@@ -8,9 +8,7 @@
 
 package ddproto1.test;
 
-import java.io.File;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.xml.sax.SAXParseException;
@@ -22,9 +20,6 @@ import ddproto1.configurator.newimpl.SpecLoader;
 import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
-import ddproto1.interfaces.IMessageBox;
-import ddproto1.util.MessageHandler;
-import junit.framework.TestCase;
 
 /**
  * @author giuliano
@@ -48,7 +43,7 @@ public class XMLParserTest extends BasicSpecTest {
             IObjectSpec root = cfg.parseConfig(new URL("file://" + basedir + Main.DD_CONFIG_FILENAME)); 
         
             System.out.println(" -- Info Summary --");
-            mh.getStandardOutput().print(this.stringHierarchy(root, "",""));
+            mh.getStandardOutput().print(XMLParserTest.stringHierarchy(root, "",""));
             
             this.root = root;
             
@@ -77,7 +72,7 @@ public class XMLParserTest extends BasicSpecTest {
         return root;
     }
     
-    public String stringHierarchy(IObjectSpec spec, String initialSpacing, String fLine){
+    public static String stringHierarchy(IObjectSpec spec, String initialSpacing, String fLine){
         
         StringBuffer spaces = new StringBuffer();
         

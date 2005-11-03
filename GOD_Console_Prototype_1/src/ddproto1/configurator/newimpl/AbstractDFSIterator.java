@@ -24,14 +24,18 @@ public abstract class AbstractDFSIterator implements Iterator<Object>{
         if (stack.isEmpty())
             return false;
 
-        Iterator<Object> edges = stack.peek();
+        Iterator<Object> edges;
 
         /**
          * Pops off iterators until there's one that still contains vertexes
          * to process.
          */
-        while (!edges.hasNext())
+        do{
+            edges = stack.peek();
+            if(edges.hasNext()) break;
             stack.pop();
+        }while(!stack.isEmpty());
+        
         return !stack.isEmpty();
     }
 
@@ -41,7 +45,7 @@ public abstract class AbstractDFSIterator implements Iterator<Object>{
 
         Object vertex = stack.peek().next();
         if (visited.contains(vertex))
-            throw new IllegalStateException("Heterarchy graph contains cycles.");
+            throw new IllegalStateException("Heterarchy graph is not a tree.");
 
         /** Pushes the children iterator onto the stack. */
         Iterator <Object> it = this.getChildren(vertex);
