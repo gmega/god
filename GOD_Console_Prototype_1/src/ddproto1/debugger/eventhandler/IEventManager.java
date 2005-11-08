@@ -10,6 +10,8 @@ package ddproto1.debugger.eventhandler;
 
 import java.util.Set;
 
+import com.sun.jdi.request.EventRequest;
+
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.commons.IllegalAttributeException;
@@ -60,6 +62,8 @@ public interface IEventManager {
 
     public void addEventListener(int type, IJDIEventProcessor listener) throws IllegalAttributeException;
     
+    public void addEventListener(EventRequest request, IJDIEventProcessor listener);
+    
     /** Removes a previously registered event listener (IEventProcessor).
      * 
      * @param type The event channel type from where to unregister the listener.
@@ -67,6 +71,8 @@ public interface IEventManager {
      * @throws IllegalAttributeException thrown if the event channel type is invalid
      */
     public void removeEventListener(int type, IJDIEventProcessor listener) throws IllegalAttributeException;
+    
+    public void removeEventListener(EventRequest request, IJDIEventProcessor listener);
     
     /** Restricts event delivery to those satisfying a given SuspendPolicy 
      * (see com.sun.jdi.EventRequest for a list of possible suspend policies).

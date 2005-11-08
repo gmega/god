@@ -129,7 +129,7 @@ public class DeferrableExceptionRequest implements IDeferrableRequest{
         }
         
         
-        /** All classes has been loaded, we place our exception request. */
+        /** All classes have been loaded, we place our exception request. */
         ReferenceType exceptionClass = this.getExceptionClass();
         ExceptionRequest er = exceptionClass.virtualMachine()
                 .eventRequestManager().createExceptionRequest(exceptionClass, caught, uncaught);

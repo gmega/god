@@ -8,6 +8,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 
+import org.apache.log4j.Logger;
+
 import ddproto1.exception.HandlerException;
 import ddproto1.interfaces.IMessageBox;
 
@@ -17,7 +19,7 @@ import ddproto1.interfaces.IMessageBox;
  *
  * Window - Preferences - Java - Code Style - Code Templates
  */
-public class MessageHandler {
+public class MessageHandler implements ILogManager{
 
     private static final String module = "MessageHandler -";
     
@@ -25,6 +27,8 @@ public class MessageHandler {
     private IMessageBox stdout = null;
     private IMessageBox warning = null;
     private IMessageBox debug = null;
+    
+    private ILogManager logManager;
     
     private static MessageHandler instance;
 
@@ -41,7 +45,7 @@ public class MessageHandler {
      * or face a RuntimeException, but I don't like the idea of doing things
      * behind people's backs. I rather have people dealing with exceptions and
      * knowing what they're doing than having them fixing difficult bugs because
-     * of unexpected (and insidously put) default values.  
+     * of unexpected (and insidiously put) default values.  
      */
     
     /** Returns the preset error output.
@@ -76,8 +80,8 @@ public class MessageHandler {
             throw new HandlerException(module + " Error - Debug channel has not been set.");
         
         return debug;
-    }	
-
+    }
+    
     public void setErrorOutput(IMessageBox mb){
         stderr = mb;
     }
@@ -100,5 +104,27 @@ public class MessageHandler {
         final PrintWriter printWriter = new PrintWriter(result);
         aThrowable.printStackTrace(printWriter);
         this.getErrorOutput().println(result.toString());
+    }
+    
+    public void setLogManagerDelegate(ILogManager man){
+        logManager = man;
+    }
+    
+    /** New API. I'm deprecating all the messagebox stuff in favor of
+     * using LOG4J.
+     */
+    public Logger getLogger(Class c) {
+        checkLogManager();
+        return logManager.getLogger(c);
+    }
+
+    public Logger getLogger(String name) {
+        checkLogManager();
+        return logManager.getLogger(name);
+    }
+    
+    private void checkLogManager(){
+        if(logManager == null)
+            throw new HandlerException("Log manager hasn't been set.");
     }
 }
