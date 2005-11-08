@@ -47,6 +47,9 @@ import ddproto1.util.MessageHandler;
  *
  */
 public class JavaThread extends JavaDebugElement implements IThread{
+	
+	/** Move this to the debugger preferences. */
+	private static final int TIMEOUT = 5000;
     
     private static Logger logger = MessageHandler.getInstance().getLogger(JavaThread.class);
     
@@ -55,6 +58,10 @@ public class JavaThread extends JavaDebugElement implements IThread{
     
     private boolean isStepping = false;
     
+    private boolean isSuspending = false;
+    
+    private boolean running = false;
+    
     /** Lock that won't allow resume operations to be carried out at the same time
      * as operations that require thread suspension are being carried out. But will 
      * allow concurrent execution of the second type of operation.
@@ -62,6 +69,9 @@ public class JavaThread extends JavaDebugElement implements IThread{
     private ReentrantReadWriteLock stackLock = new ReentrantReadWriteLock(false); 
     private Lock readLock = stackLock.readLock();
     private Lock writeLock = stackLock.writeLock();
+    
+    /** Pending step request handler (null if none) */
+    StepHandler pendingHandler;
     
     public JavaThread(ThreadReference tDelegate, IJavaDebugTarget parent){
         super(parent);
@@ -76,10 +86,12 @@ public class JavaThread extends JavaDebugElement implements IThread{
          * the weird rules that JDT adopts for pooling, which is suspect are that weird
          * because of concurrency issues.)  */
         try{
+        	/** Locks so no one can resume this thread while we're looking at it's stack. */
             readLock.lock();
+            if(running) return null;
             locked = true;
             try{
-                if(tDelegate.frameCount() == -1) return null;
+                if(tDelegate.frameCount() == -1) return null; 
                 List<StackFrame> frames = tDelegate.frames();
                 List<IStackFrame> nFrames = new ArrayList<IStackFrame>();
                 for(StackFrame sf : frames)
@@ -99,7 +111,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
     }
 
     public boolean hasStackFrames() throws DebugException {
-        return tDelegate.isSuspended();
+        return !running;
     }
 
     public int getPriority() throws DebugException {
@@ -126,6 +138,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
         boolean locked = false;
         try{
             readLock.lock();
+            if(running) return null;
             if(tDelegate.frameCount() == -1) return null;
             return new JavaStackframe(this, tDelegate.frame(0));
         }catch(IncompatibleThreadStateException ex){
@@ -150,30 +163,65 @@ public class JavaThread extends JavaDebugElement implements IThread{
     }
 
     public boolean canResume() {
-        return tDelegate.isSuspended();
+        return !running;
     }
 
     public boolean canSuspend() {
-        return !tDelegate.isSuspended();
+        return running;
     }
 
     public boolean isSuspended() {
-        return tDelegate.isSuspended();
+        return !running;
     }
 
     public void resume() throws DebugException {
         try{
             writeLock.lock();
             tDelegate.resume();
+            
         }finally{
             writeLock.unlock();
         }
     }
 
-    public void suspend() throws DebugException {
-        tDelegate.suspend();
+    public synchronized void suspend() throws DebugException {
+    	if(!running) return;
+    	/** Suspends any pending step requests. */
+    	abortPendingStepRequests();
+    	
+    	if(isSuspending) return;
+    	
+    	/** Asynchronous thread suspension.     */
+    	Runnable suspension = new Runnable(){
+    		public void run(){
+    			ThreadReference tr = getJDIThread();
+    			tr.suspend();
+    			int _timeout = TIMEOUT;
+    			long timeout = System.currentTimeMillis() + _timeout;
+    			boolean suspended = tr.isSuspended();
+    			
+    			/** If thread hasn't suspended, waits for a while until
+    			 * it does.
+    			 */
+    			while(!suspended && System.currentTimeMillis() < timeout){
+    				try{
+    					synchronized(this) { wait(50); }
+    				}catch(InterruptedException ex) { }
+    				suspended = tr.isSuspended();
+    				if(suspended) break;
+    			}
+    			
+    			setRunning(false);
+    		}	
+    	};2
+    	
     }
 
+    private void abortPendingStepRequests(){
+    	if(pendingHandler != null) pendingHandler.abort();
+    }
+    
+    
     public boolean canStepInto() {
         return this.canStep();
     }
@@ -199,9 +247,12 @@ public class JavaThread extends JavaDebugElement implements IThread{
         return isStepping;
     }
     
-    protected void clearStepping(){
-        isStepping = false;
-        
+    protected void setStepping(boolean mode){
+        isStepping = mode;
+    }
+    
+    protected void setRunning(boolean mode){
+    	this.running = mode;
     }
 
     public void stepInto() throws DebugException {
@@ -253,21 +304,36 @@ public class JavaThread extends JavaDebugElement implements IThread{
         }
         
         public void step() throws DebugException{
-            placeStepRequest();
+        	/** Places the step request. */
+            placeStepRequest();			
+            /** Register as listener to all JDI events 
+             * which carry our request as event request.
+             */
             registerAsListener();
-            resumeUnderlyingThread();
+            /** Resumes the underlying thread. */
+            resumeUnderlyingThread();	
         }
         
         public void stepEnd(){
             VirtualMachineManager vmm = getVMM();
-            vmm.getEventManager().removeEventListener()
+            if(ourRequest != null)
+            	vmm.getEventManager().removeEventListener(ourRequest, this);
+            JavaThread.this.pendingHandler = null;
+        }
+        
+        public void resumeUnderlyingThread() throws DebugException{
+        	JavaThread.this.resume();
         }
 
         public void specializedProcess(Event e) {
-            
+            EventRequest incoming = e.request();
+            assert ourRequest == incoming;
+            JavaThread.this.setStepping(false);
+            JavaThread.this.
+            this.stepEnd();
         }
         
-        private void placeStepRequest() throws DebugException{
+        protected void placeStepRequest() throws DebugException{
             VirtualMachineManager vmm = getVMM();
             VirtualMachine underVM = vmm.virtualMachine();
             StepRequest sr =
@@ -281,13 +347,17 @@ public class JavaThread extends JavaDebugElement implements IThread{
             ourRequest = sr;
         }
         
-        private VirtualMachineManager getVMM(){
+        protected VirtualMachineManager getVMM(){
             return JavaThread.this.getJavaDebugTarget().getVMManager();
         }
         
-        private void registerAsListener(){
+        protected void registerAsListener(){
             VirtualMachineManager vmm = getVMM();
             vmm.getEventManager().addEventListener(ourRequest, this);
+        }
+        
+        public void abort(){
+        	
         }
     }
 }
