@@ -70,11 +70,12 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     private Map <Object, Object> properties = new HashMap<Object, Object>();
     
     private boolean oneShot = false;
-    private boolean resolved = false;
     private boolean end = false;
     private Location presetLocation;
     
     private int line_no;
+    
+    private BreakpointRequest request;
     
     private DeferrableBreakpointRequest() { }
 
@@ -85,7 +86,6 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     }
     
     public DeferrableBreakpointRequest(String vmid, String className, int line_no)
-        throws NoSuchSymbolException
     {
         this.vmid = vmid;
         this.classId = className;
@@ -157,11 +157,10 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     	throws Exception
     {
     	ReferenceType rt;
-    	ThreadReference specific;
     	VirtualMachine vm;
     	
-        // TODO Eliminate this hack I do to get around the fact that we don't adjust the precondition list.
-    	if(resolved) return new Boolean(true);
+        // FIXME Eliminate this hack I do to get around the fact that we don't adjust the precondition list.
+    	if(isResolved()) return new Boolean(true);
     	
         /* First precondition has been met - we might be able to set the breakpoint. */
     	if(rc.getPrecondition().getType().eventType() == IDeferrableRequest.VM_CONNECTION){
@@ -329,7 +328,9 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
             br.putProperty(key, properties.get(key));
         }
 
-        resolved = true;
+        // Resolved.
+        request = br;
+        
         /* We are done. Notify whomever could be interested in this resolution. */
         broadcastToListeners(this, br);
         
@@ -551,8 +552,12 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     
 
     private void checkResolved(){
-        if(resolved)
+        if(isResolved())
             throw new IllegalStateException("Operation invalid on resolved event request.");
+    }
+    
+    private boolean isResolved(){
+    	return request == null;
     }
     
     /* (non-Javadoc)

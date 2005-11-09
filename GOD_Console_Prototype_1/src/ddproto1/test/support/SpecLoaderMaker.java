@@ -7,9 +7,9 @@ package ddproto1.test.support;
 
 import java.io.File;
 
+import ddproto1.configurator.ISpecLoader;
+import ddproto1.configurator.SpecLoader;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.ISpecLoader;
-import ddproto1.configurator.newimpl.SpecLoader;
 
 public class SpecLoaderMaker {
     

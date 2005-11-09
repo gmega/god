@@ -3,7 +3,7 @@
  * 
  * file: IIntegerInterval.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 public interface IIntegerInterval {
     public int getMin();

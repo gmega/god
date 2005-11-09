@@ -10,11 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ddproto1.configurator.IConfigurator;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
-import ddproto1.configurator.newimpl.SpecLoader;
-import ddproto1.configurator.newimpl.StandardServiceLocator;
-import ddproto1.configurator.newimpl.XMLConfigurationParser;
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
+import ddproto1.configurator.SpecLoader;
+import ddproto1.configurator.StandardServiceLocator;
+import ddproto1.configurator.XMLConfigurationParser;
 import ddproto1.interfaces.IMessageBox;
 import ddproto1.util.MessageHandler;
 import junit.framework.TestCase;

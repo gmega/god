@@ -3,7 +3,7 @@
  * 
  * file: ISpecType.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 /**
  * This interface describes a specification type. A specification type is nothing

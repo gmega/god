@@ -92,6 +92,7 @@ public interface IDeferrableRequest {
     
     public void removeResolutionListener(IResolutionListener listener);
        
+    public void cancel() throws Exception;
     
     /** This interface serves as a mean of communicating concrete DeferrableRequest
 	 * implementations preconditions to the outside world.<BR>

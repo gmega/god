@@ -52,9 +52,9 @@ import com.sun.tools.example.debug.expr.ExpressionParser.GetFrame;
 import com.sun.tools.example.debug.tty.MessageOutput;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.auto.DeadlockDetector;
 import ddproto1.debugger.eventhandler.processors.ApplicationExceptionDetector;
 import ddproto1.debugger.eventhandler.processors.IApplicationExceptionListener;

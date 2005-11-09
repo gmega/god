@@ -38,6 +38,7 @@ import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.util.MessageHandler;
+import ddproto1.util.traits.JDIMiscTrait;
 
 /**
  * 
@@ -154,8 +155,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
     }
 
     public IBreakpoint[] getBreakpoints() {
-        // TODO Auto-generated method stub
-        return null;
+    	
     }
 
     public String getModelIdentifier() {
@@ -177,8 +177,8 @@ public class JavaThread extends JavaDebugElement implements IThread{
     public void resume() throws DebugException {
         try{
             writeLock.lock();
+            setRunning(true);
             tDelegate.resume();
-            
         }finally{
             writeLock.unlock();
         }
@@ -186,6 +186,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
 
     public synchronized void suspend() throws DebugException {
     	if(!running) return;
+    	
     	/** Suspends any pending step requests. */
     	abortPendingStepRequests();
     	
@@ -211,10 +212,18 @@ public class JavaThread extends JavaDebugElement implements IThread{
     				if(suspended) break;
     			}
     			
+    			/** Timed out, thread can't be suspended. Issue an error. */
+    			if(!suspended){
+    				logger.error("Failed to suspend thread.");
+    				return;
+    			}
+    			
     			setRunning(false);
     		}	
-    	};2
+    	};
     	
+    	Thread _suspension = new Thread(suspension);
+    	_suspension.start();
     }
 
     private void abortPendingStepRequests(){
@@ -256,33 +265,31 @@ public class JavaThread extends JavaDebugElement implements IThread{
     }
 
     public void stepInto() throws DebugException {
-        // TODO Auto-generated method stub
-        
+        StepHandler sh = new StepHandler(StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+        sh.step();
     }
 
     public void stepOver() throws DebugException {
-        // TODO Auto-generated method stub
-        
+    	StepHandler sh = new StepHandler(StepRequest.STEP_LINE, StepRequest.STEP_OVER);
+    	sh.step();
     }
 
     public void stepReturn() throws DebugException {
-        // TODO Auto-generated method stub
-        
+    	StepHandler sh = new StepHandler(StepRequest.STEP_LINE, StepRequest.STEP_OUT);
+    	sh.step();
     }
 
     public boolean canTerminate() {
-        // TODO Auto-generated method stub
-        return false;
+    	return getDebugTarget().canTerminate();
     }
 
     public boolean isTerminated() {
-        // TODO Auto-generated method stub
-        return false;
+        return getDebugTarget().isTerminated(); 
     }
 
     public void terminate() throws DebugException {
-        // TODO Auto-generated method stub
-        
+    	// TODO Abort evaluations
+    	getDebugTarget().terminate();        
     }
     
     protected ThreadReference getJDIThread(){
@@ -293,8 +300,6 @@ public class JavaThread extends JavaDebugElement implements IThread{
         
         private int granularity;
         private int depth;
-        
-        private IJDIEventProcessor next;
         
         private EventRequest ourRequest;
         
@@ -314,7 +319,12 @@ public class JavaThread extends JavaDebugElement implements IThread{
             resumeUnderlyingThread();	
         }
         
-        public void stepEnd(){
+        public void stepComplete(){
+        	setRunning(false);
+        	finalizeHandler();
+        }
+        
+        private void finalizeHandler(){
             VirtualMachineManager vmm = getVMM();
             if(ourRequest != null)
             	vmm.getEventManager().removeEventListener(ourRequest, this);
@@ -322,6 +332,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
         }
         
         public void resumeUnderlyingThread() throws DebugException{
+        	JavaThread.this.pendingHandler = this;
         	JavaThread.this.resume();
         }
 
@@ -329,8 +340,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
             EventRequest incoming = e.request();
             assert ourRequest == incoming;
             JavaThread.this.setStepping(false);
-            JavaThread.this.
-            this.stepEnd();
+            stepComplete();
         }
         
         protected void placeStepRequest() throws DebugException{
@@ -357,7 +367,23 @@ public class JavaThread extends JavaDebugElement implements IThread{
         }
         
         public void abort(){
-        	
+        	if(ourRequest != null){
+        		VirtualMachine vm = getVMM().virtualMachine();
+        		vm.eventRequestManager().deleteEventRequest(ourRequest);
+            	finalizeHandler();
+        	}
+        }
+
+        /**
+         * Processes breakpoints that have been set for this thread. 
+         * 
+         * @author giuliano
+         */
+        private class BreakpointHandler extends AbstractEventProcessor{
+			@Override
+			protected void specializedProcess(Event e) {
+
+			}
         }
     }
 }

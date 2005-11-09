@@ -3,7 +3,7 @@
  * 
  * file: IAttributeLookupAlgorithm.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 public interface IAttributeLookupAlgorithm{
     public Iterable<IObjectSpec> iterableWithRoot(IContextSearchable root);

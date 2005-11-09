@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
+import ddproto1.configurator.StandardServiceLocator;
 import ddproto1.configurator.commons.IConfigurable;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
-import ddproto1.configurator.newimpl.StandardServiceLocator;
 import ddproto1.exception.IncarnationException;
 import ddproto1.exception.commons.IllegalAttributeException;
 

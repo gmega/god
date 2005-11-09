@@ -3,7 +3,7 @@
  * 
  * file: XMLMetaConfigurator.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,9 +29,7 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
-import ddproto1.configurator.IConfigurator;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.util.StandardAttribute;
 import ddproto1.exception.DuplicateSymbolException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.util.traits.commons.ConversionTrait;

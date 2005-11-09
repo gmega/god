@@ -9,7 +9,6 @@ import java.net.URL;
 
 import org.xml.sax.SAXException;
 
-import ddproto1.configurator.newimpl.IObjectSpec;
 
 public interface IConfigurator {
     public IObjectSpec parseConfig(URL url) throws SAXException;

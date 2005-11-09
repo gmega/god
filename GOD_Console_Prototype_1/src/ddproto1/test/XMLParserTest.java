@@ -14,10 +14,10 @@ import java.util.List;
 import org.xml.sax.SAXParseException;
 
 import ddproto1.Main;
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.SpecLoader;
+import ddproto1.configurator.XMLConfigurationParser;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.SpecLoader;
-import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 

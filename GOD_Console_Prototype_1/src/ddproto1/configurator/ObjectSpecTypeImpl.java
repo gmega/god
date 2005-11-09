@@ -3,7 +3,7 @@
  * 
  * file: ObjectSpecTypeImpl.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 import java.io.IOException;
 import java.lang.ref.Reference;

@@ -24,12 +24,12 @@ import org.apache.log4j.PropertyConfigurator;
 
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.InfoCarrierWrapper;
+import ddproto1.configurator.SpecLoader;
+import ddproto1.configurator.StandardServiceLocator;
+import ddproto1.configurator.XMLConfigurationParser;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.SpecLoader;
-import ddproto1.configurator.newimpl.StandardServiceLocator;
-import ddproto1.configurator.newimpl.XMLConfigurationParser;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.distributed.DefaultGUIDManager;
 import ddproto1.debugger.managing.distributed.IGUIDManager;

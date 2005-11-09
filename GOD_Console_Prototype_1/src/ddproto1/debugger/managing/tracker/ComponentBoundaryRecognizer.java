@@ -30,6 +30,7 @@ import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
+import ddproto1.debugger.request.AbstractDeferrableRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
@@ -188,11 +189,10 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
         return false;
     }
     
-    private class ChangeStatusRequest implements IDeferrableRequest{
+    private class ChangeStatusRequest extends AbstractDeferrableRequest{
 
         private String dt_hex_id;
         private byte toWhich;
-        private List <IPrecondition>requirements;
         
         private ChangeStatusRequest(String dt_hex_id, byte stepState){
             this.toWhich = stepState;
@@ -202,8 +202,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
             StdPreconditionImpl spi = new StdPreconditionImpl();
             spi.setClassId(dt_hex_id);
             spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
-            this.requirements = new ArrayList<IPrecondition>();
-            requirements.add(spi);
+            this.addRequirement(spi);
         }
         
         /* (non-Javadoc)
@@ -227,26 +226,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
             
             return dt;
         }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#getRequirements()
-         */
-        public List<IPrecondition> getRequirements() {
-            return requirements;
-        }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#addResolutionListener(ddproto1.debugger.request.IResolutionListener)
-         */
-        public void addResolutionListener(IResolutionListener listener) {
-        	
-        }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#removeResolutionListener(ddproto1.debugger.request.IResolutionListener)
-         */
-        public void removeResolutionListener(IResolutionListener listener) {
-
-        }
+        
+        public void cancel(){ /** Nothing to cancel. */ }
     }
 }

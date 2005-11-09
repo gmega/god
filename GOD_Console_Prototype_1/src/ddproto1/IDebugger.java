@@ -10,7 +10,7 @@ package ddproto1;
 
 import java.util.List;
 
-import ddproto1.configurator.newimpl.IObjectSpec;
+import ddproto1.configurator.IObjectSpec;
 import ddproto1.exception.ConfigException;
 import ddproto1.interfaces.IUICallback;
 

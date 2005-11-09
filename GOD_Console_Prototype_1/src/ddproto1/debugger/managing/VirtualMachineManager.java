@@ -26,10 +26,10 @@ import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
 
 import ddproto1.commons.DebuggerConstants;
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
 import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.EventDispatcher;
 import ddproto1.debugger.eventhandler.DelegatingHandler;
 import ddproto1.debugger.eventhandler.IEventManager;

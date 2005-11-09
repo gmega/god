@@ -3,7 +3,7 @@
  * 
  * file: IServiceLocator.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 import java.util.NoSuchElementException;
 

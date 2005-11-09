@@ -18,11 +18,12 @@ import java.util.NoSuchElementException;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
 import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
+import ddproto1.debugger.request.AbstractDeferrableRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
@@ -125,96 +126,32 @@ public class VMManagerFactory {
         return (Byte)vm2gid.get(vm); 
     }
     
-    /* These static fields should belong to class DeferrableRegisterRequest but
-     * since java does not allow it we've moved them here.
-     */
-    private static IPrecondition precondition;
-    private static List preconList;
-    
-    static{
-        StdPreconditionImpl tmp = new StdPreconditionImpl();
-        tmp.setClassId(null);
-        tmp.setType(new StdTypeImpl(IDeferrableRequest.VM_CONNECTION, IDeferrableRequest.MATCH_ONCE));
-        precondition = tmp;
-        preconList = new ArrayList();
-        preconList.add(tmp);
-    }
-    
-    private class DeferrableRegisterRequest implements IDeferrableRequest{
+    private class DeferrableRegisterRequest extends AbstractDeferrableRequest{
     
         private Byte gid;
         private VirtualMachine vm;
-                
-        
+       
         private DeferrableRegisterRequest(Byte gid){
             this.gid = gid;
-        }
-        
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#eagerlyResolve()
-         */
-        public Object eagerlyResolve() throws Exception {
-            VirtualMachineManager vmm = getVMManager(gid);
-            // Should never happen.
-            assert(vmm != null);
-            
-            try{
-                vm = vmm.virtualMachine();
-                
-                /* Might sound stupid that we are creating an entire
-                 * ResolutionContext just for passing it as a parameter
-                 * to a method that returns something we already have, 
-                 * but all for the sake of preserving semantics.
-                 */
-                IResolutionContext ir = new IResolutionContext(){
-
-                    public IPrecondition getPrecondition() {
-                        return precondition;
-                    }
-
-                    public Object getContext() {
-                        return vm;
-                    }
-                };
-                
-                return this.resolveNow(ir);
-                
-            }catch(VMDisconnectedException e){
-                return null;
-            }
+            StdPreconditionImpl tmp = new StdPreconditionImpl();
+            tmp.setClassId(null);
+            tmp.setType(new StdTypeImpl(IDeferrableRequest.VM_CONNECTION, IDeferrableRequest.MATCH_ONCE));
+            this.addRequirement(tmp);
         }
 
         /* (non-Javadoc)
          * @see ddproto1.debugger.request.IDeferrableRequest#resolveNow(ddproto1.debugger.request.IDeferrableRequest.IResolutionContext)
          */
-        public Object resolveNow(IResolutionContext context) throws Exception {
+        public Object resolveInternal(IResolutionContext context) throws Exception {
             VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
             vm = vmm.virtualMachine();
             vm2gid.put(vm, gid);
             return vm;
         }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#getRequirements()
-         */
-        public List getRequirements() {
-            return preconList;
-        }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#addResolutionListener(ddproto1.debugger.request.IResolutionListener)
-         */
-        public void addResolutionListener(IResolutionListener listener) {
-            throw new UnsupportedException("Operation not supported for this class.");
-        }
-
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#removeResolutionListener(ddproto1.debugger.request.IResolutionListener)
-         */
-        public void removeResolutionListener(IResolutionListener listener) {
-            throw new UnsupportedException("Operation not supported for this class.");
-        }
         
+        public void cancelInternal(){
+        	
+        }
     }
  
 }

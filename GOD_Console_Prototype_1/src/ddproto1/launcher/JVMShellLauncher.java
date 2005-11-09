@@ -6,9 +6,9 @@ package ddproto1.launcher;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IServiceLocator;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IServiceLocator;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.LauncherException;
 import ddproto1.exception.commons.CommException;

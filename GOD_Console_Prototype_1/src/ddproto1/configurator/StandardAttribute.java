@@ -3,12 +3,10 @@
  * 
  * file: StandardAttribute.java
  */
-package ddproto1.configurator.util;
+package ddproto1.configurator;
 
 import java.util.Set;
 
-import ddproto1.configurator.newimpl.IAttribute;
-import ddproto1.configurator.newimpl.IObjectSpec;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.util.collection.ReadOnlyHashSet;
 

@@ -3,7 +3,7 @@
  * 
  * file: IllegalProtocolException.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 public class IllegalProtocolException extends Exception{
 

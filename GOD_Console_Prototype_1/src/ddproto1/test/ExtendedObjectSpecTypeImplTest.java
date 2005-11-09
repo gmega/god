@@ -11,12 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import ddproto1.configurator.newimpl.BranchKey;
-import ddproto1.configurator.newimpl.IAttribute;
-import ddproto1.configurator.newimpl.IObjectSpec;
-import ddproto1.configurator.newimpl.IObjectSpecType;
-import ddproto1.configurator.newimpl.SpecLoader;
-import ddproto1.configurator.util.StandardAttribute;
+import ddproto1.configurator.BranchKey;
+import ddproto1.configurator.IAttribute;
+import ddproto1.configurator.IObjectSpec;
+import ddproto1.configurator.IObjectSpecType;
+import ddproto1.configurator.SpecLoader;
+import ddproto1.configurator.StandardAttribute;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.InvalidAttributeValueException;

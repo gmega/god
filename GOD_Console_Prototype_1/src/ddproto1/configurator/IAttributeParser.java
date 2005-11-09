@@ -3,7 +3,7 @@
  * 
  * file: IAttributeParser.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;

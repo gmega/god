@@ -3,7 +3,7 @@
  * 
  * file: ISpecQueryProtocol.java
  */
-package ddproto1.configurator.newimpl;
+package ddproto1.configurator;
 
 import java.util.Map;
 import java.util.Set;
