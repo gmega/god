@@ -53,6 +53,10 @@ public interface IDeferrableRequest {
     public static final int MATCH_ONCE = 0;
     public static final int MATCH_MULTIPLE = 1;
     
+    public static final Object REQUEST_CANCELLED = new Object();
+    public static final Object REQUEST_RESOLVED  = new Object();
+    public static final Object OK                = new Object();
+        
     /** Resolve now is more like a firm attempt at resolving a request.
 	 * Normally requests require some sort of context from where to access
 	 * precondition validators or subproducts in order to be able to resolve
@@ -74,7 +78,23 @@ public interface IDeferrableRequest {
      * therefore some effort must be done to detect it and follow the protocol.
 	 * 
 	 * <b>Note:</b> ClassCastExceptions may occur if the object passed as 
-	 * context is of the wrong type. 
+	 * context is of the wrong type.
+     * 
+     * 16/05/2005 - 
+     * 
+     * The above protocol is fine, but it doesn't take into consideration some
+     * possible outcomes. The request might have been cancelled, and there are times
+     * where it simply makes no sense to return anything, so there are DeferrableRequests
+     * that simply create an object and return it. Originally, the return value would 
+     * contain the request when it could be resolved eagerly, but now the non-null value
+     * means a given phase in resolution was carried out successfully.
+     * 
+     * Everything cries out for return codes instead of null/non-null return values. 
+     *
+     * Therefore, I'm adding return codes. The products of deferrable request resolution
+     * should be retrieved by registered listeners, which was the way things were being 
+     * done already anyway.
+     * 
 	 * 
 	 * @param rt
 	 * @return
@@ -91,8 +111,16 @@ public interface IDeferrableRequest {
     public void addResolutionListener(IResolutionListener listener);
     
     public void removeResolutionListener(IResolutionListener listener);
-       
+    
+    /**
+     * This method cancels the underlying event request if it has been fulfilled, or
+     * precludes it from being fulfilled if it hasn't.
+     * 
+     * @throws Exception
+     */
     public void cancel() throws Exception;
+    
+    public boolean isCancelled();
     
     /** This interface serves as a mean of communicating concrete DeferrableRequest
 	 * implementations preconditions to the outside world.<BR>

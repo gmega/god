@@ -44,7 +44,7 @@ import ddproto1.util.traits.commons.ConversionTrait;
  * @author giuliano
  *
  */
-public class DeferrableBreakpointRequest implements IDeferrableRequest{
+public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
 
     private static final String FILTER_PROP = "DeferrableBreakpointRequest - Filter";
     
@@ -54,14 +54,12 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     
     private static final ConversionTrait ct = ConversionTrait.getInstance();
     
-    private String vmid;
     private String classId;
     private String pattern;
     private String methodName;
     
     private List argumentList;
     private List <IDeferrableRequest.IPrecondition>preconList = new ArrayList<IDeferrableRequest.IPrecondition>();
-    private List <IResolutionListener>listenerList = new LinkedList<IResolutionListener>();
     private List <ThreadReference> threadFilters = new LinkedList<ThreadReference>();
     
     private VMManagerFactory vmmf = VMManagerFactory.getInstance();
@@ -77,8 +75,6 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     
     private BreakpointRequest request;
     
-    private DeferrableBreakpointRequest() { }
-
     public DeferrableBreakpointRequest(String vmid, String fullmethodname, List args) 
     	throws NoSuchSymbolException
     {
@@ -87,7 +83,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     
     public DeferrableBreakpointRequest(String vmid, String className, int line_no)
     {
-        this.vmid = vmid;
+        super(vmid);
         this.classId = className;
         this.line_no = line_no;
         this.setPattern();
@@ -97,7 +93,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     public DeferrableBreakpointRequest(String vmid, String fullmethodname, List args, int line_no)
     	throws NoSuchSymbolException
     {
-        this.vmid = vmid;
+        super(vmid);
         this.argumentList = (args == null)?new ArrayList():args;
         this.line_no = line_no;
         
@@ -114,7 +110,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
         
         setPreconditionList();
     }
-    
+
     private void setPattern(){
         // Maybe the class id is a restricted regular expression ?
         if(classId.startsWith("*")){
@@ -129,9 +125,9 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     }
     
     public DeferrableBreakpointRequest(Location l, String vmid){
+        super(vmid);
         preconList.add(DeferrableRequestQueue.nullPrecondition);
         presetLocation = l;
-        this.vmid = vmid;
     }
 
     private void setPreconditionList(){
@@ -149,22 +145,23 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     public List <IDeferrableRequest.IPrecondition> getRequirements(){
         return preconList;
     }
-    
+   
     /* (non-Javadoc)
      * @see ddproto1.debugger.request.DeferrableEventRequest#resolveNow(com.sun.jdi.ReferenceType)
      */
-    public synchronized Object resolveNow(IDeferrableRequest.IResolutionContext rc) 
+    public synchronized Object resolveInternal(IDeferrableRequest.IResolutionContext rc) 
     	throws Exception
     {
     	ReferenceType rt;
     	VirtualMachine vm;
     	
-        // FIXME Eliminate this hack I do to get around the fact that we don't adjust the precondition list.
-    	if(isResolved()) return new Boolean(true);
+    	if(isResolved()) return REQUEST_RESOLVED;
+        
+        if(isCancelled()) return REQUEST_CANCELLED;
     	
         /* First precondition has been met - we might be able to set the breakpoint. */
     	if(rc.getPrecondition().getType().eventType() == IDeferrableRequest.VM_CONNECTION){
-    		vm = getAssociatedVM();
+    		vm = this.getVMM().virtualMachine();
             
             if(pattern == null){
                 /* Resolution will fail only if this method throws an exception 
@@ -177,13 +174,15 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
                 /* We must ask the VM to notify us when our target class actually
                  * gets loaded. */
                 if(rt == null){
+                    String vmid = this.getVMM().getName();
                     DeferrableClassPrepareRequest cpr = new DeferrableClassPrepareRequest(vmid);
                     cpr.addClassFilter(classId);
                     VirtualMachineManager vmm = vmmf.getVMManager(vmid);
                     vmm.getDeferrableRequestQueue().addEagerlyResolve(cpr);
-                    return cpr;
+                    return OK;
                 }else{
-                    return this.resolveWith(rt);
+                    this.resolveWith(rt);
+                    return OK;
                 }
             }
             // If it's a pattern breakpoint, we'll have to try it against all classes
@@ -191,7 +190,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
             else{
                 for(ReferenceType candidate : getAllLoaded()){
                     Object request = resolveWith(candidate);
-                    if(request != null) return request;
+                    if(request != null) return OK;
                 }
                 
                 ClassPrepareRequest inserted = null;
@@ -215,7 +214,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
                     inserted = cpr;
                 }
                 
-                return inserted;
+                return OK;
             }
          
         }
@@ -239,7 +238,8 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
         	rt = checkLoaded(true_clsid);
         	if(rt == null) return null; // Resolution failed.
             
-            return this.resolveWith(rt);
+            this.resolveWith(rt);
+            return OK;
         }
     	
     	/* This precondition is advertised by deferrable breakpoint requests
@@ -249,7 +249,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     	else if(rc.getPrecondition().getType().eventType() == IDeferrableRequest.NIL){
             if(presetLocation == null)
                 throw new InternalError("Precondition NONE is only valid for Location breakpoints.");
-            else return setForLocation(presetLocation, getAssociatedVM());
+            else return setForLocation(presetLocation, this.getVMM().virtualMachine());
     	}else{
         	throw new InternalError("Unrecognized precondition.");
         }
@@ -259,7 +259,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
         throws Exception
     {
         
-        VirtualMachine vm = getAssociatedVM();
+        VirtualMachine vm = this.getVMM().virtualMachine();
         Location breakLocation = null;
         // Two types of breakpoints.
         // 1 - Method breakpoints
@@ -287,6 +287,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
                  * means one of two things: 1) the user screwed up 2) we're an absolute line breakpoint meant
                  * to be set in an internal class. */
                 if(pattern == null){
+                    String vmid = this.getVMM().getName();
                     DeferrableBreakpointRequest dbr = new DeferrableBreakpointRequest(vmid, classId + "*", line_no);
                     VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vmid);
                     vmm.getDeferrableRequestQueue().addEagerlyResolve(dbr);
@@ -320,9 +321,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
         Iterator it = threadFilters.iterator();
         while(it.hasNext())
             br.addThreadFilter((ThreadReference)it.next());
-        br.enable();
-
-        br.putProperty(DebuggerConstants.VMM_KEY, vmid);
+        br.putProperty(DebuggerConstants.VMM_KEY, this.getVMM().getName());
         
         for(Object key : properties.keySet()){
             br.putProperty(key, properties.get(key));
@@ -332,13 +331,16 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
         request = br;
         
         /* We are done. Notify whomever could be interested in this resolution. */
-        broadcastToListeners(this, br);
-        
+        this.broadcastToListeners(br);
+
+        /* Enables the request. */
+        br.enable();
+       
         return br;
     }
     
     public List<ReferenceType> getAllLoaded(){
-        VirtualMachine vm = this.getAssociatedVM();
+        VirtualMachine vm = this.getVMM().virtualMachine();
         List<ReferenceType> lst = new LinkedList<ReferenceType>();
         
         for(ReferenceType rt : vm.allClasses()){
@@ -350,7 +352,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     }
     
     public ReferenceType checkLoaded(String clsid){
-    	VirtualMachine vm = this.getAssociatedVM();
+    	VirtualMachine vm = this.getVMM().virtualMachine();
     	Iterator it = vm.allClasses().iterator();
         
     	while(it.hasNext()){
@@ -457,14 +459,17 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
             append = "[]";
         }
 
+        VirtualMachineManager vmm = this.getVMM();
+        VirtualMachine vm = vmm.virtualMachine();
+        
         // Attempts to qualify this argument
         // First, tries to resolve directly
-        List clist = getAssociatedVM().classesByName(normalized);
+        List clist = vm.classesByName(normalized);
         if (clist.isEmpty()) {
 
             // Perhaps the class name is just incomplete?
             if (normalized.indexOf('.') == -1) {
-                Iterator it = getAssociatedVM().allClasses().iterator();
+                Iterator it = vm.allClasses().iterator();
                 String candidate = null;
 
                 // We'll just have to look.
@@ -521,7 +526,7 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     	throws NoSuchSymbolException
     {
         checkResolved();
-    	VirtualMachineManager vmm = VMManagerFactory.getInstance().getVMManager(vmid);
+    	VirtualMachineManager vmm = this.getVMM();
     	/* First checks if there's a thread filter applied and if it's actually valid. */
     	IVMThreadManager tm = vmm.getThreadManager();
     	ThreadReference tr = tm.findThreadByUUID(lt_uuid);
@@ -560,34 +565,17 @@ public class DeferrableBreakpointRequest implements IDeferrableRequest{
     	return request == null;
     }
     
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.request.DeferrableEventRequest#getAssociatedVM()
+    /**
+     * Cancelling a DeferrableBreakpointRequest means:
+     * 
+     * - If the BreakpointRequest has already been placed, it will be
+     *   deleted.
+     * - If the BreakpointRequest hasn't yet been placed, it will not
+     *   be placed after this method returns.
+     * 
      */
-    protected VirtualMachine getAssociatedVM() 
-    	throws VMDisconnectedException
-    {
-        return VMManagerFactory.getInstance().getVMManager(vmid).virtualMachine();
-    }
-
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.request.IDeferrableRequest#addResolutionListener(ddproto1.debugger.request.IResolutionListener)
-     */
-    public void addResolutionListener(IResolutionListener listener) {
-        listenerList.add(listener);
-    }
-
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.request.IDeferrableRequest#removeResolutionListener(ddproto1.debugger.request.IResolutionListener)
-     */
-    public void removeResolutionListener(IResolutionListener listener) {
-        listenerList.remove(listener);        
-    }
-    
-    private void broadcastToListeners(IDeferrableRequest req, EventRequest ereq){
-        Iterator it = listenerList.iterator();
-        while(it.hasNext()){
-            IResolutionListener listener = (IResolutionListener)it.next();
-            listener.notifyResolution(req, ereq);
-        }
+    protected synchronized void cancelInternal() throws Exception {
+        if(this.isResolved())
+            this.getVMM().virtualMachine().eventRequestManager().deleteEventRequest(request);
     }
 }

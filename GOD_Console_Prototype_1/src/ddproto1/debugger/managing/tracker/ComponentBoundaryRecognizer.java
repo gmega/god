@@ -188,45 +188,4 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
             return true;
         return false;
     }
-    
-    private class ChangeStatusRequest extends AbstractDeferrableRequest{
-
-        private String dt_hex_id;
-        private byte toWhich;
-        
-        private ChangeStatusRequest(String dt_hex_id, byte stepState){
-            this.toWhich = stepState;
-            this.dt_hex_id = dt_hex_id;
-            
-            /* Resolution preconditions */
-            StdPreconditionImpl spi = new StdPreconditionImpl();
-            spi.setClassId(dt_hex_id);
-            spi.setType(new StdTypeImpl(IDeferrableRequest.THREAD_PROMOTION, IDeferrableRequest.MATCH_ONCE));
-            this.addRequirement(spi);
-        }
-        
-        /* (non-Javadoc)
-         * @see ddproto1.debugger.request.IDeferrableRequest#resolveNow(ddproto1.debugger.request.IDeferrableRequest.IResolutionContext)
-         */
-        public Object resolveNow(IResolutionContext context) throws Exception {
-            if(!context.getPrecondition().getClassId().equals(dt_hex_id))
-                throw new InternalError("Invalid precondition!");
-            
-            DistributedThreadManager dtm = (DistributedThreadManager)context.getContext();
-
-            DistributedThread dt;
-            try{
-                /* The protocol is: if the event cannot be resolved, return null.
-                 */
-                dt = dtm.getByUUID(fh.hex2Int(dt_hex_id));
-                dt.setStepping(toWhich);
-            }catch(NoSuchElementError err){
-                return null;
-            }
-            
-            return dt;
-        }
-        
-        public void cancel(){ /** Nothing to cancel. */ }
-    }
 }

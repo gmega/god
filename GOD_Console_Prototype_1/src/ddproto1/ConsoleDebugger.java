@@ -818,8 +818,9 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
                     List <String>appClassList = new LinkedList<String>();
                     appClassList.add(appClass);
                     DeferrableExceptionRequest der = new DeferrableExceptionRequest(
-                            vmid, "java.lang.Throwable", appClassList, true,
+                            vmid, "java.lang.Throwable", true,
                             true);
+                    der.addClassExclusionFilter(appClass);
                     der.setProperty(ApplicationExceptionDetector.class, new Object());
                     vmm.getDeferrableRequestQueue().addEagerlyResolve(der);
                 }

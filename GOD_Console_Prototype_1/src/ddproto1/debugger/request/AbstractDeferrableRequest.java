@@ -4,13 +4,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import ddproto1.debugger.managing.VMManagerFactory;
+import ddproto1.debugger.managing.VirtualMachineManager;
+import ddproto1.exception.commons.UnsupportedException;
+
 public abstract class AbstractDeferrableRequest implements IDeferrableRequest{
 
+    private static VMManagerFactory vmmf = VMManagerFactory.getInstance();
+    
 	private List<IPrecondition> preconditions = new ArrayList<IPrecondition>();
 	private List<IResolutionListener> listeners = new ArrayList<IResolutionListener>();
 	
 	private boolean cancelled = false;
+    
+    private String vmid;
 		
+    protected AbstractDeferrableRequest(String vmid){
+        this.vmid = vmid;
+    }
+    
 	protected void addRequirement(IPrecondition precondition){
 		preconditions.add(precondition);
 	}
@@ -22,16 +34,19 @@ public abstract class AbstractDeferrableRequest implements IDeferrableRequest{
 	}
 	
 	protected abstract Object resolveInternal(IResolutionContext ctx) throws Exception;
-	
-	
-	public void cancel(){
+		
+	public synchronized void cancel() throws Exception{
 		if(cancelled) throw new IllegalStateException("Cannot cancel a cancelled" +
 				" request.");
 		this.cancelInternal();
 		cancelled = true;
 	}
+    
+    public boolean isCancelled(){
+        return cancelled;
+    }
 	
-	protected abstract void cancelInternal();
+	protected abstract void cancelInternal() throws Exception;
 		
 	protected void broadcastToListeners(Object what){
 		for(IResolutionListener resListener : listeners)
@@ -49,4 +64,14 @@ public abstract class AbstractDeferrableRequest implements IDeferrableRequest{
 	public void removeResolutionListener(IResolutionListener listener) {
 		listeners.remove(listener);
 	}
+    
+    protected VirtualMachineManager getVMM(){
+        if(vmid == null) throw new UnsupportedException("Unsupported operation for this type " +
+                "of deferrable request");
+        return vmmf.getVMManager(vmid);
+    }
+    
+    public String getVMID(){
+        return vmid;
+    }
 }

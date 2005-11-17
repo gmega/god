@@ -15,7 +15,7 @@ public class JavaThisVariable extends AbstractJavaVariable {
     
     private ObjectReference thisPtr;
 
-    protected JavaThisVariable(IStackFrame parentFrame, ObjectReference thisPtr) {
+    protected JavaThisVariable(JavaStackframe parentFrame, ObjectReference thisPtr) {
         super(parentFrame);
         this.thisPtr = thisPtr;
     }

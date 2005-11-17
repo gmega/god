@@ -8,11 +8,12 @@
 
 package ddproto1.util.traits.commons;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.exception.commons.MalformedInputException;
@@ -31,12 +32,21 @@ public class ConversionTrait {
     
     private static int size = DebuggerConstants.GID_BYTES + DebuggerConstants.THREAD_LUID_BYTES;
     
+    private static final String JLETTER = "\u0041-\u005a\u0061-\u007a\u005f\u0024";
+    private static final String JDIGIT  = "\u0030-\u0039";
+    private static final String JLETTER_DIGIT = JLETTER + JDIGIT;
+    private static final String IDENT = "[" + JLETTER + "]"+ "["+JLETTER_DIGIT+"]*";
+
+    private static final String CLASS_REGEXP = "("+IDENT+"\\Q.\\E)*("+IDENT+")"; 
+    
+    private Pattern classId;
+    
     private ConversionTrait() { };
     
     public synchronized static ConversionTrait getInstance(){
         if(instance == null)
             instance = new ConversionTrait();
-        
+
         return instance;
     }
     
@@ -212,5 +222,35 @@ public class ConversionTrait {
         String rest   = uriSpec.substring(idx+1, uriSpec.length());
         
         return new URI(scheme, null, rest, null);
+    }
+    
+    public boolean matchesRestricted(String s1, String s2){
+        return this.matchesRestrictedInternal(s1, s2, true);
+    }
+    
+    private boolean matchesRestrictedInternal(String s1, String s2, boolean recurse){
+        if(s1.startsWith("*")){
+            if(s2.endsWith(s1.substring(1))) return true;
+            return false;
+        }else if(s1.endsWith("*")){
+            if(s2.startsWith(s2.substring(s2.length()))) return true;
+            return false;
+        }else if(s1.equals(s2)){
+            return true;
+        }else if(recurse) return matchesRestrictedInternal(s2, s1, false);
+        
+        return false;
+    }
+    
+    public boolean isClassName(String cls){
+        Pattern p = this.getPattern();
+        Matcher m = p.matcher(cls);
+        return m.matches();
+    }
+    
+    private Pattern getPattern(){
+        if(classId == null)
+            classId = Pattern.compile(CLASS_REGEXP);
+        return classId;
     }
 }

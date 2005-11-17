@@ -9,7 +9,7 @@ import ddproto1.util.traits.commons.ConversionTrait;
 import junit.framework.TestCase;
 
 public class ConversionTest extends TestCase {
-    public void testConversion(){
+    public void testDotted(){
         ConversionTrait ct = ConversionTrait.getInstance();
         
         String radical = "123";
@@ -19,5 +19,13 @@ public class ConversionTest extends TestCase {
             byte gid = ct.guidFromUUID(uuid);
             ConversionTest.assertTrue(gid == (byte)i);
         }
+    }
+    
+    public void testClassNameRecognizer(){
+        ConversionTrait ct = ConversionTrait.getInstance();
+        assertTrue(ct.isClassName("java.lang.String$StringInternal"));
+        assertTrue(ct.isClassName("avobafo"));
+        assertFalse(ct.isClassName("0java.lang.String"));
+        assertFalse(ct.isClassName("java.lang."));
     }
 }

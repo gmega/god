@@ -15,7 +15,7 @@ public class JavaLocalVariable extends AbstractJavaVariable{
 
     private LocalVariable vDelegate;
     
-    protected JavaLocalVariable(IStackFrame parentFrame, LocalVariable var) {
+    protected JavaLocalVariable(JavaStackframe parentFrame, LocalVariable var) {
         super(parentFrame);
         this.vDelegate = var;
     }

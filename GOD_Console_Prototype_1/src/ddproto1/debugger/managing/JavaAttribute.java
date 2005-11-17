@@ -16,7 +16,7 @@ public class JavaAttribute extends ModifiableVariable {
     private Field fDelegate;
     private IStackFrame frame;
     
-    public JavaAttribute(IStackFrame parent, Field f){
+    public JavaAttribute(JavaStackframe parent, Field f){
         super(parent);
         this.fDelegate = f;
         this.frame = parent;

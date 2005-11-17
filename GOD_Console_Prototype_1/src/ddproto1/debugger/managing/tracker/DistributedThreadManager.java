@@ -162,11 +162,11 @@ public class DistributedThreadManager implements IRequestHandler {
         if(spec == null) throw new NoSuchSymbolException("Node " + gid + " doesn't exist.");
         if(spec.cbr != null){
             try{
-                spec.cbr.undo();
+                spec.cbr.cancel();
                 assert spec.dtsu_step != null;
-                spec.dtsu_step.undo();
+                spec.dtsu_step.cancel();
                 assert spec.dtsu_td != null;
-                spec.dtsu_td.undo();
+                spec.dtsu_td.cancel();
             }catch(Exception ex){
                 throw new InternalError("Unregistration of node " + gid + " could not be completed.", ex);
             }

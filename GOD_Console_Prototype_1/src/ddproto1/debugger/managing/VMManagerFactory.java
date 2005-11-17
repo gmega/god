@@ -8,33 +8,23 @@
 
 package ddproto1.debugger.managing;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.IServiceLocator;
-import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.AbstractDeferrableRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
-import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdTypeImpl;
-import ddproto1.debugger.request.IDeferrableRequest.IPrecondition;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.IncarnationException;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.commons.AttributeAccessException;
-import ddproto1.exception.commons.IllegalAttributeException;
-import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 
@@ -48,11 +38,9 @@ public class VMManagerFactory {
     
     private static VMManagerFactory instance = null;
     
-    private IJDIEventProcessor proc = null;
-    
-    private Map vmms = new HashMap();
-    private Map gid2id = new HashMap();
-    private Map vm2gid = new HashMap();
+    private Map <String, VirtualMachineManager> vmms = new HashMap<String, VirtualMachineManager>();
+    private Map <Byte, String>                  gid2id = new HashMap <Byte, String> ();
+    private Map <VirtualMachine, Byte>          vm2gid = new HashMap <VirtualMachine, Byte>();
     
     private static final MessageHandler mh = MessageHandler.getInstance();
     
@@ -132,6 +120,7 @@ public class VMManagerFactory {
         private VirtualMachine vm;
        
         private DeferrableRegisterRequest(Byte gid){
+            super(gid2id.get(gid));
             this.gid = gid;
             StdPreconditionImpl tmp = new StdPreconditionImpl();
             tmp.setClassId(null);

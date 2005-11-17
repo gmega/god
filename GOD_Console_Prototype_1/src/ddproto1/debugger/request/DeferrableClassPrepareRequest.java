@@ -40,7 +40,7 @@ import ddproto1.util.traits.JDIMiscTrait;
  * @author giuliano
  *
  */
-public class DeferrableClassPrepareRequest implements IDeferrableRequest{
+public class DeferrableClassPrepareRequest extends AbstractDeferrableRequest{
     
     private static List<IDeferrableRequest.IPrecondition> preconds = 
         new ArrayList<IDeferrableRequest.IPrecondition>();
@@ -55,30 +55,32 @@ public class DeferrableClassPrepareRequest implements IDeferrableRequest{
         new UnorderedMultiMap<String, String>(HashSet.class);
     
     private String vmid;
-    private boolean resolved = false;
-    
+
     private List <String> classFilters = new ArrayList<String>();
     private List <String> exclusionFilters = new ArrayList<String>();
-    private List <IResolutionListener> listeners = new LinkedList<IResolutionListener>();
-        
+    
+    private ClassPrepareRequest theRequest = null;
+
     public DeferrableClassPrepareRequest(String vmid) { 
-        this.vmid = vmid;
+        super(vmid);
     }
     
-    public Object resolveNow(IResolutionContext context) throws Exception {
+    public Object resolveInternal(IResolutionContext context) throws Exception {
                 
         checkResolved();
         
         if(!context.getPrecondition().equals(preconds.get(0)))
             throw new InternalError("Invalid precondition.");
         
-        VirtualMachineManager vmm = (VirtualMachineManager)context.getContext();
-        VirtualMachine vm = vmm.virtualMachine();
-        
-        List <String> toAdd = new ArrayList<String>();
-        
         // Cannot change the request anymore.
         synchronized(this){
+            
+            if(isCancelled()) return OK;
+            
+            VirtualMachineManager vmm = this.getVMM();
+            VirtualMachine vm = vmm.virtualMachine();
+            
+            List <String> toAdd = new ArrayList<String>();
             
             /** It might be that the class has already been loaded. If that's the case, the 
              * class prepare request has already been fulfilled.
@@ -143,7 +145,7 @@ public class DeferrableClassPrepareRequest implements IDeferrableRequest{
             /* If there's nothing to do but the request had the intention to do something,
              * then we should do nothing.
              */
-            if(toAdd.size() == 0 && classFilters.size() != 0) return new Object();
+            if(toAdd.size() == 0 && classFilters.size() != 0) return OK;
 
             // -------- Unprogrammed exceptions below this line will cause trouble ----------
             
@@ -159,11 +161,11 @@ public class DeferrableClassPrepareRequest implements IDeferrableRequest{
              * there might be conflicts when two requests to addressed at the same class
              * but with different count filters. */
             cpr.addCountFilter(1);
+            theRequest = cpr;
+            this.broadcastToListeners(theRequest);
             cpr.enable();
             
-            resolved = true;
-        
-            return cpr;
+            return OK;
         }
     }
     
@@ -177,22 +179,21 @@ public class DeferrableClassPrepareRequest implements IDeferrableRequest{
         exclusionFilters.add(filter);
     }
 
-    public synchronized void addResolutionListener(IResolutionListener listener) {
-        checkResolved();
-        listeners.add(listener);
-    }
-
-    public synchronized void removeResolutionListener(IResolutionListener listener) {
-        checkResolved();
-        listeners.remove(listener);
-    }
-
     public List<IPrecondition> getRequirements() {
         return preconds;
     }
     
     private void checkResolved(){
-        if(resolved) throw new IllegalStateException("Request has already been placed.");
+        if(isResolved()) throw new IllegalStateException("Request has already been placed.");
     }
-
+    
+    private boolean isResolved(){
+        return theRequest != null;
+    }
+    
+    public synchronized void cancelInternal(){
+        if(isResolved()){
+            this.getVMM().virtualMachine().eventRequestManager().deleteEventRequest(theRequest);
+        }
+    }
 }
