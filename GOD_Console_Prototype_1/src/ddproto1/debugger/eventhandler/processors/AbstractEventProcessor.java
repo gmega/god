@@ -7,6 +7,8 @@ package ddproto1.debugger.eventhandler.processors;
 import com.sun.jdi.event.Event;
 
 import ddproto1.debugger.managing.IDebugContext;
+import ddproto1.util.traits.JDIEventProcessorTrait;
+import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
 
 /**
  * Skeleton for Event Processors. It provides default implementations
@@ -18,46 +20,48 @@ import ddproto1.debugger.managing.IDebugContext;
  * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor
  *
  */
-public abstract class AbstractEventProcessor implements IJDIEventProcessor {
+public abstract class AbstractEventProcessor implements IJDIEventProcessor, JDIEventProcessorTraitImplementor {
     
     private IJDIEventProcessor next = null;
     protected boolean enabled = true;
     protected IDebugContext dc = null;
     
+    private JDIEventProcessorTrait jdiTrait = new JDIEventProcessorTrait(this);
+    
     public void process(Event e){
-        if(this.enabled)
-            specializedProcess(e);
-        if(next == null) return;
-        
-        // This eliminates recursion when possible
-        for(IJDIEventProcessor el = next; el != null; el = (AbstractEventProcessor)el.getNext()){
-            if(el instanceof AbstractEventProcessor){
-                AbstractEventProcessor ep = (AbstractEventProcessor)el;
-                if(ep.enabled)
-                    ep.specializedProcess(e);
-            }else{
-                el.process(e);
-                break;
-            }
-        }
+    	jdiTrait.process(e);
     }
     
     public void setNext(IJDIEventProcessor el){
-        next = (AbstractEventProcessor)el;
+    	jdiTrait.setNext(el);
     }
     
     public IJDIEventProcessor getNext(){
-        return next;
+    	return jdiTrait.getNext();
     }
     
     public void enable(boolean stats){
-        enabled = stats;
+    	jdiTrait.enable(stats);
     }
     
     public void setDebugContext(IDebugContext dc){
         this.dc = dc;
     }
-    
-    protected abstract void specializedProcess(Event e);
+
+	public boolean enabled() {
+		return enabled;
+	}
+
+	public void enabled(boolean newValue) {
+		enabled = newValue;
+	}
+
+	public IJDIEventProcessor next() {
+		return next;
+	}
+
+	public void next(IJDIEventProcessor next) {
+		this.next = next;
+	}
    
 }

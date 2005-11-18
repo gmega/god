@@ -182,6 +182,8 @@ public class DeferrableRequestQueue {
                 throw new UnsupportedException("Unknown precondition match type.");
         }
         
+        req.cancel();
+        
         return success;
     }
 

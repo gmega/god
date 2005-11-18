@@ -39,10 +39,6 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
 	private int    line;
     
     private Map <String, IJavaDebugTarget> targetsByName = new HashMap<String, IJavaDebugTarget>();
-    private UnorderedMultiMap<IJavaDebugTarget, BreakpointRequest> requestsByTarget = new 
-        UnorderedMultiMap<IJavaDebugTarget, BreakpointRequest>(HashSet.class);
-    private Map <BreakpointRequest, IJavaDebugTarget> targetByRequest = 
-    	new HashMap<BreakpointRequest, IJavaDebugTarget>();
     
     private JDIEventProcessorTrait jdiProcessorTrait;
     
@@ -151,11 +147,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
         return targetsByName.get(targetName);
     }
     
-    protected void addRequestForTarget(BreakpointRequest request, IJavaDebugTarget target){
-    	synchronized(requestsByTarget){
-    		requestsByTarget.add(target, request);
-    	}
-    }
+
 
 	public void next(IJDIEventProcessor next) {
 		this.next = next;
