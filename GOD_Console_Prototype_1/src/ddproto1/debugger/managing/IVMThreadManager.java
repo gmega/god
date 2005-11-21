@@ -10,6 +10,8 @@ package ddproto1.debugger.managing;
 
 import java.util.List;
 
+import org.eclipse.debug.core.model.IThread;
+
 import com.sun.jdi.ThreadReference;
 
 /**
@@ -18,16 +20,21 @@ import com.sun.jdi.ThreadReference;
  * REMARK Don't know if this interface will need any changes.
  */
 public interface IVMThreadManager {
-    public boolean isVMSuspended();
+
+	public boolean isVMSuspended();
     public void suspendAll() throws Exception;
     public void resumeAll() throws Exception;
-    
-    public List getThreadIDList();
+
+    /** Those methods should be converted to use IThreads only. */
     public void setCurrentThread(ThreadReference tr);
-    public ThreadReference getCurrentThread();
-    
     public ThreadReference findThreadById(long uid);
     public ThreadReference findThreadByUUID(int uuid);
     public ThreadReference findThreadByUUID(Integer uuid);
+    public ThreadReference getCurrentThread();
+    public List<IThread> getThreadIDList();
+
     public Integer         getThreadUUID(ThreadReference tr);
+    
+    /** Should be moved to a IJavaThreadManager */
+    public JavaThread      getLIThread(ThreadReference tr);
 }

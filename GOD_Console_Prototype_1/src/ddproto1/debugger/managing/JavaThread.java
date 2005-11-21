@@ -157,6 +157,10 @@ public class JavaThread extends JavaDebugElement implements IThread{
     public IBreakpoint[] getBreakpoints() {
     	
     }
+    
+    public void handleBreakpointHit(JavaBreakpoint jb){
+    	
+    }
 
     public String getModelIdentifier() {
         return DebuggerConstants.PLUGIN_ID;
