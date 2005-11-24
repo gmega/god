@@ -9,11 +9,15 @@
 package ddproto1.debugger.eventhandler;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.ClassPrepareEvent;
@@ -31,6 +35,7 @@ import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.exception.ConfigException;
 import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.util.collection.UnorderedMultiMap;
 
 /**
  * @author giuliano
@@ -46,6 +51,11 @@ public class DelegatingHandler implements IEventHandler, IEventManager{
     
     private List[] listeners;
     private Map listeners2policies;
+    private UnorderedMultiMap<EventRequest, IJDIEventProcessor> request2listener;
+    
+    private ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    Lock rLock = rwLock.readLock();
+    Lock wLock = rwLock.writeLock();
     
     public DelegatingHandler() {
         listeners = new List[N_TYPES];
@@ -53,6 +63,7 @@ public class DelegatingHandler implements IEventHandler, IEventManager{
             listeners[i] = new LinkedList();
         
         listeners2policies = new HashMap();
+        request2listener = new UnorderedMultiMap<EventRequest, IJDIEventProcessor>(HashSet.class);
     }
 
     /* (non-Javadoc)
@@ -128,18 +139,23 @@ public class DelegatingHandler implements IEventHandler, IEventManager{
     public void addEventListener(int type, IJDIEventProcessor listener)
             throws IllegalAttributeException {
         
-        if (type == ALL){
-            for(int i = 0; i < N_TYPES; i++)
-                listeners[i].add(listener);
+        try{
+            wLock.lock();
+            if (type == ALL){
+                for(int i = 0; i < N_TYPES; i++)
+                    listeners[i].add(listener);
             
-            return;
-        }
+                return;
+            }
         
-        if ((type < 0) || (type >= N_TYPES))
-            throw new IllegalAttributeException(module
-                    + " Invalid event type specified.");
+            if ((type < 0) || (type >= N_TYPES))
+                throw new IllegalAttributeException(module
+                        + " Invalid event type specified.");
 
-        listeners[type].add(listeners[type].size(), listener);
+            listeners[type].add(listeners[type].size(), listener);
+        }finally{
+            wLock.unlock();
+        }
     }
     
     
@@ -149,48 +165,89 @@ public class DelegatingHandler implements IEventHandler, IEventManager{
      public void setListenerPolicyFilters(IJDIEventProcessor listener, Set policyFilters)
     	throws ConfigException
     {
-        /* Rather expensive verification - fortunately, listener policy filters 
-         * are rarely changed after they're first set. */
-        boolean found = false;
-        for(int i = 0; i < N_TYPES; i++){
-            if(listeners[i].contains(listener)) { found = true; break; }
-        }
-        
-        if (!found){
-            throw new ConfigException(module
-                    + " You cannot set policy filters "
-                    + "for an unregistered listener");
-        }
+         try {
+            rLock.lock();
+            /*
+             * Rather expensive verification - fortunately, listener policy
+             * filters are rarely changed after they're first set.
+             */
+            boolean found = false;
+            for (int i = 0; i < N_TYPES; i++) {
+                if (listeners[i].contains(listener)) {
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                throw new ConfigException(module
+                        + " You cannot set policy filters "
+                        + "for an unregistered listener");
+            }
 
-        if(!(policyFilters == null))
-            listeners2policies.put(listener, policyFilters);
+            if (!(policyFilters == null))
+                listeners2policies.put(listener, policyFilters);
+        } finally {
+            rLock.unlock();
+        }
     }
 
     public void removeEventListener(int type, IJDIEventProcessor listener)
             throws IllegalAttributeException {
-        
-        if (type == ALL){
-            for(int i = 0; i < N_TYPES; i++)
-                listeners[i].remove(listener);
-            
-            return;
+
+        try {
+            rLock.lock();
+            if (type == ALL) {
+                for (int i = 0; i < N_TYPES; i++)
+                    listeners[i].remove(listener);
+
+                return;
+            }
+
+            if ((type < 0) || (type >= N_TYPES))
+                throw new IllegalAttributeException(module
+                        + " Invalid event type specified.");
+
+            listeners[type].remove(listener);
+            listeners2policies.remove(listener);
+        } finally {
+            rLock.unlock();
         }
-
-        if ((type < 0) || (type >= N_TYPES))
-            throw new IllegalAttributeException(module
-                    + " Invalid event type specified.");
-
-        listeners[type].remove(listener);
-        listeners2policies.remove(listener);
     }
     
     private void broadcast(List l, Event e){
-        Iterator it = l.iterator();
+        bcast_phase1(e);
+        bcast_phase2(l, e);
+    }
+    
+    private void bcast_phase1(Event e){
+        try{
+            rLock.lock();
+            Iterable <IJDIEventProcessor> procs = request2listener.getClass(e.request());
+            if(procs == null) return;
+            /** Don't need to check if isEligible since we don't allow
+             * policy filters to be set for event request listeners (it
+             * doesn't make sense).
+             */
+            for(IJDIEventProcessor proc : procs)
+                proc.process(e);
+        }finally{
+            rLock.unlock();
+        }
+    }
+    
+    private void bcast_phase2(List l, Event e){
+        try{
+            rLock.lock();
+            Iterator it = l.iterator();
         
-        while(it.hasNext()){
-            IJDIEventProcessor el = (IJDIEventProcessor)it.next();
-            if(isEligible(el, e))
-                el.process(e);
+            while(it.hasNext()){
+                IJDIEventProcessor el = (IJDIEventProcessor)it.next();
+                if(isEligible(el, e))
+                    el.process(e);
+            }
+        }finally{
+            rLock.unlock();
         }
     }
     
@@ -208,5 +265,23 @@ public class DelegatingHandler implements IEventHandler, IEventManager{
         }
         
         return false;
+    }
+
+    public void addEventListener(EventRequest request, IJDIEventProcessor listener) {
+        try{
+            wLock.lock();
+            request2listener.add(request, listener);
+        }finally{
+            wLock.unlock();
+        }
+    }
+
+    public void removeEventListener(EventRequest request, IJDIEventProcessor listener) {
+        try{
+            wLock.lock();
+            request2listener.remove(request, listener);
+        }finally{
+            wLock.unlock();
+        }
     }
 }

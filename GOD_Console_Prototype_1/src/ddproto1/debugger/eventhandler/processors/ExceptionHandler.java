@@ -39,7 +39,7 @@ public class ExceptionHandler extends AbstractEventProcessor{
     /* (non-Javadoc)
      * @see ddproto1.debugger.eventhandler.processors.EventProcessor#specializedProcess(com.sun.jdi.event.Event)
      */
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         /** We'll execute only if the ApplicationExceptionDetector hasn't already. */
         ProcessingContextManager pcm = ProcessingContextManager.getInstance();
         IProcessingContext ipc = pcm.getProcessingContext();

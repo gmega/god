@@ -39,6 +39,10 @@ public abstract class JavaDebugElement extends DebugElement{
                 IStatus.ERROR, reason, cause));
     }
     
+    public void notSupported(String what) throws DebugException{
+        requestFailed("Not supported - " + what, null);
+    }
+    
     public String getModelIdentifier(){
         return DebuggerConstants.PLUGIN_ID;
     }

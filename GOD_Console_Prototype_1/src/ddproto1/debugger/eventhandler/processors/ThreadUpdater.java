@@ -28,7 +28,7 @@ public class ThreadUpdater extends AbstractEventProcessor{
     /* (non-Javadoc)
      * @see ddproto1.debugger.eventhandler.processors.EventProcessor#specializedProcess(com.sun.jdi.event.Event)
      */
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         try{
             
             ThreadReference tr = ThreadManager.getThreadFromEvent(e);

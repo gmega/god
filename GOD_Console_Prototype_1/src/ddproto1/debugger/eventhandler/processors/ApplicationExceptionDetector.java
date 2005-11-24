@@ -76,8 +76,7 @@ public class ApplicationExceptionDetector extends AbstractEventProcessor{
         dc.getVotingManager().declareVoterFor(NO_EXCEPTION_PRINTING);
     }
     
-    @Override
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         if (!(e instanceof ExceptionEvent))
             throw new UnsupportedException("Unsupported event type "
                     + e.getClass());

@@ -56,9 +56,6 @@ public class JDIMiscTrait {
                 break;
             }
         }
-        
-        /** This is part of my hack. Unset the last step request. */
-        parent.setLastStepRequest(parent.getThreadManager().getThreadUUID(thread), null);        
     }
     
     public List<ReferenceType> getLoadedClassesFrom(VirtualMachineManager vmm, List<String> typeNames){

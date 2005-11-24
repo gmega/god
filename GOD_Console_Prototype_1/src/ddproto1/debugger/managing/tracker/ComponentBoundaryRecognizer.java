@@ -91,7 +91,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
      *
      * REMARK I don't think this method has to be synchronized. 
      */
-    protected synchronized void specializedProcess(Event e) {
+    public synchronized void specializedProcess(Event e) {
         StepEvent se = (StepEvent)e;
         Location l = se.location();
 

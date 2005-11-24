@@ -5,27 +5,27 @@
  */
 package ddproto1.debugger.managing;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.log4j.Logger;
-import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
-import org.eclipse.debug.core.ILaunch;
-import org.eclipse.debug.core.model.DebugElement;
 import org.eclipse.debug.core.model.IBreakpoint;
-import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.model.IThread;
 
 import com.sun.jdi.Field;
 import com.sun.jdi.IncompatibleThreadStateException;
 import com.sun.jdi.IntegerValue;
+import com.sun.jdi.ObjectCollectedException;
 import com.sun.jdi.StackFrame;
 import com.sun.jdi.ThreadReference;
+import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.Value;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.Event;
@@ -35,10 +35,8 @@ import com.sun.jdi.request.StepRequest;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
-import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.util.MessageHandler;
-import ddproto1.util.traits.JDIMiscTrait;
 
 /**
  * 
@@ -53,6 +51,13 @@ public class JavaThread extends JavaDebugElement implements IThread{
 	private static final int TIMEOUT = 5000;
     
     private static Logger logger = MessageHandler.getInstance().getLogger(JavaThread.class);
+    
+    private static Map<Integer, Integer> stepMap = new HashMap<Integer, Integer>();
+    static{
+        stepMap.put(StepRequest.STEP_INTO, DebugEvent.STEP_INTO);
+        stepMap.put(StepRequest.STEP_OVER, DebugEvent.STEP_OVER);
+        stepMap.put(StepRequest.STEP_OUT, DebugEvent.STEP_RETURN);
+    }
     
     /** JDI thread delegate. */
     private ThreadReference tDelegate; 
@@ -73,6 +78,9 @@ public class JavaThread extends JavaDebugElement implements IThread{
     
     /** Pending step request handler (null if none) */
     StepHandler pendingHandler;
+    
+    /** List of breakpoints that last suspended this thread. */
+    private List <IBreakpoint> sBreakpoints = new ArrayList<IBreakpoint>();
     
     public JavaThread(ThreadReference tDelegate, IJavaDebugTarget parent){
         super(parent);
@@ -155,11 +163,30 @@ public class JavaThread extends JavaDebugElement implements IThread{
     }
 
     public IBreakpoint[] getBreakpoints() {
-    	
+    	return breakpointsAsArray();
     }
     
     public void handleBreakpointHit(JavaBreakpoint jb){
-    	
+        addBreakpoint(jb);
+        fireSuspendEvent(DebugEvent.BREAKPOINT);
+    }
+    
+    protected IBreakpoint [] breakpointsAsArray(){
+        synchronized(sBreakpoints){
+            return sBreakpoints.toArray(new IBreakpoint[sBreakpoints.size()]);
+        }
+    }
+    
+    protected void addBreakpoint(JavaBreakpoint jb){
+        synchronized(sBreakpoints){
+            sBreakpoints.add(jb);
+        }
+    }
+    
+    protected void clearBreakpoints(){
+        synchronized(sBreakpoints){
+            sBreakpoints.clear();
+        }
     }
 
     public String getModelIdentifier() {
@@ -181,7 +208,9 @@ public class JavaThread extends JavaDebugElement implements IThread{
     public void resume() throws DebugException {
         try{
             writeLock.lock();
+            clearBreakpoints();
             setRunning(true);
+            fireResumeEvent(DebugEvent.CLIENT_REQUEST);
             tDelegate.resume();
         }finally{
             writeLock.unlock();
@@ -221,20 +250,47 @@ public class JavaThread extends JavaDebugElement implements IThread{
     				logger.error("Failed to suspend thread.");
     				return;
     			}
-    			
     			setRunning(false);
+                fireSuspendEvent(DebugEvent.CLIENT_REQUEST);
     		}	
     	};
     	
     	Thread _suspension = new Thread(suspension);
     	_suspension.start();
     }
+    
+    public void suspendedByVM(){
+        this.setRunning(false);
+    }
+    
+    public void resumedByVM()
+        throws DebugException
+    {
+        setRunning(true);
+        ThreadReference thread = this.getJDIThread();
+        
+        /** We do the same semantic twisting of VirtualMachine#resume as 
+         * the one we found inside JDT. Seems like the best way to avoid
+         * bizarre suspend count configurations.
+         */
+        while (thread.suspendCount() > 1) {
+            try {
+                thread.resume();
+            } catch (ObjectCollectedException e) {
+            } catch (VMDisconnectedException e) {
+                //disconnected();
+            }catch (RuntimeException e) {
+                setRunning(false);
+                fireSuspendEvent(DebugEvent.CLIENT_REQUEST);
+                this.requestFailed("Error while suspending thread.", e);                 
+            }
+        }
+    }
 
     private void abortPendingStepRequests(){
     	if(pendingHandler != null) pendingHandler.abort();
     }
-    
-    
+        
     public boolean canStepInto() {
         return this.canStep();
     }
@@ -266,7 +322,9 @@ public class JavaThread extends JavaDebugElement implements IThread{
     
     protected void setRunning(boolean mode){
     	this.running = mode;
+        if(mode == true) clearBreakpoints();
     }
+    
 
     public void stepInto() throws DebugException {
         StepHandler sh = new StepHandler(StepRequest.STEP_LINE, StepRequest.STEP_INTO);
@@ -337,6 +395,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
         
         public void resumeUnderlyingThread() throws DebugException{
         	JavaThread.this.pendingHandler = this;
+            fireResumeEvent(mapStep(depth));
         	JavaThread.this.resume();
         }
 
@@ -344,6 +403,7 @@ public class JavaThread extends JavaDebugElement implements IThread{
             EventRequest incoming = e.request();
             assert ourRequest == incoming;
             JavaThread.this.setStepping(false);
+            fireSuspendEvent(DebugEvent.STEP_END);
             stepComplete();
         }
         
@@ -370,24 +430,16 @@ public class JavaThread extends JavaDebugElement implements IThread{
             vmm.getEventManager().addEventListener(ourRequest, this);
         }
         
+        protected int mapStep(int stepCode){
+            return stepMap.get(stepCode);
+        }
+        
         public void abort(){
         	if(ourRequest != null){
         		VirtualMachine vm = getVMM().virtualMachine();
         		vm.eventRequestManager().deleteEventRequest(ourRequest);
             	finalizeHandler();
         	}
-        }
-
-        /**
-         * Processes breakpoints that have been set for this thread. 
-         * 
-         * @author giuliano
-         */
-        private class BreakpointHandler extends AbstractEventProcessor{
-			@Override
-			protected void specializedProcess(Event e) {
-
-			}
         }
     }
 }

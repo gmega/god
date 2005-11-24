@@ -967,7 +967,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
                 return;
             }
             VirtualMachineManager vmm = vmmf.getVMManager(currentMachine); 
-            if(!vmm.getThreadManager().isVMSuspended()){
+            if(!vmm.getThreadManager().allThreadsSuspended()){
                 mh.getStandardOutput().println("Warning - JVM is not suspended. This list may not be accurate.");
             }
             mh.getStandardOutput().println("Threads for node <" + currentMachine + ">");
@@ -1743,7 +1743,7 @@ public class ConsoleDebugger implements IDebugger, IUICallback, IApplicationExce
                 }catch(VMDisconnectedException ex){
                     continue;
                 }
-                if (!tm.isVMSuspended() && !firstUnstopped){
+                if (!tm.allThreadsSuspended() && !firstUnstopped){
                     mh.getStandardOutput().println(
                             "Warning - one or more Virtual Machines haven't been stopped. "
                                             + "Snapshot might not be consistent (TODO list).");

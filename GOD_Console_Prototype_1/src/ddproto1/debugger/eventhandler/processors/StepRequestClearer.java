@@ -13,8 +13,7 @@ public class StepRequestClearer extends AbstractEventProcessor{
 	private JDIMiscTrait jmt = JDIMiscTrait.getInstance();
 	private VMManagerFactory vmmf = VMManagerFactory.getInstance();
 	
-	@Override
-	protected void specializedProcess(Event e) {
+	public void specializedProcess(Event e) {
 		VirtualMachineManager vmm = vmmf.getVMManager((String)e.request().getProperty(DebuggerConstants.VMM_KEY));
 		StepEvent se = (StepEvent)e;
 		

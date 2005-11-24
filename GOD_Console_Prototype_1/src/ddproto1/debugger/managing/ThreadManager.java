@@ -15,6 +15,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.debug.core.model.IThread;
+
 import com.sun.jdi.ClassType;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InvocationException;
@@ -61,15 +63,18 @@ public class ThreadManager implements
      * a much neatier solution). */
     private Map <Integer, ThreadReference> uuid2thread;
     private Map <ThreadReference, Integer> thread2uuid;
+    
+    /** Language independent thread references. */
+    private Map <ThreadReference, JavaThread> liThreads;
 
     public ThreadManager(IDebugContext dc){
         this.dc = dc;
         this.uuid2thread = new HashMap <Integer, ThreadReference> ();
         this.thread2uuid = new HashMap <ThreadReference, Integer> ();
+        this.liThreads   = new HashMap <ThreadReference, JavaThread>();
     }
     
-
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         try{
             ThreadReference tr = ThreadManager.getThreadFromEvent(e);
             IProcessingContext pc = pcm.getProcessingContext();
@@ -125,6 +130,10 @@ public class ThreadManager implements
          */ 
         return new ArrayList<Integer>(uuid2thread.keySet());
     }
+    
+    public synchronized IThread[] getThreads(){
+        return this.liThreads();
+    }
 
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IVMThreadManager#setCurrentThread(com.sun.jdi.ThreadReference)
@@ -167,6 +176,10 @@ public class ThreadManager implements
             }
             
             thread2uuid.put(tr, id);
+            
+            /** Add a wrapper. */
+            this.addThread(tr);
+            
             return true;
         }
     }
@@ -200,14 +213,13 @@ public class ThreadManager implements
         /*
          * We might be frozen here for a while. Launch another thread to handle
          * the other events in case we freeze (otherwise the program stops).
+         * 
+         * That's what we get for relying in expression evaluation for program
+         * execution.
          */
         dc.getVMM().getDispatcher().handleNext();
         Integer id = extractId(current);
 
-        /*
-         * Workaround for a possible bug from a race condition in JDI or the C++
-         * backend.
-         */
 //        if (current.isSuspended()) {
 //            int delta = current.suspendCount();
 //            for(int i = 0; i < delta; i++)
@@ -235,31 +247,12 @@ public class ThreadManager implements
         return true;
     }
     
-    private int setSuspendCount(ThreadReference tr, int count){
-        int oldcount = tr.suspendCount();
-        
-        if(oldcount < count){
-            for(int i = oldcount; i < count; i++){
-                tr.suspend();
-            }
-        }
-        
-        if(oldcount > count){
-            for(int i = oldcount; i > count; i--){
-                tr.resume();
-            }
-        }
-        
-        return oldcount;
-    }
-    
     private Integer extractId(ThreadReference tr)
     	throws Exception
     {
         VirtualMachine vm = dc.getVMM().virtualMachine();
         TaggerProxy tagger = TaggerProxy.getInstance();
         ClassType taggerClass = tagger.getClass(vm, DebuggerConstants.TAGGER_CLASS_NAME);
-        ObjectReference instance = tagger.getInstance(taggerClass, tr);
         
         IntegerValue uuid = tagger.getRemoteUUID(tr, taggerClass);
         
@@ -273,8 +266,9 @@ public class ThreadManager implements
      * 
      * @return
      */
-    public synchronized boolean isVMSuspended(){
+    public synchronized boolean allThreadsSuspended(){
         Iterator it = dc.getVMM().virtualMachine().allThreads().iterator();
+        
         boolean suspended = true;
         while(it.hasNext()){
             suspended &= ((ThreadReference)it.next()).isSuspended();
@@ -292,6 +286,18 @@ public class ThreadManager implements
             else target = null;
         }
         return target;
+    }
+    
+    public boolean hasThreads(){
+        synchronized(this){
+            return !thread2uuid.isEmpty();
+        }
+    }
+    
+    public JavaThread getLIThread(ThreadReference tr){
+        synchronized(liThreads){
+            return liThreads.get(tr);
+        }
     }
     
     public synchronized ThreadReference findThreadByUUID(int uuid){
@@ -327,7 +333,34 @@ public class ThreadManager implements
         }
         return tr;
     }
-
+    
+    protected void addThread(ThreadReference tr){
+        JavaThread jt;
+        
+        synchronized(liThreads){
+            if(liThreads.containsKey(tr)) return;
+            IJavaDebugTarget ijdt = (IJavaDebugTarget)dc.getVMM().getAdapter(IJavaDebugTarget.class);
+            if(ijdt == null) return;
+            jt = new JavaThread(tr, ijdt);
+            liThreads.put(tr, jt);
+        }
+        
+        jt.fireCreationEvent();
+    }
+    
+    protected void releaseThread(JavaThread jt){
+        synchronized(liThreads){
+            liThreads.remove(jt.getJDIThread());
+        }
+    }
+    
+    protected IThread [] liThreads(){
+        synchronized(liThreads){
+            IThread [] tArray = new IThread[liThreads.size()];
+            return liThreads.entrySet().toArray(tArray);
+        }
+    }
+   
     /* (non-Javadoc)
      * @see ddproto1.debugger.request.DeferrableEventRequest#getAssociatedVM()
      */
@@ -365,5 +398,13 @@ public class ThreadManager implements
      */
     public void enable(boolean status) {
         enabled = true;
+    }
+
+    public void notifyVMSuspend() {
+        
+    }
+    
+    public void notifyVMResume() {
+        
     }
 }

@@ -44,8 +44,7 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
     private static final Integer protocolSlot = new Integer(5);
     private static VMManagerFactory vmmf = VMManagerFactory.getInstance();
     
-    @Override
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         if(e instanceof BreakpointEvent) processPhaseOne((BreakpointEvent)e);
         else if(e instanceof StepEvent) processPhaseTwo((StepEvent)e);
         else

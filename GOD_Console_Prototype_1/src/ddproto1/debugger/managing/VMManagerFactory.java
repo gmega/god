@@ -52,8 +52,14 @@ public class VMManagerFactory {
         
         return instance;
     }
-        
+    
     public VirtualMachineManager newVMManager(IObjectSpec vmmspec)
+        throws ConfigException, AttributeAccessException, IncarnationException
+    {
+        return this.newVMManager(null, vmmspec);
+    }
+        
+    public VirtualMachineManager newVMManager(IJavaDebugTarget target, IObjectSpec vmmspec)
     	throws ConfigException, AttributeAccessException, IncarnationException
     {
         String name = vmmspec.getAttribute(IConfigurationConstants.NAME_ATTRIB);
@@ -76,6 +82,9 @@ public class VMManagerFactory {
         }
         
         VirtualMachineManager vmm = (VirtualMachineManager)locator.incarnate(vmmspec);
+        
+        if(target != null)
+            vmm.setTarget(target);
         
         vmms.put(name, vmm);
         gid2id.put(new Byte(gid), name);

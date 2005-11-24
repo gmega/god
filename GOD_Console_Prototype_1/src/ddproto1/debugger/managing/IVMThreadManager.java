@@ -17,13 +17,11 @@ import com.sun.jdi.ThreadReference;
 /**
  * @author giuliano
  *
- * REMARK Don't know if this interface will need any changes.
+ * This interface is going through a process of conversion to the 
+ * Eclipse debug model, which is language-independent. 
+ *
  */
 public interface IVMThreadManager {
-
-	public boolean isVMSuspended();
-    public void suspendAll() throws Exception;
-    public void resumeAll() throws Exception;
 
     /** Those methods should be converted to use IThreads only. */
     public void setCurrentThread(ThreadReference tr);
@@ -31,10 +29,18 @@ public interface IVMThreadManager {
     public ThreadReference findThreadByUUID(int uuid);
     public ThreadReference findThreadByUUID(Integer uuid);
     public ThreadReference getCurrentThread();
-    public List<IThread> getThreadIDList();
 
+    /** Those methods are language-independent. */
+    public IThread []      getThreads();
+    public List <Integer>  getThreadIDList();
     public Integer         getThreadUUID(ThreadReference tr);
+    public boolean         hasThreads();
+    public boolean         allThreadsSuspended();
+    public void            suspendAll() throws Exception;
+    public void            resumeAll() throws Exception;
     
-    /** Should be moved to a IJavaThreadManager */
+    /** Should be moved to a IJavaThreadManager extends IVMThreadManager interface. */
     public JavaThread      getLIThread(ThreadReference tr);
+    public void            notifyVMSuspend();
+    
 }

@@ -118,6 +118,16 @@ public class DeferrableRequestQueueTest extends TestCase {
         public List<IPrecondition> getRequirements() { 
             return clone;
         }
+
+        public void cancel() throws Exception {
+            // TODO Auto-generated method stub
+            
+        }
+
+        public boolean isCancelled() {
+            // TODO Auto-generated method stub
+            return false;
+        }
     }
     
     class PatternPrecondition extends StdPreconditionImpl{

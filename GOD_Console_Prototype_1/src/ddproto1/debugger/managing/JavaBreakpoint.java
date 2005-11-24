@@ -93,7 +93,8 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
         }
 	}
 
-    /** Called whenever a deferrable request is fulfilled */
+    /** Called whenever a deferrable request is fulfilled. 
+     * Request won't be enabled before we return. */
     public void notifyResolution(IDeferrableRequest source, Object byproduct) {
         if(!(source instanceof DeferrableBreakpointRequest) ||
         		!(byproduct instanceof BreakpointRequest))
@@ -108,9 +109,25 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
          */
         synchronized(targetByRequest){
         	IJavaDebugTarget target = this.getTarget(dbr.getVMID());
-        	if(target == null) 
-        		throw new InternalError("Invalid target.");
-        
+            
+            /** Null target means that the breakpoint is in process
+             * of being removed for this target. This should be a rare
+             * case. 
+             * 
+             * We can't let this request be enabled, so we re-cancel the
+             * deferrable request.
+             */
+            if(target == null){
+                VirtualMachineManager vmm = vmmf.getVMManager(dbr.getVMID());
+                try {
+                    vmm.getDeferrableRequestQueue().removeRequest(dbr);
+                } catch (Exception ex) {
+                    logger.error(ex);
+                    throw new RuntimeException("Failed to cancel deferrable "
+                            + "breakpoint request for target " + target, ex);
+                }
+            }
+   
         	VirtualMachineManager vmm = target.getVMManager();
         	vmm.getEventManager().addEventListener(theRequest, jdiProcessorTrait);
         
@@ -146,7 +163,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
 		thread.handleBreakpointHit(this);
 	}
     
-    protected void cancelForTarget(IJavaDebugTarget target)
+    public void cancelForTarget(IJavaDebugTarget target)
     	throws DebugException
     {
     	synchronized(targetByRequest){
@@ -162,7 +179,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
     {
     	/** After this synchronized block completes, this JavaBreakpoint
     	 * instance will no longer recognize the target 'target' as a valid
-    	 * one.
+    	 * target.
     	 */
     	
     	DeferrableBreakpointRequest theRequest = null;
@@ -182,12 +199,15 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
     		assert theRequest != null;
     	}
     	
+        /** We now attempt to cancel the request associated with this target. 
+         * It might have already been cancelled at method notifyResolution()
+         * because we released the lock. */
     	try{
-    		theRequest.cancel();
+    	    target.getVMManager().getDeferrableRequestQueue().removeRequest(theRequest);
     	}catch(Exception ex){
-    		logger.error(ex);
-    		this.throwDebugException("Failed to cancel deferrable " +
-    				"breakpoint request for target " + target, ex);
+    	    logger.error(ex);
+    	    this.throwDebugException("Failed to cancel deferrable " +
+    	            "breakpoint request for target " + target, ex);
     	}
     }
     
@@ -196,7 +216,9 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
     }
     
     protected IJavaDebugTarget getTarget(String targetName){
-        return targetsByName.get(targetName);
+        synchronized(targetsByName){
+            return targetsByName.get(targetName);
+        }
     }
     
     protected boolean isRegistered(IJavaDebugTarget target){

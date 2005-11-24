@@ -9,16 +9,19 @@
 package ddproto1.debugger.managing;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.debug.core.DebugEvent;
 
 import com.sun.jdi.Mirror;
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.event.Event;
+import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.ExceptionRequest;
@@ -53,6 +56,7 @@ import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.exception.IllegalStateException;
 import ddproto1.exception.InternalError;
 import ddproto1.exception.NoSuchSymbolException;
+import ddproto1.exception.TargetRequestFailedException;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
@@ -63,6 +67,8 @@ import ddproto1.sourcemapper.ISourceMapper;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
+import ddproto1.util.traits.JDIEventProcessorTrait;
+import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
 
 
 /**
@@ -76,9 +82,12 @@ import ddproto1.util.PolicyManager;
  * @author giuliano
  *
  */
-public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfigurable{
+public class VirtualMachineManager implements Mirror, IConfigurable, IAdaptable, JDIEventProcessorTraitImplementor{
     
     private static final String module = "VirtualMachineManager -";
+    private static final Logger logger = MessageHandler.getInstance().getLogger(VirtualMachineManager.class);
+    
+    private static final int JVM_EXIT_CODE = 1;
 
     private DeferrableRequestQueue queue;
     private EventDispatcher disp = null;
@@ -88,13 +97,25 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     private ThreadManager tm;
     private AbstractEventProcessor aed;
     
+    private IJDIEventProcessor _thisProcessor;
     private IJDIEventProcessor next;
     
-    /** HACK MAP. */
-    private Map<Integer, Byte> stepRequests = new HashMap<Integer, Byte>();
+    private IJavaDebugTarget target;
     
     private String name;
     private String gid;
+    
+    private boolean terminating = false;
+    
+    private boolean terminated = false;
+    
+    private boolean disconnecting = false;
+    
+    private boolean disconnected = true;
+    
+    private boolean suspended = false;
+    
+    private boolean isEnabled = true;
     
     /** Creates a new VirtualMachineManager.
      * 
@@ -106,6 +127,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     {
         this.handler = new DelegatingHandler();
         this.disp = new EventDispatcher(handler);
+        _thisProcessor = new JDIEventProcessorTrait(this);
         
         /*TODO When code hits beta, enable the disallow duplicates. */
         //queue = new DeferrableRequestQueue(name, DeferrableRequestQueue.DISALLOW_DUPLICATES);
@@ -113,6 +135,11 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
 
     public DeferrableRequestQueue getDeferrableRequestQueue(){
         return queue;
+    }
+    
+    protected void setTarget(IJavaDebugTarget target){
+        target.bindTo(this); // Forces binding.
+        this.target = target;
     }
     
     /** Returns the associated JVM mirror.
@@ -168,14 +195,90 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
             throw new InternalError();
             // This will (or at least should) never happen.
         }catch(Exception e){
-            if(jvm != null){
-                try{
-                    jvm.dispose();
-                }catch(VMDisconnectedException ex){ }	// Just means the JVM is already dead.
-            }
+            /** Something went wrong, better stop it now. */
+            if(jvm != null)
+                this.terminate();
+
             throw new NestedRuntimeException(e);
         }
+        
+        this.disconnected(false);
     }
+    
+    public void terminate(){
+        synchronized(this){
+            if(!isAvailable()) return;
+            this.terminating(true);
+        }
+        try{
+            jvm.exit(JVM_EXIT_CODE);
+        }catch(VMDisconnectedException ex){
+            /** JVM is already dead. */
+            terminated();
+        }
+    }
+    
+    public void disconnect(){
+        synchronized(this){
+            if(!isAvailable()) return;
+            this.disconnecting(true);
+        }
+        try{
+            jvm.dispose();
+        }catch(VMDisconnectedException ex){
+            /** Already disconnected. */
+            disconnected();
+        }
+    }
+    
+    public boolean isAvailable(){
+        return !isTerminated() & !isTerminating() & !isDisconnecting() & isConnected(); 
+    }
+    
+    public boolean isDisconnecting(){
+        return disconnecting;
+    }
+    
+    
+    private void disconnecting(boolean stats){
+        this.disconnecting = stats;
+    }
+    
+    private synchronized void disconnected(){
+        disconnecting(false);
+        disconnected(true);
+        cleanUp();
+    }
+    
+    private void disconnected(boolean stats){
+        this.disconnected = stats;
+    }
+    
+    private void terminating(boolean stats){
+        this.terminating = stats;
+    }
+    
+    public boolean isTerminating(){
+        return this.terminating;
+    }
+    
+    public boolean isTerminated(){
+        return this.terminated;
+    }
+    
+    private synchronized void terminated(){
+        terminating(false);
+        terminated(true);
+        disconnected(true);
+        cleanUp();
+    }
+    
+    private void terminated(boolean stats){
+        terminated = stats;
+    }
+    
+    private void cleanUp(){ /** NO-OP */ }
+
     
     /** Determines with <b>reasonable</b> accuracy wether there's a 
      * valid connection to the associated JVM or not.
@@ -184,12 +287,7 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
      * if <i>perhaps</i> it doesn't exist.
      */    
     public boolean isConnected(){
-        try{
-            checkConnected();
-            return true;
-        }catch(Exception e){
-            return false;
-        }
+        return !disconnected;
     }
     
     /** Returns stringfied information about the surrogate JVM.
@@ -198,7 +296,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     public String toString(){
         return "Status for Virtual Machine <" + name +">\n" +
         	   "Connected: " + isConnected() + "\n";
-        	   //"Connector argument map: " + info.getAttributesByGroup("jdiconnector") + "\n";
     }
     
     /** Returns the ThreadManager for this VirtualMachine.
@@ -217,13 +314,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
      * @see ddproto1.debugger.eventhandler.IEventManager
      */
     public IEventManager getEventManager(){
-        /* Weaker checking since the interface makes sense even if the JVM is
-         * not connected.
-         */
-        if(handler == null){
-            throw new VMDisconnectedException(
-                    " Error - EventHandler is not yet ready.");
-        }
         return handler;
     }
     
@@ -236,9 +326,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     }
     
     public EventDispatcher getDispatcher(){
-        if(disp == null)
-            throw new VMDisconnectedException(" Error - EventDispatcher " +
-            		"hasn't been instanciated yet.");
         return disp;
     }
     
@@ -262,7 +349,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     	throws IllegalAttributeException, UninitializedAttributeException{
         
         return this.acquireMetaObject().getAttribute(key);
-            
     }
     
     public void setApplicationExceptionDetector(AbstractEventProcessor aep){
@@ -441,10 +527,10 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
                stepping event is commanded. */
             handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, sp);
             handler.addEventListener(DelegatingHandler.STEP_EVENT, sp);
-            /* Stops the dispatcher when the JVM gets disconnected */
-            handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, disp);
+
             /* Notifies us so we can reset the event request queue. */
-            handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, this);
+            handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, _thisProcessor);
+            handler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, _thisProcessor);
             
             /* Inserts the application exception detector before our exception
              * printer.
@@ -474,10 +560,6 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
     }
     
     private void checkConnected() throws VMDisconnectedException{
-        if(disp == null){
-            throw new VMDisconnectedException(
-                    " Error - Connection with remote JVM hasn't yet been established");
-        }
         if(!disp.isConnected()){
             throw new VMDisconnectedException(
             	" Error - Connection with remote JVM is not available.");
@@ -485,37 +567,26 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
         }
     }
 
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#process(com.sun.jdi.event.Event)
-     */
-    public void process(Event e) {
-        if(!(e instanceof VMDisconnectEvent)){
-            throw new UnsupportedException("Processor " + module + " can't handle event of type " + e.getClass().toString()); 
+    public void specializedProcess(Event e) {
+        if(e instanceof VMDisconnectEvent){
+            disconnected();
+        }else if(e instanceof VMDeathEvent){
+            terminated();
+        }else{
+            throw new UnsupportedException("Processor " + module + " can't handle event of type " + e.getClass().toString());
         }
         
         queue.reset();
     }
 
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#setNext(ddproto1.debugger.eventhandler.processors.IJDIEventProcessor)
-     */
-    public void setNext(IJDIEventProcessor iep) {
-        next = iep;
-    }
+    public void next(IJDIEventProcessor iep) { next = iep; }
+    
+    public IJDIEventProcessor next() { return next; }
 
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#getNext()
-     */
-    public IJDIEventProcessor getNext() {
-        return next;
-    }
-
-    /* (non-Javadoc)
-     * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#enable(boolean)
-     */
-    public void enable(boolean status) {
-        throw new UnsupportedException("enable is not supported by " + module);
-    }
+    public void enabled(boolean status) { this.isEnabled = status; }
+    
+    public boolean enabled() { return isEnabled; }
+    
 
     public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
         if(key.equals(IConfigurationConstants.NAME_ATTRIB)){
@@ -530,13 +601,68 @@ public class VirtualMachineManager implements IJDIEventProcessor, Mirror, IConfi
         return true;
     }
 
-    /** These are hacks. */
-    public void setLastStepRequest(int tuuid, Byte mode){
-        stepRequests.put(tuuid, mode);
+    public Object getAdapter(Class adapter) {
+        if(adapter.equals(VirtualMachineManager.class))
+            return this;
+        else if(adapter.equals(IJavaDebugTarget.class))
+            return target;
+        return null;
     }
     
-    public Byte getLastStepRequest(int tuuid){
-        return stepRequests.get(tuuid);
+    public boolean isSuspended(){
+        return suspended;
+    }
+    
+    private void suspended(boolean stats) {
+        suspended = stats;
+    }
+    
+    public void suspend() throws TargetRequestFailedException{
+        if(!isAvailable()) 
+            throw new IllegalStateException("Virtual machine is unavailable for suspension.");
+        
+        try{
+            virtualMachine().suspend();
+            suspended(true);
+            tm.notifyVMSuspend();
+            fireSuspended(DebugEvent.CLIENT_REQUEST);
+        }catch(Exception ex){
+            logger.error("Failed to suspend virtual machine.");
+            suspended(false);
+            fireResumed(DebugEvent.CLIENT_REQUEST);
+            throw new TargetRequestFailedException(ex);
+        }
+    }
+    
+    public void resume() throws TargetRequestFailedException{
+        if(!isConnected() || !isSuspended() || isTerminated() || isTerminating())
+            throw new IllegalStateException("Virtual machine is unavailable for resuming.");
+        try{
+            virtualMachine().resume();
+            tm.notifyVMResume();
+            fireResumed(DebugEvent.CLIENT_REQUEST);
+        }catch(Exception ex){
+            logger.error("Failed to resume virtual machine.");
+            suspended(true);
+            fireSuspended(DebugEvent.CLIENT_REQUEST);
+            throw new TargetRequestFailedException(ex);
+        }
+    }
+    
+    protected void fireSuspended(int detail){
+        if(target != null) target.handleSuspend(detail);
+    }
+    
+    protected void fireResumed(int detail){
+        if(target != null) target.handleResume(detail);
+    }
+    
+    protected void fireDisconnected(){
+        if(target != null) target.handleDisconnect();
+    }
+    
+    protected void fireTerminated(){
+        if(target != null) target.handleDeath();
     }
 
 }

@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
 
@@ -55,6 +57,8 @@ public class DeferrableRequestQueue {
     private int duplicatePolicy;
     
     private static final MessageHandler mh = MessageHandler.getInstance();
+    private static final Logger logger = mh.getLogger(DeferrableRequestQueue.class);
+    
     private static final byte STATIC = 1;
     private static final byte DYNAMIC = 2;
     
@@ -76,6 +80,9 @@ public class DeferrableRequestQueue {
     private Map<IDeferrableRequest.IPrecondition, IDeferrableRequest.IResolutionContext> metPreconditions = 
         new HashMap<IDeferrableRequest.IPrecondition, IDeferrableRequest.IResolutionContext>();
     
+    /* This set keeps all placed deferrable requests, unclassified. */
+    private Set<IDeferrableRequest> requests = new HashSet<IDeferrableRequest>(); 
+    
     public static IDeferrableRequest.IPrecondition nullPrecondition;
     public static IDeferrableRequest.IResolutionContext nullResolutionContext;
     
@@ -87,9 +94,7 @@ public class DeferrableRequestQueue {
         nullPrecondition = spi;
         nullResolutionContext = srci;
     }
-	    
-    private String vmid;
-    
+  
     private DeferrableRequestQueue() { 
         reset();
     }
@@ -100,7 +105,6 @@ public class DeferrableRequestQueue {
     
     public DeferrableRequestQueue(String vmid, int duplicatePolicy){
         this();
-        this.vmid = vmid;
         this.duplicatePolicy = duplicatePolicy;
     }
     
@@ -169,17 +173,20 @@ public class DeferrableRequestQueue {
      * The most common reason for this method returning false is because the request
      * has already been fulfilled and therefore can no longer be removed. 
      */
-    public synchronized boolean removeRequest(IDeferrableRequest req){
-        
-        boolean success = true;
-        
-        for(IDeferrableRequest.IPrecondition precond : req.getRequirements()){
-            if(precond.getType().matchType() == STATIC)
-                success &= matchOnce2request.remove(precond, req);
-            else if(precond.getType().matchType() == DYNAMIC)
-                success &= matchMultiple2request.remove(precond, req);
-            else
-                throw new UnsupportedException("Unknown precondition match type.");
+    public boolean removeRequest(IDeferrableRequest req)
+        throws Exception
+    {
+        boolean success = true;        
+
+        synchronized (this){
+            for(IDeferrableRequest.IPrecondition precond : req.getRequirements()){
+                if(precond.getType().matchType() == STATIC)
+                    success &= matchOnce2request.remove(precond, req);
+                else if(precond.getType().matchType() == DYNAMIC)
+                    success &= matchMultiple2request.remove(precond, req);
+                else
+                    throw new UnsupportedException("Unknown precondition match type.");
+            }
         }
         
         req.cancel();

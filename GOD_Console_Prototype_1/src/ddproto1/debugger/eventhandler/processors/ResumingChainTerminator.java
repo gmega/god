@@ -21,7 +21,7 @@ public class ResumingChainTerminator extends AbstractEventProcessor {
     /* (non-Javadoc)
      * @see ddproto1.debugger.eventhandler.processors.BasicEventProcessor#specializedProcess(com.sun.jdi.event.Event)
      */
-    protected void specializedProcess(Event e) {
+    public void specializedProcess(Event e) {
         pcm.getProcessingContext().vote(IEventManager.RESUME_SET);  
     }
 

@@ -20,11 +20,10 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.EventQueue;
 import com.sun.jdi.event.EventSet;
+import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 
-import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.managing.IDebugContext;
-import ddproto1.debugger.managing.IVMThreadManager;
 import ddproto1.exception.IllegalStateException;
 import ddproto1.exception.NoSuchElementError;
 import ddproto1.interfaces.ISemaphore;
@@ -35,7 +34,7 @@ import ddproto1.util.MessageHandler;
  * @author giuliano
  *
  */
-public class EventDispatcher extends AbstractEventProcessor implements IVotingManager {
+public class EventDispatcher implements IVotingManager {
     
     private static final int MAX_SIMULTANEOUS_EVENTS = 8;
     
@@ -50,6 +49,8 @@ public class EventDispatcher extends AbstractEventProcessor implements IVotingMa
     private boolean connected = false;
     private boolean removing = false;
     private boolean takesNew = true;
+    
+    private IDebugContext dc;
     
     private ISemaphore sema = new ExternalSemaphore(1, this);
     
@@ -274,13 +275,17 @@ public class EventDispatcher extends AbstractEventProcessor implements IVotingMa
         
         /* We become the current handler thread */
         owner = t;
-        //mh.getDebugOutput().println("Thread " + t.getName() + " is now being started.");
         t.start();
     }
     
     private void processEvent(Event e){
         
         MessageHandler mh = MessageHandler.getInstance();
+        
+        /** The dispatcher gets a chance of processing events before any other
+         * handler.
+         */
+        this.localProcess(e);
         
         String suffix = "";
         
@@ -349,10 +354,9 @@ public class EventDispatcher extends AbstractEventProcessor implements IVotingMa
         }
     }
     
-    protected void specializedProcess(Event e){
-        if(e instanceof VMDisconnectEvent){
-            VMDisconnectEvent vmd = (VMDisconnectEvent) e;
-            MessageHandler mh = MessageHandler.getInstance();
+    protected void localProcess(Event e){
+        if(e instanceof VMDisconnectEvent || e instanceof VMDeathEvent){
+                        MessageHandler mh = MessageHandler.getInstance();
             mh.getStandardOutput().println("\n" + module + " JVM " + jvmid + " terminated. Shutting down.");
             connected = false;
         }

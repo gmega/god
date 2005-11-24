@@ -57,7 +57,7 @@ public interface IDeferrableRequest {
     public static final Object REQUEST_RESOLVED  = new Object();
     public static final Object OK                = new Object();
         
-    /** Resolve now is more like a firm attempt at resolving a request.
+    /** resolveNow() is more like a firm attempt at resolving a request.
 	 * Normally requests require some sort of context from where to access
 	 * precondition validators or subproducts in order to be able to resolve
 	 * themselves. 
@@ -86,8 +86,9 @@ public interface IDeferrableRequest {
      * possible outcomes. The request might have been cancelled, and there are times
      * where it simply makes no sense to return anything, so there are DeferrableRequests
      * that simply create an object and return it. Originally, the return value would 
-     * contain the request when it could be resolved eagerly, but now the non-null value
-     * means a given phase in resolution was carried out successfully.
+     * contain the request when it could be resolved eagerly, but this was pretty much useless
+     * since we have IResolutionListeners. In fact, we needed a way of communicating more than
+     * simply two outcomes to the DeferrableRequestQueue.
      * 
      * Everything cries out for return codes instead of null/non-null return values. 
      *
@@ -115,6 +116,10 @@ public interface IDeferrableRequest {
     /**
      * This method cancels the underlying event request if it has been fulfilled, or
      * precludes it from being fulfilled if it hasn't.
+     * 
+     * Important note: a cancelled request must never place event requests. This means
+     * that registered IResolutionListeners will never receive notice of event requests
+     * being fulfilled after a call to cancel has returned. 
      * 
      * @throws Exception
      */
