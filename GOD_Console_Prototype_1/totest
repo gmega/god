@@ -33,3 +33,17 @@ Critical:
 - I hadn't taken classloader into consideration when I first built the deferrable request subsystem.
   It'll need some serious reworking to work properly when we have the same class being loaded by more
   than one classloader.
+  
+- Must fix the VirtualMachineManager so that it can accept connect/disconnect or connect/kill 
+  sequences without breaking. This could involve poking other classes. 
+  
+More on cleanup issues:
+
+- Distributed Thread Manager must get rid of/verify all threads that die when a VMDeath/Disconnect
+  occurs. It's possible that distributed threads get broken.
+
+- All deferrable requests that trigger multiple event requests (and store them) must arrange
+  to flush those requests when their VM dies or is disconnected. This is only an issue if we're
+  going to reuse the VMM - if we're to create a new VMM for each launch/connect, than this
+  is not an issue. I actually think that JDT's VMM equivalent is disposable, so this is probably
+  not an issue.
