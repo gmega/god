@@ -23,7 +23,7 @@ import Ice.OperationMode;
 import Ice.RouterPrx;
 import ddproto1.controller.client.AMI_ControlClient_notifyProcessDeath;
 import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDERR;
-import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDIN;
+import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDOUT;
 import ddproto1.controller.client.LaunchParameters;
 import ddproto1.controller.remote.ProcessServerPrx;
 import ddproto1.controller.remote.RemoteProcessPrx;
@@ -58,8 +58,8 @@ public class LocalMultiDeathTest extends MultiDeathTest{
             return ccOps;
         }
 
-        public void receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data) {
-            getOps().receiveStringFromSTDIN_async(__cb, pHandle, data);
+        public void receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data) {
+            getOps().receiveStringFromSTDOUT_async(__cb, pHandle, data);
         }
 
         public void receiveStringFromSTDERR_async(AMI_ControlClient_receiveStringFromSTDERR __cb, int pHandle, String data) {
@@ -79,9 +79,9 @@ public class LocalMultiDeathTest extends MultiDeathTest{
         public void notifyProcessDeath(int pHandle) { }
         public void notifyProcessDeath(int pHandle, Map __ctx) { }
         public void notifyProcessDeath_async(AMI_ControlClient_notifyProcessDeath __cb, int pHandle, Map __ctx) { }
-        public void receiveStringFromSTDIN(int pHandle, String data) { }
-        public void receiveStringFromSTDIN(int pHandle, String data, Map mup) { }
-        public void receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data, Map __ctx) { }
+        public void receiveStringFromSTDOUT(int pHandle, String data) { }
+        public void receiveStringFromSTDOUT(int pHandle, String data, Map mup) { }
+        public void receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data, Map __ctx) { }
         public void receiveStringFromSTDERR(int pHandle, String data) { }
         public void receiveStringFromSTDERR(int pHandle, String data, Map __ctx) { }
         public void receiveStringFromSTDERR_async(AMI_ControlClient_receiveStringFromSTDERR __cb, int pHandle, String data, Map __ctx) { }

@@ -15,7 +15,7 @@ public interface _ControlClientOperationsNC
 {
     void notifyProcessDeath(int pHandle);
 
-    void receiveStringFromSTDIN(int pHandle, String data);
+    void receiveStringFromSTDOUT(int pHandle, String data);
 
     void receiveStringFromSTDERR(int pHandle, String data);
 

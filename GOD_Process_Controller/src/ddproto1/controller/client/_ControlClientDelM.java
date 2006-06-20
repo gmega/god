@@ -144,10 +144,10 @@ public final class _ControlClientDelM extends Ice._ObjectDelM implements _Contro
     }
 
     public void
-    receiveStringFromSTDIN(int pHandle, String data, java.util.Map __ctx)
+    receiveStringFromSTDOUT(int pHandle, String data, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable
     {
-	IceInternal.Outgoing __og = __connection.getOutgoing(__reference, "receiveStringFromSTDIN", Ice.OperationMode.Normal, __ctx, __compress);
+	IceInternal.Outgoing __og = __connection.getOutgoing(__reference, "receiveStringFromSTDOUT", Ice.OperationMode.Normal, __ctx, __compress);
 	try
 	{
 	    try

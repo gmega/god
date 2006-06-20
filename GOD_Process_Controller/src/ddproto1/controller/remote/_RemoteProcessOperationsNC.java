@@ -15,7 +15,7 @@ public interface _RemoteProcessOperationsNC
 {
     boolean isAlive();
 
-    void writeToStdout(String message)
+    void writeToSTDIN(String message)
 	throws ServerRequestException;
 
     int getHandle();

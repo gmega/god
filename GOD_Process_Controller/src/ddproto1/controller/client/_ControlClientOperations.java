@@ -15,7 +15,7 @@ public interface _ControlClientOperations
 {
     void notifyProcessDeath(int pHandle, Ice.Current __current);
 
-    void receiveStringFromSTDIN(int pHandle, String data, Ice.Current __current);
+    void receiveStringFromSTDOUT(int pHandle, String data, Ice.Current __current);
 
     void receiveStringFromSTDERR(int pHandle, String data, Ice.Current __current);
 

@@ -18,11 +18,19 @@ import Ice.Current;
 import Ice.LocalException;
 import Ice.ObjectPrx;
 import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDERR;
-import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDIN;
+import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDOUT;
 import ddproto1.controller.client.ControlClientPrx;
 import ddproto1.controller.remote.ServerRequestException;
 import ddproto1.controller.remote._RemoteProcessDisp;
 
+/**
+ *
+ * This class represents a remote process. It implements the logic for managing the streams
+ * and for killing the underlying process.
+ * 
+ * @author giuliano
+ *
+ */
 public class RemoteProcessImpl extends _RemoteProcessDisp implements IErrorCodes, IRemoteAccessible {
     
     private static final Logger logger = Logger.getLogger(RemoteProcessImpl.class);
@@ -76,8 +84,8 @@ public class RemoteProcessImpl extends _RemoteProcessDisp implements IErrorCodes
     
     protected void initStreamGobblers(){
         
-        final AMI_ControlClient_receiveStringFromSTDIN cBackstdout = 
-            new AMI_ControlClient_receiveStringFromSTDIN(){
+        final AMI_ControlClient_receiveStringFromSTDOUT cBackstdout = 
+            new AMI_ControlClient_receiveStringFromSTDOUT(){
                 @Override
                 public void ice_response() { }
                 @Override
@@ -99,7 +107,7 @@ public class RemoteProcessImpl extends _RemoteProcessDisp implements IErrorCodes
         stdout = new StreamGobbler(underlying.getInputStream(),
                 new NotificationWrapper(){
                     public void doNotify(String data) {
-                        getControlClient().receiveStringFromSTDIN_async(cBackstdout, pHandle, data);
+                        getControlClient().receiveStringFromSTDOUT_async(cBackstdout, pHandle, data);
                     }
         }, true);
         
@@ -124,7 +132,7 @@ public class RemoteProcessImpl extends _RemoteProcessDisp implements IErrorCodes
         }
     }
 
-    public synchronized void writeToStdout(String message, Current __current) 
+    public synchronized void writeToSTDIN(String message, Current __current) 
         throws ServerRequestException {
         try{
             stdin.write(message.toCharArray());

@@ -137,11 +137,11 @@ public final class _ControlClientDelD extends Ice._ObjectDelD implements _Contro
     }
 
     public void
-    receiveStringFromSTDIN(int pHandle, String data, java.util.Map __ctx)
+    receiveStringFromSTDOUT(int pHandle, String data, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable
     {
 	Ice.Current __current = new Ice.Current();
-	__initCurrent(__current, "receiveStringFromSTDIN", Ice.OperationMode.Normal, __ctx);
+	__initCurrent(__current, "receiveStringFromSTDOUT", Ice.OperationMode.Normal, __ctx);
 	while(true)
 	{
 	    IceInternal.Direct __direct = new IceInternal.Direct(__current);
@@ -162,7 +162,7 @@ public final class _ControlClientDelD extends Ice._ObjectDelD implements _Contro
 		}
 		try
 		{
-		    __servant.receiveStringFromSTDIN(pHandle, data, __current);
+		    __servant.receiveStringFromSTDOUT(pHandle, data, __current);
 		    return;
 		}
 		catch(Ice.LocalException __ex)

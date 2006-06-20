@@ -16,7 +16,7 @@ public interface _RemoteProcessDel extends Ice._ObjectDel
     boolean isAlive(java.util.Map __ctx)
 	throws IceInternal.NonRepeatable;
 
-    void writeToStdout(String message, java.util.Map __ctx)
+    void writeToSTDIN(String message, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable,
 	       ServerRequestException;
 

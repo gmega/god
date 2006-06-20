@@ -16,7 +16,7 @@ public interface _ControlClientDel extends Ice._ObjectDel
     void notifyProcessDeath(int pHandle, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable;
 
-    void receiveStringFromSTDIN(int pHandle, String data, java.util.Map __ctx)
+    void receiveStringFromSTDOUT(int pHandle, String data, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable;
 
     void receiveStringFromSTDERR(int pHandle, String data, java.util.Map __ctx)

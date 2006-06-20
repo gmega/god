@@ -16,9 +16,9 @@ public interface RemoteProcessPrx extends Ice.ObjectPrx
     public boolean isAlive();
     public boolean isAlive(java.util.Map __ctx);
 
-    public void writeToStdout(String message)
+    public void writeToSTDIN(String message)
 	throws ServerRequestException;
-    public void writeToStdout(String message, java.util.Map __ctx)
+    public void writeToSTDIN(String message, java.util.Map __ctx)
 	throws ServerRequestException;
 
     public int getHandle();

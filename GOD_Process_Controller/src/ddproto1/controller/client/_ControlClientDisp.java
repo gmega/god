@@ -87,9 +87,9 @@ public abstract class _ControlClientDisp extends Ice.ObjectImpl implements Contr
     }
 
     public final void
-    receiveStringFromSTDIN(int pHandle, String data)
+    receiveStringFromSTDOUT(int pHandle, String data)
     {
-	receiveStringFromSTDIN(pHandle, data, null);
+	receiveStringFromSTDOUT(pHandle, data, null);
     }
 
     public static IceInternal.DispatchStatus
@@ -104,7 +104,7 @@ public abstract class _ControlClientDisp extends Ice.ObjectImpl implements Contr
     }
 
     public static IceInternal.DispatchStatus
-    ___receiveStringFromSTDIN(ControlClient __obj, IceInternal.Incoming __inS, Ice.Current __current)
+    ___receiveStringFromSTDOUT(ControlClient __obj, IceInternal.Incoming __inS, Ice.Current __current)
     {
 	__checkMode(Ice.OperationMode.Normal, __current.mode);
 	IceInternal.BasicStream __is = __inS.is();
@@ -112,7 +112,7 @@ public abstract class _ControlClientDisp extends Ice.ObjectImpl implements Contr
 	pHandle = __is.readInt();
 	String data;
 	data = __is.readString();
-	__obj.receiveStringFromSTDIN(pHandle, data, __current);
+	__obj.receiveStringFromSTDOUT(pHandle, data, __current);
 	return IceInternal.DispatchStatus.DispatchOK;
     }
 
@@ -149,7 +149,7 @@ public abstract class _ControlClientDisp extends Ice.ObjectImpl implements Contr
 	"notifyProcessDeath",
 	"notifyServerUp",
 	"receiveStringFromSTDERR",
-	"receiveStringFromSTDIN"
+	"receiveStringFromSTDOUT"
     };
 
     public IceInternal.DispatchStatus
@@ -193,7 +193,7 @@ public abstract class _ControlClientDisp extends Ice.ObjectImpl implements Contr
 	    }
 	    case 7:
 	    {
-		return ___receiveStringFromSTDIN(this, in, __current);
+		return ___receiveStringFromSTDOUT(this, in, __current);
 	    }
 	}
 

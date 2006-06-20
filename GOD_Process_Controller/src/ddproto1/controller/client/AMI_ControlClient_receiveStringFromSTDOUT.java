@@ -11,17 +11,17 @@
 
 package ddproto1.controller.client;
 
-public abstract class AMI_ControlClient_receiveStringFromSTDIN extends IceInternal.OutgoingAsync
+public abstract class AMI_ControlClient_receiveStringFromSTDOUT extends IceInternal.OutgoingAsync
 {
     public abstract void ice_response();
     public abstract void ice_exception(Ice.LocalException ex);
 
     public final void
-    __invoke(Ice.ObjectPrx __prx, AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data, java.util.Map __ctx)
+    __invoke(Ice.ObjectPrx __prx, AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data, java.util.Map __ctx)
     {
 	try
 	{
-	    __prepare(__prx, "receiveStringFromSTDIN", Ice.OperationMode.Normal, __ctx);
+	    __prepare(__prx, "receiveStringFromSTDOUT", Ice.OperationMode.Normal, __ctx);
 	    __os.writeInt(pHandle);
 	    __os.writeString(data);
 	    __os.endWriteEncaps();

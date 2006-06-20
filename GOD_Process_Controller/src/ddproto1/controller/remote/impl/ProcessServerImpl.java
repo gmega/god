@@ -19,7 +19,6 @@ import Ice.ObjectAdapter;
 import Ice.ObjectPrx;
 import ddproto1.controller.client.ControlClientPrx;
 import ddproto1.controller.client.LaunchParameters;
-import ddproto1.controller.remote.RemoteProcess;
 import ddproto1.controller.remote.RemoteProcessPrx;
 import ddproto1.controller.remote.RemoteProcessPrxHelper;
 import ddproto1.controller.remote.ServerRequestException;

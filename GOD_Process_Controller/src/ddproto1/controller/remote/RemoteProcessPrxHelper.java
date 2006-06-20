@@ -104,14 +104,14 @@ public final class RemoteProcessPrxHelper extends Ice.ObjectPrxHelperBase implem
     }
 
     public void
-    writeToStdout(String message)
+    writeToSTDIN(String message)
 	throws ServerRequestException
     {
-	writeToStdout(message, __defaultContext());
+	writeToSTDIN(message, __defaultContext());
     }
 
     public void
-    writeToStdout(String message, java.util.Map __ctx)
+    writeToSTDIN(String message, java.util.Map __ctx)
 	throws ServerRequestException
     {
 	int __cnt = 0;
@@ -119,10 +119,10 @@ public final class RemoteProcessPrxHelper extends Ice.ObjectPrxHelperBase implem
 	{
 	    try
 	    {
-		__checkTwowayOnly("writeToStdout");
+		__checkTwowayOnly("writeToSTDIN");
 		Ice._ObjectDel __delBase = __getDelegate();
 		_RemoteProcessDel __del = (_RemoteProcessDel)__delBase;
-		__del.writeToStdout(message, __ctx);
+		__del.writeToSTDIN(message, __ctx);
 		return;
 	    }
 	    catch(IceInternal.NonRepeatable __ex)

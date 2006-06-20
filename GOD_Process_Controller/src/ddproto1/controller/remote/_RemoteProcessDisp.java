@@ -87,10 +87,10 @@ public abstract class _RemoteProcessDisp extends Ice.ObjectImpl implements Remot
     }
 
     public final void
-    writeToStdout(String message)
+    writeToSTDIN(String message)
 	throws ServerRequestException
     {
-	writeToStdout(message, null);
+	writeToSTDIN(message, null);
     }
 
     public static IceInternal.DispatchStatus
@@ -104,7 +104,7 @@ public abstract class _RemoteProcessDisp extends Ice.ObjectImpl implements Remot
     }
 
     public static IceInternal.DispatchStatus
-    ___writeToStdout(RemoteProcess __obj, IceInternal.Incoming __inS, Ice.Current __current)
+    ___writeToSTDIN(RemoteProcess __obj, IceInternal.Incoming __inS, Ice.Current __current)
     {
 	__checkMode(Ice.OperationMode.Normal, __current.mode);
 	IceInternal.BasicStream __is = __inS.is();
@@ -113,7 +113,7 @@ public abstract class _RemoteProcessDisp extends Ice.ObjectImpl implements Remot
 	message = __is.readString();
 	try
 	{
-	    __obj.writeToStdout(message, __current);
+	    __obj.writeToSTDIN(message, __current);
 	    return IceInternal.DispatchStatus.DispatchOK;
 	}
 	catch(ServerRequestException ex)
@@ -150,7 +150,7 @@ public abstract class _RemoteProcessDisp extends Ice.ObjectImpl implements Remot
 	"ice_isA",
 	"ice_ping",
 	"isAlive",
-	"writeToStdout"
+	"writeToSTDIN"
     };
 
     public IceInternal.DispatchStatus
@@ -194,7 +194,7 @@ public abstract class _RemoteProcessDisp extends Ice.ObjectImpl implements Remot
 	    }
 	    case 7:
 	    {
-		return ___writeToStdout(this, in, __current);
+		return ___writeToSTDIN(this, in, __current);
 	    }
 	}
 

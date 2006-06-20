@@ -15,7 +15,7 @@ public interface _RemoteProcessOperations
 {
     boolean isAlive(Ice.Current __current);
 
-    void writeToStdout(String message, Ice.Current __current)
+    void writeToSTDIN(String message, Ice.Current __current)
 	throws ServerRequestException;
 
     int getHandle(Ice.Current __current);

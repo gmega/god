@@ -19,11 +19,11 @@ public interface ControlClientPrx extends Ice.ObjectPrx
     public void notifyProcessDeath_async(AMI_ControlClient_notifyProcessDeath __cb, int pHandle);
     public void notifyProcessDeath_async(AMI_ControlClient_notifyProcessDeath __cb, int pHandle, java.util.Map __ctx);
 
-    public void receiveStringFromSTDIN(int pHandle, String data);
-    public void receiveStringFromSTDIN(int pHandle, String data, java.util.Map __ctx);
+    public void receiveStringFromSTDOUT(int pHandle, String data);
+    public void receiveStringFromSTDOUT(int pHandle, String data, java.util.Map __ctx);
 
-    public void receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data);
-    public void receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data, java.util.Map __ctx);
+    public void receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data);
+    public void receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data, java.util.Map __ctx);
 
     public void receiveStringFromSTDERR(int pHandle, String data);
     public void receiveStringFromSTDERR(int pHandle, String data, java.util.Map __ctx);

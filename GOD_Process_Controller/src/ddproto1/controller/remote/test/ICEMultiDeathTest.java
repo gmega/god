@@ -15,22 +15,17 @@ import java.util.ArrayList;
 
 import Ice.Communicator;
 import Ice.Current;
-import Ice.LocalException;
 import Ice.ObjectAdapter;
 import Ice.ObjectPrx;
 import Ice.Util;
 import ddproto1.controller.client._ControlClientDisp;
 import ddproto1.controller.constants.ProcessServerConstants;
 import ddproto1.controller.remote.ProcessServerPrx;
-import ddproto1.controller.remote.ProcessServerPrxHelper;
 import ddproto1.controller.remote.RemoteProcessPrx;
 import ddproto1.controller.remote.RemoteProcessPrxHelper;
 import ddproto1.remote.controller.MainServer;
 
 public class ICEMultiDeathTest extends MultiDeathTest{
-    
-    private static final int STATUS_OK = 0;
-    private static final int STATUS_ERROR = 1;
     
     private class DummyController extends _ControlClientDisp{
         
@@ -54,8 +49,8 @@ public class ICEMultiDeathTest extends MultiDeathTest{
             notifyDeath();
         }
 
-        public void receiveStringFromSTDIN(int pHandle, String data, Current __current) {
-            getOps().receiveStringFromSTDIN_async(null, pHandle, data);
+        public void receiveStringFromSTDOUT(int pHandle, String data, Current __current) {
+            getOps().receiveStringFromSTDOUT_async(null, pHandle, data);
         }
 
         public void receiveStringFromSTDERR(int pHandle, String data, Current __current) {

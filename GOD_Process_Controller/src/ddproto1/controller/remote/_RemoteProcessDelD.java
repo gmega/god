@@ -135,12 +135,12 @@ public final class _RemoteProcessDelD extends Ice._ObjectDelD implements _Remote
     }
 
     public void
-    writeToStdout(String message, java.util.Map __ctx)
+    writeToSTDIN(String message, java.util.Map __ctx)
 	throws IceInternal.NonRepeatable,
 	       ServerRequestException
     {
 	Ice.Current __current = new Ice.Current();
-	__initCurrent(__current, "writeToStdout", Ice.OperationMode.Normal, __ctx);
+	__initCurrent(__current, "writeToSTDIN", Ice.OperationMode.Normal, __ctx);
 	while(true)
 	{
 	    IceInternal.Direct __direct = new IceInternal.Direct(__current);
@@ -161,7 +161,7 @@ public final class _RemoteProcessDelD extends Ice._ObjectDelD implements _Remote
 		}
 		try
 		{
-		    __servant.writeToStdout(message, __current);
+		    __servant.writeToSTDIN(message, __current);
 		    return;
 		}
 		catch(Ice.LocalException __ex)

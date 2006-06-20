@@ -128,13 +128,13 @@ public final class ControlClientPrxHelper extends Ice.ObjectPrxHelperBase implem
     }
 
     public void
-    receiveStringFromSTDIN(int pHandle, String data)
+    receiveStringFromSTDOUT(int pHandle, String data)
     {
-	receiveStringFromSTDIN(pHandle, data, __defaultContext());
+	receiveStringFromSTDOUT(pHandle, data, __defaultContext());
     }
 
     public void
-    receiveStringFromSTDIN(int pHandle, String data, java.util.Map __ctx)
+    receiveStringFromSTDOUT(int pHandle, String data, java.util.Map __ctx)
     {
 	int __cnt = 0;
 	while(true)
@@ -143,7 +143,7 @@ public final class ControlClientPrxHelper extends Ice.ObjectPrxHelperBase implem
 	    {
 		Ice._ObjectDel __delBase = __getDelegate();
 		_ControlClientDel __del = (_ControlClientDel)__delBase;
-		__del.receiveStringFromSTDIN(pHandle, data, __ctx);
+		__del.receiveStringFromSTDOUT(pHandle, data, __ctx);
 		return;
 	    }
 	    catch(IceInternal.NonRepeatable __ex)
@@ -158,13 +158,13 @@ public final class ControlClientPrxHelper extends Ice.ObjectPrxHelperBase implem
     }
 
     public void
-    receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data)
+    receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data)
     {
-	receiveStringFromSTDIN_async(__cb, pHandle, data, __defaultContext());
+	receiveStringFromSTDOUT_async(__cb, pHandle, data, __defaultContext());
     }
 
     public void
-    receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data, java.util.Map __ctx)
+    receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data, java.util.Map __ctx)
     {
 	__cb.__invoke(this, __cb, pHandle, data, __ctx);
     }

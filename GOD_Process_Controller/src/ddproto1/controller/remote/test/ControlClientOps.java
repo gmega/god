@@ -8,7 +8,7 @@ package ddproto1.controller.remote.test;
 import junit.framework.TestCase;
 import ddproto1.controller.client.AMI_ControlClient_notifyProcessDeath;
 import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDERR;
-import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDIN;
+import ddproto1.controller.client.AMI_ControlClient_receiveStringFromSTDOUT;
 
 public class ControlClientOps {
     protected class ProcessState{
@@ -41,7 +41,7 @@ public class ControlClientOps {
         if(__cb != null) __cb.ice_response();
     }
 
-    public void receiveStringFromSTDIN_async(AMI_ControlClient_receiveStringFromSTDIN __cb, int pHandle, String data) {
+    public void receiveStringFromSTDOUT_async(AMI_ControlClient_receiveStringFromSTDOUT __cb, int pHandle, String data) {
         TestCase.assertTrue(getProcess(pHandle).handle == pHandle);
         TestCase.assertTrue(data.equals("Stdout: " + pHandle));
         getProcess(pHandle).stdoutPrinted = true;

@@ -14,17 +14,16 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
+import Ice.Communicator;
+import Ice.LocalException;
+import Ice.ObjectAdapter;
+import Ice.Util;
 import ddproto1.controller.client.ControlClientPrx;
 import ddproto1.controller.client.ControlClientPrxHelper;
 import ddproto1.controller.constants.ProcessServerConstants;
 import ddproto1.controller.remote.ProcessServerPrx;
 import ddproto1.controller.remote.ProcessServerPrxHelper;
 import ddproto1.controller.remote.impl.ProcessServerImpl;
-
-import Ice.Communicator;
-import Ice.LocalException;
-import Ice.ObjectAdapter;
-import Ice.Util;
 
 public class MainServer implements ProcessServerConstants{
     

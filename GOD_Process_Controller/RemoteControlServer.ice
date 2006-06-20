@@ -4,10 +4,18 @@
 module ddproto1{
 	module controller{
 	
+		/** Forward declaration of interface ProcessServer */
 		module remote {
 			interface ProcessServer;
 		};
-			
+		
+		/***************************************************************
+		 *                                                             *
+		 * Module client contains all interfaces and objects that are  *
+		 * provided by the client (the process that wishes to manage   *
+		 * remote processes).                                          *
+		 *                                                             *
+		 ***************************************************************/
 		module client {
 			sequence <string> ParameterArray;
 				
@@ -15,6 +23,10 @@ module ddproto1{
 			 * This interface represents the notification interface for the
 			 * control client. The control client is the entity that places
 			 * requests through the ProcessServer interface. 
+			 *
+			 * This interface is adequate for one-to-one relationships. It
+			 * assumes that the client will register one object for interacting
+			 * with each process server.
 			 */	
 			interface ControlClient{
 				/**
@@ -27,7 +39,7 @@ module ddproto1{
 				 * Notifies the client that a new segment of characters has
 				 * been sent to the standard output of the remote application.
 				 */
-				["ami"] void receiveStringFromSTDIN(int pHandle, string data);
+				["ami"] void receiveStringFromSTDOUT(int pHandle, string data);
 				
 				/**
 				 * Notifies the client that a new segment of characters has
@@ -98,6 +110,12 @@ module ddproto1{
 			};
 		};
 	
+     	/***************************************************************
+		 *                                                             *
+		 * Module remote, in turn, defines the remote management       *
+		 * interfaces that will be exported by the process server.     *
+		 *                                                             *
+		 ***************************************************************/
 		module remote{
 		
 			exception ServerRequestException{
@@ -105,11 +123,37 @@ module ddproto1{
 				int errorCode;
 			};
 		
+			/**
+			 * This interface provides control over remote processes. 
+			 */
 			interface RemoteProcess{
+			    /**
+			     * Returns true if the remote process has terminated, and
+			     * false otherwise.
+			     */
 				bool isAlive();
-				void writeToStdout(string message)
-					throws ServerRequestException;
+				/**
+				 * Writes a sequence of characters to the standard input
+				 * of the remote process. Flush is immediate.
+				 *
+				 * @throws ServerRequestException if an I/O exception occurs
+				 * at the server side.
+				 */
+				void writeToSTDIN(string message) throws ServerRequestException;
+				
+				/**
+				 * Returns the numeric handle of this remote process. Numeric
+				 * handles are unique in the scope of a single ProcessServer.
+				 */
 				int getHandle();
+				
+				/**
+				 * Disposes of this proxy. This will cause the remote 
+				 * process to be (forcefully) terminated. Subsequent calls to 
+				 * ProcessServer::getProcessList() will not return this
+				 * proxy as well. All calls dispatched to this proxy will
+				 * likely result in exceptions after dispose is called. 
+				 */
 				void dispose();
 			};
 		
