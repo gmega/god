@@ -37,11 +37,14 @@ public abstract class MultiDeathTest extends TestCase{
         
         for(int i = 0; i < nprocs; i++)
             lps[i] = TestUtils.crankDefaultLaunch(i, (i+1)*500, i);
-        
-        for(LaunchParametersDTO lp : lps ){
-            IRemoteProcess rpprx = 
-                castToRemoteProcess(getPServerImpl().launch(lp));
-            System.out.println("Launched process with handle: " + rpprx.getHandle());
+        try{
+        		for(LaunchParametersDTO lp : lps ){
+        			IRemoteProcess rpprx = 
+        				castToRemoteProcess(getPServerImpl().launch(lp));
+        			System.out.println("Launched process with handle: " + rpprx.getHandle());
+        		}
+        }catch(Exception ex){
+        		ex.printStackTrace();
         }
         
         long startTime = System.currentTimeMillis();

@@ -54,8 +54,8 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
              */
             Registry remoteRegistry =
                 getRMIRegistry(SHOULD_USE_EXISTING,
-                        parameterMap.get(CONTROLLER_ADDRESS),
-                        parameterMap.get(REQUEST_PORT));
+                        parameterMap.get(CONTROLLER_REGISTRY_ADDRESS),
+                        parameterMap.get(CONTROLLER_REGISTRY_PORT));
             
             IControlClient cClient = (IControlClient) PortableRemoteObject
                     .narrow(
@@ -135,18 +135,25 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
                 continue;
             }
 
-            if (key.equals(CONTROLLER_ADDRESS) || key.equals(REQUEST_PORT)
+            if (key.equals(CONTROLLER_REGISTRY_ADDRESS) 
+            			|| key.equals(CONTROLLER_REGISTRY_PORT)
                     || key.equals(LOG4JCONFIG)
-                    || key.endsWith(TRANSPORT_PROTOCOL)) {
+                    || key.equals(TRANSPORT_PROTOCOL)
+                    || key.equals(CONTROLLER_REGISTRY_PATH)
+                    || key.equals(LOCAL_REGISTRY_PORT)
+                    || key.equals(LR_INSTANTIATION_POLICY)) {
                 attributes.put(key, val);
             } else {
                 System.err.println("Unrecognized parameter " + arg);
             }
         }
 
-        if (!attributes.containsKey(CONTROLLER_ADDRESS)
-                || !attributes.containsKey(REQUEST_PORT)
-                || !attributes.containsKey(TRANSPORT_PROTOCOL)) {
+        if (!attributes.containsKey(CONTROLLER_REGISTRY_ADDRESS)
+                || !attributes.containsKey(CONTROLLER_REGISTRY_PORT)
+                || !attributes.containsKey(TRANSPORT_PROTOCOL)
+                || !attributes.containsKey(CONTROLLER_REGISTRY_PATH)
+                || !attributes.containsKey(LOCAL_REGISTRY_PORT)
+                || !attributes.containsKey(LR_INSTANTIATION_POLICY)) {
             System.err.println("Missing required attributes.");
             System.exit(1);
         }

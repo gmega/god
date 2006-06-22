@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.rmi.NoSuchObjectException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 import javax.rmi.PortableRemoteObject;
@@ -21,6 +22,7 @@ import org.apache.log4j.Logger;
 import ddproto1.controller.constants.IErrorCodes;
 import ddproto1.controller.exception.ServerRequestException;
 import ddproto1.controller.interfaces.IControlClient;
+import ddproto1.controller.interfaces.IRemotable;
 import ddproto1.controller.interfaces.IRemoteProcess;
 
 /**
@@ -31,7 +33,7 @@ import ddproto1.controller.interfaces.IRemoteProcess;
  * @author giuliano
  *
  */
-public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess {
+public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotable {
     
     private static final Logger logger = Logger.getLogger(RemoteProcessImpl.class);
     private static final int BACKOFF = 100;
@@ -234,5 +236,9 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess {
     private interface NotificationWrapper{
         public void doNotify(String data) throws RemoteException;
     }
+
+	public synchronized Remote getProxyAndActivate() throws RemoteException, NoSuchObjectException {
+		PortableRemoteObject.exportObject(this);
+	}
      
 }

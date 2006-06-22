@@ -7,9 +7,10 @@ package ddproto1.controller.constants;
 
 public interface ProcessServerConstants {
     public static final String LOG4JCONFIG = "log4j-config-url";
-    public static final String CONTROLLER_ADDRESS = "controller-address";
+    
+    public static final String CONTROLLER_REGISTRY_ADDRESS = "controller-address";
     public static final String CONTROLLER_REGISTRY_PATH = "controller-path";
-    public static final String REQUEST_PORT = "listening-port";
+    public static final String CONTROLLER_REGISTRY_PORT = "listening-port";
     public static final String TRANSPORT_PROTOCOL = "transport-protocol";
     
     public static final String LOCAL_REGISTRY_PORT = "local-registry-port";

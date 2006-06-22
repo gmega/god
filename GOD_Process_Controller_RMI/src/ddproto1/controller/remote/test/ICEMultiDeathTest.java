@@ -69,12 +69,11 @@ public class ICEMultiDeathTest extends MultiDeathTest{
     }
     
     private static final int NPROCS = 5;
-    private static final String CONTROLLER_HOST = "localhost";
-    private static final String CONTROLLER_PORT = "3000";
+    private static final String CONTROLLER_REGISTRY_HOST = "localhost";
+    private static final String CONTROLLER_REGISTRY_PORT = "3000";
     private static final String CONTROLLER_OBJNAME = "ControlClient";
-    private static final String CONTROLLER_ADAPTER = "ControlClientAdapter";
-    private static final String PROCSERVER_PORT = "3001";
-    private static final String PROCSERVER_HOST = "localhost";
+    
+    private static final String PROCSERVER_REGISTRY_PORT = "3001";
     
     private static final String PROTOCOL = "tcp";
     
@@ -88,7 +87,7 @@ public class ICEMultiDeathTest extends MultiDeathTest{
         //System.setSecurityManager(new SecurityManager());
         
         try{
-            System.setProperty("java.rmi.server.ignoreStubClasses", "true");
+            //System.setProperty("java.rmi.server.ignoreStubClasses", "true");
             // Publishes our object to the adapter.
             DummyController dc = new DummyController(NPROCS);
             PortableRemoteObject.exportObject(dc);
@@ -96,21 +95,38 @@ public class ICEMultiDeathTest extends MultiDeathTest{
                 (IControlClient)PortableRemoteObject.narrow(
                         PortableRemoteObject.toStub(dc), IControlClient.class);
             
-            Registry reg = LocateRegistry.getRegistry();
-            reg.bind(ProcessServerConstants.OBJECT_NAME, cClient);
+            Registry reg = LocateRegistry.createRegistry(
+            		Integer.parseInt(CONTROLLER_REGISTRY_PORT));
+            reg.bind(CONTROLLER_OBJNAME, cClient);
 
             // Now launch the process server. 
             ArrayList <String> al = new ArrayList<String>();
             al.add("java");
             al.add("-cp");
             al.add(TestUtils.getProperty("control.server.classpath") + ":" 
-                    + TestUtils.getProperty("ice.runtime.classpath") + ":"
                     + TestUtils.getProperty("log4j.runtime.classpath"));
             al.add(MainServer.class.getName());
-            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_ADDRESS, 
-                    "//" + CONTROLLER_HOST + "/" +CONTROLLER_OBJNAME));
-            al.add(makeAttribute(ProcessServerConstants.REQUEST_PORT, PROCSERVER_PORT));
-            al.add(makeAttribute(ProcessServerConstants.TRANSPORT_PROTOCOL, PROTOCOL));
+            
+            /** Tells the remote process server: */
+            /** Where in our RMI registry the published controller resides. */
+            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_PATH, 
+            		CONTROLLER_OBJNAME));
+            /** The address of our registry */
+            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_ADDRESS, 
+            		CONTROLLER_REGISTRY_HOST));
+            /** The port of our registry */
+            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_PORT, 
+            		CONTROLLER_REGISTRY_PORT));
+            /** The transport protocol to be adopted. */
+            al.add(makeAttribute(ProcessServerConstants.TRANSPORT_PROTOCOL, 
+            		PROTOCOL));
+
+            /** Tells the process server in which port to start its RMI registry. */
+            al.add(makeAttribute(ProcessServerConstants.LOCAL_REGISTRY_PORT, 
+            		PROCSERVER_REGISTRY_PORT));
+            /** And tells it that it should start a new registry. */
+            al.add(makeAttribute(ProcessServerConstants.LR_INSTANTIATION_POLICY, 
+            		ProcessServerConstants.SHOULD_START_NEW));
             
             
             String [] launchdata = new String[al.size()];
