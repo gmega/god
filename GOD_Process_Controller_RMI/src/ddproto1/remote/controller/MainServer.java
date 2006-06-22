@@ -1,0 +1,173 @@
+/*
+ * Created on Jun 16, 2006
+ * 
+ * file: MainServer.java
+ */
+package ddproto1.remote.controller;
+
+import java.io.IOException;
+import java.net.URL;
+import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.rmi.PortableRemoteObject;
+
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
+
+import ddproto1.controller.constants.IErrorCodes;
+import ddproto1.controller.constants.ProcessServerConstants;
+import ddproto1.controller.interfaces.IControlClient;
+import ddproto1.controller.interfaces.IProcessServer;
+import ddproto1.controller.remote.impl.RemoteProcessServerImpl;
+
+public class MainServer implements ProcessServerConstants, IErrorCodes {
+
+    private static Logger logger;
+
+    public static void main(String[] args) {
+        try {
+            System.out.println("GOD Process Server V 0.1 alpha");
+            Map<String, String> parameterMap = parseParameters(args);
+            configureLogging(parameterMap.get(LOG4JCONFIG));
+
+            logger.info("Now starting RMI registry.");
+
+            /** We begin by creating our local registry. */
+            Registry localRegistry = 
+                getRMIRegistry(parameterMap.get(LR_INSTANTIATION_POLICY),
+                        null,
+                        parameterMap.get(LOCAL_REGISTRY_PORT));
+            if(localRegistry == null){
+                logger.error("Cannot proceed without an RMI registry. Aborting.");
+                System.exit(STATUS_ERROR);
+            }
+
+
+            /** We now must resolve the remote object. But first, we have
+             * to resolve the remote registry.
+             */
+            Registry remoteRegistry =
+                getRMIRegistry(SHOULD_USE_EXISTING,
+                        parameterMap.get(CONTROLLER_ADDRESS),
+                        parameterMap.get(REQUEST_PORT));
+            
+            IControlClient cClient = (IControlClient) PortableRemoteObject
+                    .narrow(
+                            remoteRegistry.lookup(parameterMap.get(CONTROLLER_REGISTRY_PATH)),
+                            IControlClient.class);
+
+            RemoteProcessServerImpl pSImpl = new RemoteProcessServerImpl(
+                    cClient);
+
+            IProcessServer ips = (IProcessServer) PortableRemoteObject.narrow(
+                    pSImpl.getProxyAndActivate(), IProcessServer.class);
+
+            /** We now call back the client to tell him we're alive. */
+            logger.info("Notifying client of server startup.");
+            cClient.notifyServerUp(ips);
+
+            logger.info("Process server is online.");
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(STATUS_ERROR);
+        }
+
+    }
+
+    private static Registry getRMIRegistry(String startOption, String host, String portS) {
+
+        int port;
+        try {
+            port = Integer.parseInt(portS);
+            if (port < 0) {
+                logger.error("Port must be a non-negative integer.");
+                return null;
+            }
+        } catch (NumberFormatException ex) {
+            logger.error("Port must be an integer.");
+            return null;
+        }
+
+        Registry registry = null;
+
+        try {
+            if (startOption.equals(SHOULD_START_NEW)) {
+                registry = LocateRegistry.createRegistry(port);
+            } else if (startOption.equals(SHOULD_USE_EXISTING)) {
+                registry = (host == null)?
+                        LocateRegistry.getRegistry(port):
+                        LocateRegistry.getRegistry(host, port);
+            } else {
+                logger.error("Unrecognized option " + startOption);
+            }
+        } catch (Exception ex) {
+            logger.error("Error while starting RMI registry.", ex);
+        }
+
+        return registry;
+    }
+
+    private static Map<String, String> parseParameters(String[] args) {
+
+        Map<String, String> attributes = new HashMap<String, String>();
+
+        for (String arg : args) {
+
+            String key, val;
+
+            if (arg.startsWith("--")) {
+                arg = arg.substring(2);
+                String[] splitArg = arg.split(PARAM_SEPARATOR_CHAR);
+                if (splitArg.length != 2) {
+                    System.err.println("Invalid parameter syntax - " + arg);
+                    continue;
+                }
+                key = splitArg[0];
+                val = splitArg[1];
+            } else {
+                continue;
+            }
+
+            if (key.equals(CONTROLLER_ADDRESS) || key.equals(REQUEST_PORT)
+                    || key.equals(LOG4JCONFIG)
+                    || key.endsWith(TRANSPORT_PROTOCOL)) {
+                attributes.put(key, val);
+            } else {
+                System.err.println("Unrecognized parameter " + arg);
+            }
+        }
+
+        if (!attributes.containsKey(CONTROLLER_ADDRESS)
+                || !attributes.containsKey(REQUEST_PORT)
+                || !attributes.containsKey(TRANSPORT_PROTOCOL)) {
+            System.err.println("Missing required attributes.");
+            System.exit(1);
+        }
+
+        return attributes;
+    }
+
+    private static void configureLogging(String surl) throws IOException {
+        if (surl != null) {
+            try {
+                PropertyConfigurator.configure(new URL(surl));
+                return;
+            } catch (Exception ex) {
+                System.err
+                        .println("Failed to read configuration file for logger."
+                                + " Falling back to default configuration.");
+                ex.printStackTrace();
+            }
+        }
+
+        BasicConfigurator.configure();
+        logger = Logger.getLogger(MainServer.class);
+    }
+}
