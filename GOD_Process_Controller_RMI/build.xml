@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Distributed Debugger Prototype 1" default="all" basedir=".">
+
+	<property name="jar-dir" location="lib"/>
+	<property name="src-dir" location="src"/>
+	<property name="bin-dir" location="bin"/>
+	<property name="testdir" location="ddproto1.controller.remote.test"/>
+	
+	<path id="class.path">
+		<fileset dir="${basedir}/${lib}">
+			<include name="**/*.jar"/>
+  		</fileset>
+	</path>
+	
+	<target name="runrmic">
+		<rmic base="${bin-dir}" 
+			includes="**/Remote*.class"
+			excludes="**/*$*.class"
+			classpath="${class.path}" />
+			
+		<rmic classname="ddproto1.controller.remote.test.ICEMultiDeathTest.DummyController" 
+			  base="${bin-dir}" classpath="${class.path}" />
+	</target>
+	
+	<target name="generate-jar" depends="runrmic">
+		  <jar destfile="${jar-dir}/GODProcessServer.jar"
+		       basedir="${bin-dir}"
+		       excludes="${testdir}/**"/>
+	</target>
+	
+	<target name="all" depends="runrmic, generate-jar"/>
+
+</project>
+
