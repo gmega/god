@@ -14,7 +14,6 @@ import junit.framework.TestCase;
 
 import org.apache.log4j.BasicConfigurator;
 import org.easymock.EasyMock;
-import org.easymock.IAnswer;
 
 import ddproto1.controller.interfaces.IControlClient;
 import ddproto1.controller.interfaces.LaunchParametersDTO;

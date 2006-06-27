@@ -46,6 +46,7 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
     private Thread stderr_thread;
     private RemoteProcessServerImpl parent;
     private IControlClient listener;
+    private Remote proxy;
     
     private volatile int pHandle;
     private volatile int timeout;
@@ -238,7 +239,12 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
     }
 
 	public synchronized Remote getProxyAndActivate() throws RemoteException, NoSuchObjectException {
-		PortableRemoteObject.exportObject(this);
+        if(proxy == null){
+            PortableRemoteObject.exportObject(this);
+            proxy = PortableRemoteObject.toStub(this);
+        }
+        
+        return proxy;
 	}
      
 }

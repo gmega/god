@@ -11,7 +11,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.rmi.Naming;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
@@ -24,7 +24,7 @@ import ddproto1.controller.interfaces.IProcessServer;
 import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.remote.controller.MainServer;
 
-public class ICEMultiDeathTest extends MultiDeathTest{
+public class RMIMultiDeathTest extends MultiDeathTest{
     
     private class DummyController implements IControlClient{
         
@@ -62,8 +62,8 @@ public class ICEMultiDeathTest extends MultiDeathTest{
 
         public void notifyServerUp(IProcessServer procServer) {
             setPServerImpl(procServer);
-            synchronized(ICEMultiDeathTest.this){
-                ICEMultiDeathTest.this.notifyAll();
+            synchronized(RMIMultiDeathTest.this){
+                RMIMultiDeathTest.this.notifyAll();
             }
         }
     }
@@ -79,6 +79,8 @@ public class ICEMultiDeathTest extends MultiDeathTest{
     
     private Process serverProcess;
     
+    private static Registry registry;
+    
     public void setUp(){
         
         super.setUp();
@@ -86,19 +88,16 @@ public class ICEMultiDeathTest extends MultiDeathTest{
         
         //System.setSecurityManager(new SecurityManager());
         
+        DummyController dc = null;
         try{
             //System.setProperty("java.rmi.server.ignoreStubClasses", "true");
             // Publishes our object to the adapter.
-            DummyController dc = new DummyController(NPROCS);
+            dc = new DummyController(NPROCS);
             PortableRemoteObject.exportObject(dc);
             IControlClient cClient = 
                 (IControlClient)PortableRemoteObject.narrow(
                         PortableRemoteObject.toStub(dc), IControlClient.class);
-            
-            Registry reg = LocateRegistry.createRegistry(
-            		Integer.parseInt(CONTROLLER_REGISTRY_PORT));
-            reg.bind(CONTROLLER_OBJNAME, cClient);
-
+            getRegistry().rebind(CONTROLLER_OBJNAME, cClient);
             // Now launch the process server. 
             ArrayList <String> al = new ArrayList<String>();
             al.add("java");
@@ -177,15 +176,34 @@ public class ICEMultiDeathTest extends MultiDeathTest{
         }catch(Exception ex){
             ex.printStackTrace();
             cleanup();
+            fail();
         }
     }
     
     protected void cleanup(){
         try{
             getPServerImpl().shutdownServer(true);
+            // Have to stall because of the hack we must do
+            // to prevent RMI server shutdowns from producing
+            // spurious exceptions. If we don't stall, the setUp
+            // for the next test run will clash when it attempts
+            // to start the remote server in the same port as 
+            // the one that's shutting down.
+            Thread.sleep(4000);
         }catch(Exception ex){
             ex.printStackTrace();
         }
+    }
+    
+    protected synchronized Registry getRegistry()
+        throws RemoteException
+    {
+        if(registry == null){
+            registry = LocateRegistry.createRegistry(
+                    Integer.parseInt(CONTROLLER_REGISTRY_PORT));
+        }
+        
+        return registry;
     }
     
     public void tearDown(){

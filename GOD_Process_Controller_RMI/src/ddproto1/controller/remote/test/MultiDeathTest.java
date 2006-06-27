@@ -5,7 +5,6 @@
  */
 package ddproto1.controller.remote.test;
 
-import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.TestCase;

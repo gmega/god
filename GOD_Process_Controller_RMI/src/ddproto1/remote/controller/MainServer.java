@@ -7,10 +7,8 @@ package ddproto1.remote.controller;
 
 import java.io.IOException;
 import java.net.URL;
-import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,19 +33,6 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
             System.out.println("GOD Process Server V 0.1 alpha");
             Map<String, String> parameterMap = parseParameters(args);
             configureLogging(parameterMap.get(LOG4JCONFIG));
-
-            logger.info("Now starting RMI registry.");
-
-            /** We begin by creating our local registry. */
-            Registry localRegistry = 
-                getRMIRegistry(parameterMap.get(LR_INSTANTIATION_POLICY),
-                        null,
-                        parameterMap.get(LOCAL_REGISTRY_PORT));
-            if(localRegistry == null){
-                logger.error("Cannot proceed without an RMI registry. Aborting.");
-                System.exit(STATUS_ERROR);
-            }
-
 
             /** We now must resolve the remote object. But first, we have
              * to resolve the remote registry.

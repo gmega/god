@@ -29,6 +29,7 @@ import ddproto1.controller.interfaces.LaunchParametersDTO;
 public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRemotable {
 
     private static final int POLLING_THREADS = 10;
+    private static final int SHUTDOWN_BACKOFF = 2000;
     
     private final List<RemoteProcessImpl> processList = new LinkedList<RemoteProcessImpl>();
     private final AtomicInteger handlerCounter = new AtomicInteger();
@@ -78,7 +79,9 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         return this.client;
     }
     
-    private IRemoteProcess processAdded(Process proc, int pollInterval, int maxBufferSize, int flushTimeout){
+    private IRemoteProcess processAdded(Process proc, int pollInterval, int maxBufferSize, int flushTimeout)
+        throws ServerRequestException
+    {
         
         int handle = handlerCounter.getAndAdd(1);
         
@@ -90,9 +93,19 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
                     getControlClient(),
                     this);
 
+        IRemoteProcess rpiProxy = null;
+        
+        try{ 
+            rpiProxy = (IRemoteProcess)PortableRemoteObject.
+                narrow(rpi.getProxyAndActivate(), IRemoteProcess.class);
+        }catch(RemoteException ex){
+            throw new ServerRequestException("Error while attempting to " +
+                    "export remote process proxy.", ex);
+        }
+        
         ProcessPollTask ppt = new ProcessPollTask(getControlClient(), proc, handle);
         ppt.scheduleOnExecutor(poller, pollInterval, TimeUnit.MILLISECONDS);
-        
+
         rpi.beginDispatchingStreams();
         
         synchronized(processList){
@@ -137,7 +150,16 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         
         /** RMI sucks. I have to call System.exit to 
          * shut down the server. */
-        System.exit(0);
+        new Thread(new Runnable(){
+            public void run() {
+                try{
+                    Thread.sleep(SHUTDOWN_BACKOFF);
+                }catch(InterruptedException ex) { }
+                
+                System.exit(0);
+            }
+        }).start();
+        
     }
     public synchronized Remote getProxyAndActivate() 
         throws RemoteException, NoSuchObjectException
