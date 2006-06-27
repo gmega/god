@@ -5,8 +5,9 @@
 	<property name="jar-dir" location="lib"/>
 	<property name="src-dir" location="src"/>
 	<property name="bin-dir" location="bin"/>
-	<property name="testpackage" location="ddproto1.controller.remote.test"/>
-	
+	<property name="testpackage" value="ddproto1/controller/remote/test"/>
+	<property name="interfacepackage" value="ddproto1/controller/interfaces"/>
+	                                            
 	<path id="class.path">
 		<fileset dir="${basedir}/${lib}">
 			<include name="**/*.jar"/>
@@ -19,17 +20,27 @@
 			excludes="**/*$*.class"
 			classpath="${class.path}" />
 			
-		<rmic classname="ddproto1.controller.remote.test.ICEMultiDeathTest.DummyController" 
+		<rmic classname="ddproto1.controller.remote.test.RMIMultiDeathTest.DummyController" 
 			  base="${bin-dir}" classpath="${class.path}" />
 	</target>
 	
 	<target name="generate-jar" depends="runrmic">
-		  <jar destfile="${jar-dir}/GODProcessServer.jar"
-		       basedir="${bin-dir}"
-		       excludes="${testpackage}/**"/>
+		<jar destfile="${jar-dir}/GODProcessServer.jar"
+			basedir="${bin-dir}"
+			excludes="${testpackage}/**/**.class"/>
 	</target>
 	
-	<target name="all" depends="runrmic, generate-jar"/>
+	<target name="generate-clientjar" depends="runrmic">
+		<jar destfile="${jar-dir}/GODRPClient.jar"
+			basedir="${bin-dir}"
+			includes="${interfacepackage}/**, **/*Stub*.class"
+			excludes="${testpackage}/**"/>
+					
+	</target>
+	
+	<target name="generate-serverjar" depends="runrmic"/>
+	
+	<target name="all" depends=" generate-clientjar, generate-jar"/>
 
 </project>
 
