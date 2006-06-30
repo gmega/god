@@ -25,9 +25,11 @@ public class LaunchParametersDTO implements Serializable{
     
     private int pollInterval;
 
-    int maxUnflushedSize;
+    private int maxUnflushedSize;
     
-    int flushTimeout;
+    private int flushTimeout;
+    
+    private int handle;
     
     /**
      * Constructor for LaunchParametersDTO. Please check the 
@@ -105,6 +107,20 @@ public class LaunchParametersDTO implements Serializable{
      */
     public int getFlushTimeout() {
         return pollInterval;
+    }
+    
+    /**
+     * Defines the numeric handle for this process. The handle
+     * will be sent back by the process server with each 
+     * notification. By allowing the client to select a handle,
+     * we make things easier, as the client may register listeners
+     * before launching the process, and therefore doesn't have
+     * to queue any notifications.
+     * 
+     * @return Returns the numericHandle.
+     */
+    public int getNumericHandle(){
+    		return handle;
     }
     
     

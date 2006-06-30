@@ -17,20 +17,20 @@ public interface IProcessServer extends Remote{
      *
      * @throws ServerRequestException if launch fails.
      */
-    IRemoteProcess launch(LaunchParametersDTO parameters)
+    public IRemoteProcess launch(LaunchParametersDTO parameters)
         throws ServerRequestException, RemoteException;
     
    /** 
     * Retrieves a list of registered processes, dead or not. A RemoteProcess instance
     * gets out of this list only after RemoteProcess.dispose() is called. 
     */
-    List<IRemoteProcess> getProcessList()
+    public List<IRemoteProcess> getProcessList()
         throws RemoteException;
     
     /**
      * Keep alive method for the process server.
      */
-    boolean isAlive()
+    public boolean isAlive()
         throws RemoteException;
     
     /**
@@ -38,7 +38,16 @@ public interface IProcessServer extends Remote{
      * parameter, all controlled processes will be killed as well. Otherwise
      * they'll be left running.
      */
-    void shutdownServer(boolean shutdownChildProcesses)
+    public void shutdownServer(boolean shutdownChildProcesses)
         throws RemoteException;
+    
+    /**
+     * Returns a string cookie that might have been set for this process
+     * server. 
+     * 
+     * @return the string cookie, or an empty string if there's no cookie.
+     */
+    public String getCookie()
+    		throws RemoteException;
     
 }

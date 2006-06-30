@@ -120,9 +120,6 @@ public class RMIMultiDeathTest extends MultiDeathTest{
             al.add(makeAttribute(ProcessServerConstants.TRANSPORT_PROTOCOL, 
             		PROTOCOL));
 
-            /** Tells the process server in which port to start its RMI registry. */
-            al.add(makeAttribute(ProcessServerConstants.LOCAL_REGISTRY_PORT, 
-            		PROCSERVER_REGISTRY_PORT));
             /** And tells it that it should start a new registry. */
             al.add(makeAttribute(ProcessServerConstants.LR_INSTANTIATION_POLICY, 
             		ProcessServerConstants.SHOULD_START_NEW));

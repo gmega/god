@@ -7,9 +7,11 @@
 	<property name="bin-dir" location="bin"/>
 	<property name="testpackage" value="ddproto1/controller/remote/test"/>
 	<property name="interfacepackage" value="ddproto1/controller/interfaces"/>
+	<property name="constantspackage" value="ddproto1/controller/constants"/>
+	<property name="deploy-dir" value="../GOD Console Prototype 1/lib"/>
 	                                            
 	<path id="class.path">
-		<fileset dir="${basedir}/${lib}">
+		<fileset dir="${jar-dir}">
 			<include name="**/*.jar"/>
   		</fileset>
 	</path>
@@ -17,11 +19,14 @@
 	<target name="runrmic">
 		<rmic base="${bin-dir}" 
 			includes="**/Remote*.class"
-			excludes="**/*$*.class"
-			classpath="${class.path}" />
+			excludes="**/*$*.class">
+			<classpath refid="class.path"/>
+		</rmic>
 			
 		<rmic classname="ddproto1.controller.remote.test.RMIMultiDeathTest.DummyController" 
-			  base="${bin-dir}" classpath="${class.path}" />
+			  base="${bin-dir}">
+			<classpath refid="class.path"/>
+		</rmic>
 	</target>
 	
 	<target name="generate-jar" depends="runrmic">
@@ -33,14 +38,18 @@
 	<target name="generate-clientjar" depends="runrmic">
 		<jar destfile="${jar-dir}/GODRPClient.jar"
 			basedir="${bin-dir}"
-			includes="${interfacepackage}/**, **/*Stub*.class"
+			includes="${interfacepackage}/**, **/*Stub*.class, ${constantspackage}/**"
 			excludes="${testpackage}/**"/>
-					
 	</target>
+	
+	<target name="deploy" depends="generate-jar">
+		<copy file="${jar-dir}/GODRPClient.jar" todir="${deploy-dir}"/>
+	</target>
+	
 	
 	<target name="generate-serverjar" depends="runrmic"/>
 	
-	<target name="all" depends=" generate-clientjar, generate-jar"/>
+	<target name="all" depends="generate-clientjar, generate-jar, deploy"/>
 
 </project>
 

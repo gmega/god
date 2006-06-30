@@ -49,6 +49,10 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
 
             RemoteProcessServerImpl pSImpl = new RemoteProcessServerImpl(
                     cClient);
+            
+            String cookie = parameterMap.get(PROCSERVER_IDENTIFIER);
+            if(cookie == null) cookie = "";
+            pSImpl.setCookie(cookie);
 
             IProcessServer ips = (IProcessServer) PortableRemoteObject.narrow(
                     pSImpl.getProxyAndActivate(), IProcessServer.class);
@@ -125,8 +129,8 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
                     || key.equals(LOG4JCONFIG)
                     || key.equals(TRANSPORT_PROTOCOL)
                     || key.equals(CONTROLLER_REGISTRY_PATH)
-                    || key.equals(LOCAL_REGISTRY_PORT)
-                    || key.equals(LR_INSTANTIATION_POLICY)) {
+                    || key.equals(LR_INSTANTIATION_POLICY)
+                    || key.equals(PROCSERVER_IDENTIFIER)) {
                 attributes.put(key, val);
             } else {
                 System.err.println("Unrecognized parameter " + arg);
@@ -137,7 +141,6 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
                 || !attributes.containsKey(CONTROLLER_REGISTRY_PORT)
                 || !attributes.containsKey(TRANSPORT_PROTOCOL)
                 || !attributes.containsKey(CONTROLLER_REGISTRY_PATH)
-                || !attributes.containsKey(LOCAL_REGISTRY_PORT)
                 || !attributes.containsKey(LR_INSTANTIATION_POLICY)) {
             System.err.println("Missing required attributes.");
             System.exit(1);

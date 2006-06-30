@@ -15,6 +15,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.rmi.PortableRemoteObject;
 
@@ -26,13 +27,20 @@ import ddproto1.controller.interfaces.IRemotable;
 import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.controller.interfaces.LaunchParametersDTO;
 
+/**
+ * This class is thread-safe (or at least it should be).
+ * 
+ * @author giuliano
+ *
+ */
 public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRemotable {
 
     private static final int POLLING_THREADS = 10;
     private static final int SHUTDOWN_BACKOFF = 2000;
     
     private final List<RemoteProcessImpl> processList = new LinkedList<RemoteProcessImpl>();
-    private final AtomicInteger handlerCounter = new AtomicInteger();
+    private final HashSet
+    private final AtomicReference<String> cookie = new AtomicReference<String>();
     private final ScheduledExecutorService poller = new ScheduledThreadPoolExecutor(POLLING_THREADS);
     private IControlClient client;
     
@@ -68,7 +76,7 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
     }
 
     public boolean isAlive() {
-        return true; // Is this useful for anything?
+        return true;
     }
     
     private synchronized void setControlClient(IControlClient client){
@@ -93,11 +101,8 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
                     getControlClient(),
                     this);
 
-        IRemoteProcess rpiProxy = null;
-        
         try{ 
-            rpiProxy = (IRemoteProcess)PortableRemoteObject.
-                narrow(rpi.getProxyAndActivate(), IRemoteProcess.class);
+            rpi.getProxyAndActivate();
         }catch(RemoteException ex){
             throw new ServerRequestException("Error while attempting to " +
                     "export remote process proxy.", ex);
@@ -161,6 +166,7 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         }).start();
         
     }
+    
     public synchronized Remote getProxyAndActivate() 
         throws RemoteException, NoSuchObjectException
     {
@@ -171,5 +177,12 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         
         return proxy;
     }
-
+    
+    public String getCookie(){
+    		return cookie.get();
+    }
+    
+    public void setCookie(String cookie){
+    		this.cookie.set(cookie);
+    }
 }
