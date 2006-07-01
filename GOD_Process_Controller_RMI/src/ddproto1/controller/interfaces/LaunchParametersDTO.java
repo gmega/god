@@ -43,13 +43,15 @@ public class LaunchParametersDTO implements Serializable{
      */
     public LaunchParametersDTO(String [] commandLine,
             EnvironmentVariable [] envVars, int pollInterval,
-            int maxUnflushedSize, int flushTimeout){
+            int maxUnflushedSize, int flushTimeout, 
+            int processHandle){
         
         this.commandLine = commandLine.clone();
         this.envVars = envVars.clone();
         this.pollInterval = pollInterval;
         this.maxUnflushedSize = maxUnflushedSize;
         this.flushTimeout = flushTimeout;
+        this.handle = processHandle;
     }
 
     /**

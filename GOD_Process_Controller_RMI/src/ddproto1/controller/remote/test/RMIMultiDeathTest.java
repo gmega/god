@@ -90,6 +90,7 @@ public class RMIMultiDeathTest extends MultiDeathTest{
         
         DummyController dc = null;
         try{
+        		TestUtils.resetHandles();
             //System.setProperty("java.rmi.server.ignoreStubClasses", "true");
             // Publishes our object to the adapter.
             dc = new DummyController(NPROCS);

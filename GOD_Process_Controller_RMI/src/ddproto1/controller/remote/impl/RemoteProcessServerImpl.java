@@ -39,7 +39,6 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
     private static final int SHUTDOWN_BACKOFF = 2000;
     
     private final List<RemoteProcessImpl> processList = new LinkedList<RemoteProcessImpl>();
-    private final HashSet
     private final AtomicReference<String> cookie = new AtomicReference<String>();
     private final ScheduledExecutorService poller = new ScheduledThreadPoolExecutor(POLLING_THREADS);
     private IControlClient client;
@@ -66,7 +65,7 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         }
         
         return processAdded(launched, parameters.getPollInterval(), parameters.getMaxUnflushedSize(), 
-                parameters.getFlushTimeout());
+                parameters.getFlushTimeout(), parameters.getNumericHandle());
     }
 
     public LinkedList <IRemoteProcess> getProcessList() {
@@ -87,12 +86,10 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         return this.client;
     }
     
-    private IRemoteProcess processAdded(Process proc, int pollInterval, int maxBufferSize, int flushTimeout)
+    private IRemoteProcess processAdded(Process proc, int pollInterval, 
+    		int maxBufferSize, int flushTimeout, int handle)
         throws ServerRequestException
     {
-        
-        int handle = handlerCounter.getAndAdd(1);
-        
         RemoteProcessImpl rpi = 
             new RemoteProcessImpl(proc, 
                     maxBufferSize, 

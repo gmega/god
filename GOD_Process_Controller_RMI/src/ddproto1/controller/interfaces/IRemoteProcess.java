@@ -33,8 +33,10 @@ public interface IRemoteProcess extends Remote{
     void writeToSTDIN(String message) throws ServerRequestException, RemoteException;
     
     /**
-     * Returns the numeric handle of this remote process. Numeric
-     * handles are unique in the scope of a single ProcessServer.
+     * Returns the numeric handle of this remote process. Uniqueness
+     * of numeric handles is implementation-dependent. The default 
+     * implementation, for instance, delegates the task of ensuring
+     * handle uniqueness to the client.
      */
     int getHandle() throws RemoteException;
     

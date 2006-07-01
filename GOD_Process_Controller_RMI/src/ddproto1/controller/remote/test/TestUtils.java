@@ -7,6 +7,7 @@ package ddproto1.controller.remote.test;
 
 import java.io.IOException;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import ddproto1.controller.interfaces.LaunchParametersDTO;
 
@@ -15,6 +16,8 @@ public class TestUtils {
     private static final int DEFAULT_FLUSH_TIMEOUT = 500;
     private static final int DEFAULT_KEEPALIVE_INTERVAL = 400;
     private static final int MAX_BUFFERSIZE = 200;
+    
+    private static final AtomicInteger handles = new AtomicInteger(0);
     
     public static final String [] defaultLaunchString = { 
         "java", "-cp", null,
@@ -36,10 +39,15 @@ public class TestUtils {
                 new LaunchParametersDTO.EnvironmentVariable [] { },
                 DEFAULT_KEEPALIVE_INTERVAL,
                 MAX_BUFFERSIZE,
-                DEFAULT_FLUSH_TIMEOUT);
+                DEFAULT_FLUSH_TIMEOUT,
+                handles.getAndIncrement());
 
         
         return lPars;
+    }
+    
+    public static void resetHandles(){
+    		handles.set(0);
     }
     
     public static String [] genCommandLine(String[] template, int id, int delay, int returnVal){
