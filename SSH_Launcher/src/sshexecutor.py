@@ -51,15 +51,17 @@ class SSHExecutor:
                                 timeout=self.ansTimeout)
             if pat == 0:
                 child.sendline(self.password)
-                try:
-                    child.interact()
-                except OSError:
+                continue
+# Calling 'interact' will generate an exception if I launch the script from inside Eclipse or java.
+#                try:
+#                    child.interact()
+#                except OSError:
                     # Interaction aborted, maybe program died?.
-                    if not self.__pollDeath(child, DEFAULT_EOF_TO_DEATH_TIMEOUT):
-                        # Program didn't die. We can't recover from this error.
-                        raise OSError
+#                    if not self.__pollDeath(child, DEFAULT_EOF_TO_DEATH_TIMEOUT):
+#                        # Program didn't die. We can't recover from this error.
+#                        raise OSError
                     # Otherwise, continue.
-                    continue
+#                    continue
             elif pat == 1:
                 #I trust any server. Perhaps this could be configurable?
                 child.sendline('yes') 
