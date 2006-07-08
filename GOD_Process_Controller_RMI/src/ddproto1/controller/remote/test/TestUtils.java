@@ -68,7 +68,9 @@ public class TestUtils {
             props.load(TestUtils.class.getClassLoader().getResourceAsStream("test.properties"));
         }
         
-        return props.getProperty(key);
+        String propVal = props.getProperty(key);
+        if(propVal == null) throw new RuntimeException("Property doesn't exist.");
+        return propVal;
     }
     
 }
