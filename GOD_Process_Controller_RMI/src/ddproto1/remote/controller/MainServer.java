@@ -7,6 +7,7 @@ package ddproto1.remote.controller;
 
 import java.io.IOException;
 import java.net.URL;
+import java.rmi.RMISecurityManager;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.HashMap;
@@ -26,14 +27,16 @@ import ddproto1.controller.remote.impl.RemoteProcessServerImpl;
 
 public class MainServer implements ProcessServerConstants, IErrorCodes {
 
-    private static Logger logger;
-
+    private static Logger logger = null;
+ 
     public static void main(String[] args) {
         try {
             System.out.println("GOD Process Server V 0.1 alpha");
             Map<String, String> parameterMap = parseParameters(args);
             configureLogging(parameterMap.get(LOG4JCONFIG));
+            logger = Logger.getLogger(MainServer.class);
 
+            logger.info("Server is now being started...");
             /** We now must resolve the remote object. But first, we have
              * to resolve the remote registry.
              */
@@ -64,6 +67,7 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
             logger.info("Process server is online.");
 
         } catch (Exception ex) {
+            if(logger != null) logger.error("Failed to start server.", ex);
             ex.printStackTrace();
             System.exit(STATUS_ERROR);
         }
@@ -163,6 +167,5 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
         }
 
         BasicConfigurator.configure();
-        logger = Logger.getLogger(MainServer.class);
     }
 }
