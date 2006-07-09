@@ -38,10 +38,13 @@ class SSHExecutor:
         baseParamList = ['-X', '-l', self.user, self.host, '-p', self.port]
         baseParamList.extend(commandList)
         
+        print baseParamList
+        
         child = pexpect.spawn ('ssh', baseParamList)
         
         # Loops infinitely
         while True:
+            print "Will now wait for events."
             pat = child.expect(['assword', '\\(yes/no\\)\\?', 
                                 'Connection to ' + self.host + ' closed', 
                                 'not known', 
@@ -51,7 +54,9 @@ class SSHExecutor:
                                 timeout=self.ansTimeout)
             if pat == 0:
                 child.sendline(self.password)
-                continue
+                print "Password sent."
+                continue;
+#                continue
 # Calling 'interact' will generate an exception if I launch the script from inside Eclipse or java.
 #                try:
 #                    child.interact()
@@ -63,9 +68,12 @@ class SSHExecutor:
                     # Otherwise, continue.
 #                    continue
             elif pat == 1:
+                print "SSH client didn't knew the server's key."
+                print "I told it to go ahead and add it to .ssh/known_hosts."
                 #I trust any server. Perhaps this could be configurable?
                 child.sendline('yes') 
             else:
+                print "No-progress pattern " + child.before + " waiting for process death."
                 self.__pollDeath(child)
                 return child.exitstatus
                 
