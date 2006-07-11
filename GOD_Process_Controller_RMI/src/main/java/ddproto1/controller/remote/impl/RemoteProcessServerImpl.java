@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.rmi.PortableRemoteObject;
 
+import org.apache.log4j.Logger;
+
 import ddproto1.controller.constants.IErrorCodes;
 import ddproto1.controller.exception.ServerRequestException;
 import ddproto1.controller.interfaces.IControlClient;
@@ -37,6 +39,8 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
 
     private static final int POLLING_THREADS = 10;
     private static final int SHUTDOWN_BACKOFF = 2000;
+    
+    private static final Logger logger = Logger.getLogger(RemoteProcessImpl.class);
     
     private final List<RemoteProcessImpl> processList = new LinkedList<RemoteProcessImpl>();
     private final AtomicReference<String> cookie = new AtomicReference<String>();
@@ -57,6 +61,8 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
             throw new ServerRequestException("Polling interval must be a non-negative integer.");
         
         Process launched = null;
+        if(logger.isDebugEnabled())
+            logger.debug("Launch requested for: \n" + parameters);
         
         try{
             launched = Runtime.getRuntime().exec(parameters.getCommandLine());
@@ -133,11 +139,13 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
     public synchronized void shutdownServer(boolean shutdownChildProcesses) 
         throws RemoteException
     {
+        logger.info("Shut down signalled.");
         
         /** Terminates all children processes. */
         if(shutdownChildProcesses){
             List plistCopy = null;
         
+            logger.info("Terminating child processess...");
             synchronized(processList){
                 plistCopy = 
                     new LinkedList(processList);

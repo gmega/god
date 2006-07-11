@@ -2,54 +2,59 @@
 
 <project name="Distributed Debugger Prototype 1" default="all" basedir=".">
 
-	<property name="jar-dir" location="lib"/>
-	<property name="src-dir" location="src"/>
-	<property name="bin-dir" location="bin"/>
-	<property name="testpackage" value="ddproto1/controller/remote/test"/>
+	<import file="../GOD_Build/build.xml"/>
+	
 	<property name="interfacepackage" value="ddproto1/controller/interfaces"/>
 	<property name="constantspackage" value="ddproto1/controller/constants"/>
-	<property name="deploy-dir" value="../GOD Console Prototype 1/lib"/>
-	                                            
-	<path id="class.path">
-		<fileset dir="${jar-dir}">
-			<include name="**/*.jar"/>
-  		</fileset>
-	</path>
-	
-	<target name="runrmic">
-		<rmic base="${bin-dir}" 
+	<property name="exceptionpackage" value="ddproto1/controller/exception"/>
+
+	<target name="init" depends="global-init">
+		<path id="rmic.class.path">
+			<fileset refid="log4j.libs"/>
+		</path>
+
+		<path id="rmic.test.class.path">
+			<fileset refid="log4j.libs"/>
+			<fileset refid="junit.libs"/>
+			<fileset refid="easymock.libs"/>						
+		</path>
+	</target>
+		                                            
+	<target name="runrmic" depends="init">
+		<rmic base="${classes.dir}" 
 			includes="**/Remote*.class"
 			excludes="**/*$*.class">
-			<classpath refid="class.path"/>
+			<classpath refid="rmic.class.path"/>
 		</rmic>
 			
 		<rmic classname="ddproto1.controller.remote.test.RMIMultiDeathTest.DummyController" 
-			  base="${bin-dir}">
-			<classpath refid="class.path"/>
+			  base="${classes.dir}">
+			<classpath refid="rmic.test.class.path"/>
 		</rmic>
+		
+		<rmic classname="ddproto1.controller.remote.test.IOStressTest.IOMatcher" 
+			  base="${classes.dir}">
+			<classpath refid="rmic.test.class.path"/>
+		</rmic>
+
 	</target>
 	
 	<target name="generate-jar" depends="runrmic">
-		<jar destfile="${jar-dir}/GODProcessServer.jar"
-			basedir="${bin-dir}"
+		<jar destfile="${jarArtifacts.dir}/GODProcessServer.jar"
+			basedir="${classes.dir}"
 			excludes="${testpackage}/**/**.class"/>
 	</target>
 	
 	<target name="generate-clientjar" depends="runrmic">
-		<jar destfile="${jar-dir}/GODRPClient.jar"
-			basedir="${bin-dir}"
-			includes="${interfacepackage}/**, **/*Stub*.class, ${constantspackage}/**"
+		<jar destfile="${jarArtifacts.dir}/GODRPClient.jar"
+			basedir="${classes.dir}"
+			includes="${interfacepackage}/**, **/*Stub*.class, ${constantspackage}/**, ${exceptionpackage}/**"
 			excludes="${testpackage}/**"/>
 	</target>
 	
-	<target name="deploy" depends="generate-jar">
-		<copy file="${jar-dir}/GODRPClient.jar" todir="${deploy-dir}"/>
-	</target>
-	
-	
 	<target name="generate-serverjar" depends="runrmic"/>
 	
-	<target name="all" depends="generate-clientjar, generate-jar, deploy"/>
+	<target name="all" depends="generate-clientjar, generate-jar"/>
 
 </project>
 

@@ -16,6 +16,10 @@ public class LaunchParametersDTO implements Serializable{
     
     private static final long serialVersionUID = -2024763738535455050L;
     
+    public static final int DEFAULT_POLL_INTERVAL = 100;
+    public static final int DEFAULT_BUFFER_SIZE = 100;
+    public static final int DEFAULT_FLUSH_TIMEOUT = 500;
+    
     /** Please check the getter javadocs for the meaning of each of these
      * variables.
      */
@@ -30,6 +34,30 @@ public class LaunchParametersDTO implements Serializable{
     private int flushTimeout;
     
     private int handle;
+    
+    /**
+     * Equivalent to 
+     *      LaunchParametersDTO(commandLine,
+     *          envVars, 
+     *          DEFAULT_POLL_INTERVAL,
+     *          DEFAULT_BUFFER_SIZE, 
+     *          DEFAULT_FLUSH_TIMEOUT, 
+     *          procHandle);
+     *
+     * @param commandLine
+     * @param envVars
+     * @param procHandle
+     */
+    public LaunchParametersDTO(String [] commandLine, 
+            EnvironmentVariable [] envVars, 
+            int procHandle){
+        this(commandLine, 
+                envVars, 
+                DEFAULT_POLL_INTERVAL,
+                DEFAULT_BUFFER_SIZE, 
+                DEFAULT_FLUSH_TIMEOUT, 
+                procHandle);
+    }
     
     /**
      * Constructor for LaunchParametersDTO. Please check the 
@@ -122,9 +150,33 @@ public class LaunchParametersDTO implements Serializable{
      * @return Returns the numericHandle.
      */
     public int getNumericHandle(){
-    		return handle;
+    	return handle;
     }
     
+    public String toString(){
+        StringBuffer sBuffer = new StringBuffer();
+        sBuffer.append("Command line: \n   ");
+        for(String parameter : commandLine){ 
+            sBuffer.append(parameter);
+            sBuffer.append(" ");
+        }
+        sBuffer.append("\nEnvironment variables: \n  { ");
+        
+        for(EnvironmentVariable var : envVars){
+            sBuffer.append(var);
+            sBuffer.append(" ");
+        }
+        sBuffer.append(" }\nPoll for death interval:");
+        sBuffer.append(pollInterval);
+        sBuffer.append("\nMaximum unflushed size:");
+        sBuffer.append(maxUnflushedSize);
+        sBuffer.append("\nFlushing timeout:");
+        sBuffer.append(flushTimeout);
+        sBuffer.append("\nAssigned handle:");
+        sBuffer.append(handle);
+
+        return sBuffer.toString();
+    }
     
     public static class EnvironmentVariable implements Serializable{
         
@@ -140,6 +192,10 @@ public class LaunchParametersDTO implements Serializable{
         
         protected String getKey() { return key; }
         protected String getValue() { return value; }
+        
+        public String toString(){
+            return "[" + key + " = " + value + "]";
+        }
     }
 
 }

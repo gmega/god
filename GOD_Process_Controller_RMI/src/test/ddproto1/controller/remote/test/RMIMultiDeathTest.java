@@ -69,13 +69,6 @@ public class RMIMultiDeathTest extends MultiDeathTest{
     }
     
     private static final int NPROCS = 5;
-    private static final String CONTROLLER_REGISTRY_HOST = "localhost";
-    private static final String CONTROLLER_REGISTRY_PORT = "3000";
-    private static final String CONTROLLER_OBJNAME = "ControlClient";
-    
-    private static final String PROCSERVER_REGISTRY_PORT = "3001";
-    
-    private static final String PROTOCOL = "tcp";
     
     private Process serverProcess;
     
@@ -90,46 +83,11 @@ public class RMIMultiDeathTest extends MultiDeathTest{
         
         DummyController dc = null;
         try{
-        		TestUtils.resetHandles();
+        	TestUtils.resetHandles();
             //System.setProperty("java.rmi.server.ignoreStubClasses", "true");
             // Publishes our object to the adapter.
             dc = new DummyController(NPROCS);
-            PortableRemoteObject.exportObject(dc);
-            IControlClient cClient = 
-                (IControlClient)PortableRemoteObject.narrow(
-                        PortableRemoteObject.toStub(dc), IControlClient.class);
-            getRegistry().rebind(CONTROLLER_OBJNAME, cClient);
-            // Now launch the process server. 
-            ArrayList <String> al = new ArrayList<String>();
-            al.add("java");
-            al.add("-cp");
-            al.add(TestUtils.getProperty("control.server.classpath") + ":" 
-                    + TestUtils.getProperty("log4j.runtime.classpath"));
-            al.add(MainServer.class.getName());
-            
-            /** Tells the remote process server: */
-            /** Where in our RMI registry the published controller resides. */
-            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_PATH, 
-            		CONTROLLER_OBJNAME));
-            /** The address of our registry */
-            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_ADDRESS, 
-            		CONTROLLER_REGISTRY_HOST));
-            /** The port of our registry */
-            al.add(makeAttribute(ProcessServerConstants.CONTROLLER_REGISTRY_PORT, 
-            		CONTROLLER_REGISTRY_PORT));
-            /** The transport protocol to be adopted. */
-            al.add(makeAttribute(ProcessServerConstants.TRANSPORT_PROTOCOL, 
-            		PROTOCOL));
-
-            /** And tells it that it should start a new registry. */
-            al.add(makeAttribute(ProcessServerConstants.LR_INSTANTIATION_POLICY, 
-            		ProcessServerConstants.SHOULD_START_NEW));
-            
-            
-            String [] launchdata = new String[al.size()];
-            launchdata = al.toArray(launchdata);
-            
-            setProcess(Runtime.getRuntime().exec(launchdata));
+            setProcess(TestUtils.fireProcServerWithListener(dc));
             
             new Thread(new Runnable(){
                 public void run() {
@@ -193,25 +151,10 @@ public class RMIMultiDeathTest extends MultiDeathTest{
         }
     }
     
-    protected synchronized Registry getRegistry()
-        throws RemoteException
-    {
-        if(registry == null){
-            registry = LocateRegistry.createRegistry(
-                    Integer.parseInt(CONTROLLER_REGISTRY_PORT));
-        }
-        
-        return registry;
-    }
-    
     public void tearDown(){
         cleanup();
     }
 
-    private String makeAttribute(String key, String val){
-        return "--" + key + ProcessServerConstants.PARAM_SEPARATOR_CHAR + val;
-    }
-    
     protected synchronized void setProcess(Process p){
         serverProcess = p;
     }

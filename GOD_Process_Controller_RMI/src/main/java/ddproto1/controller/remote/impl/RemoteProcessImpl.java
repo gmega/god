@@ -36,6 +36,11 @@ import ddproto1.controller.interfaces.IRemoteProcess;
 public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotable {
     
     private static final Logger logger = Logger.getLogger(RemoteProcessImpl.class);
+    
+    /** Separate name for high-output logger. */
+    private static final Logger outputLogger = 
+        Logger.getLogger(RemoteProcessImpl.class.getName() + "#output");
+    
     private static final int BACKOFF = 100;
     
     private Process underlying;
@@ -127,6 +132,8 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
 
     public void dispose() 
     {
+        logger.info("Dispose called on process " + pHandle + "." 
+                + " Terminating and unexporting remote proxy.");
         getProcess().destroy();
         synchronized(this){
             try{
@@ -144,12 +151,24 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
     
     public synchronized void beginDispatchingStreams(){
         stdout_thread = new Thread(stdout);
+        stdout_thread.setName("STDOUT Stream Gobbler");
         stderr_thread = new Thread(stderr);
+        stdout_thread.setName("STDERR Stream Gobbler");
         
         stdout_thread.start();
         stderr_thread.start();
     }
 
+    /**
+     * Stream Gobbler reads from a stream and continously dispatch its contents 
+     * to a notification wrapper. You can shut down the stream gobbler by signalling
+     * an interrupt to the thread it is running on. 
+     * 
+     * This class is thread-safe.
+     * 
+     * @author giuliano
+     *
+     */
     private class StreamGobbler implements Runnable{
         
         private BufferedReader reader;
@@ -164,6 +183,8 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
             this.closeOnExit = closeOnExit;
         }
         
+        /** Synchronized accessors to reader and wrapper. I could've used 
+         * a volatile or atomic reference, but I haven't. */
         protected synchronized BufferedReader getReader(){
             return reader;
         }
@@ -174,33 +195,64 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
 
         public void run() {
             BufferedReader lReader = getReader();
-            char buf [] = new char[bufferlength];
-            
-            while(true){
-                try{
-                    getWrapper().doNotify(tryRead(buf, lReader));     
-                }catch(InterruptedException ex){
-                    break;
-                }catch(IOException ex){
-                    /** If the process isn't alive anymore, then it's okay to have 
-                     * an IOException here. */
-                    if(!isAlive() || ex.getMessage().startsWith("Stream closed"))
-                        break;
-                    
-                    logger.error("Error while processing streams for (" + pHandle + ")", ex);
-                    break;
-                    
-                }finally{
-                    try{
-                        if(closeOnExit)
-                            lReader.close();
-                    }catch(IOException ex){
-                        logger.error("Failed to close output stream.", ex);
-                    }
+            char buf[] = new char[bufferlength];
+
+            /** The read-dispatch loop will, under normal circumstances,
+             * loop until an IOException is thrown because the process 
+             * is dead.
+             */
+            try {
+                while (!Thread.interrupted()) {
+                    String data = tryRead(buf, lReader);
+                    getWrapper().doNotify(data);
+                }
+            } catch (InterruptedException ex) {
+                logger.debug("Thread interrupted - shutdown signalled.");
+            } catch (IOException ex) {
+                /**
+                 * If the process isn't alive anymore, then it's okay to have an
+                 * IOException here.
+                 */
+                if (!isAlive() || ex.getMessage().startsWith("Stream closed")) {
+                    if (logger.isDebugEnabled())
+                        logger.debug("Stream from process " + pHandle 
+                                + " has been closed because of process termination." +
+                                        "We won't try to read from it anymore.");
+                }
+
+                logger.error("Error while processing streams for (" + pHandle
+                        + ")", ex);
+
+            } catch (Throwable t) {
+                logger.error("Error while processing streams for (" + pHandle
+                        + ")", t);
+            } finally {
+                try {
+                    if (closeOnExit)
+                        lReader.close();
+                } catch (IOException ex) {
+                    logger.error("Failed to close output stream.", ex);
                 }
             }
+
         }
         
+        /**
+         * tryRead will read from a given input stream (could be STDOUT or STDERR)
+         * until one of the following occurs:
+         * 
+         * 1) buffer.length characters are read.
+         * 2) timeout milliseconds have ellapsed
+         * 
+         * when either one of these occur, tryRead will return a String containing
+         * whathever it was able to read. 
+         * 
+         * @param buffer
+         * @param reader
+         * @return
+         * @throws IOException - if underlying stream throws IOException.
+         * @throws InterruptedException - if thread is interrupted.
+         */
         private String tryRead(char [] buffer, BufferedReader reader)
             throws IOException, InterruptedException
         {
@@ -212,6 +264,13 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
                 
                 /** Stream ended. */
                 if(readValue == -1){
+                    if(logger.isDebugEnabled())
+                        logger.debug("Got end-of-stream for process " + pHandle);
+                    /** Signals shutdown. **/
+                    Thread.currentThread().interrupt(); 
+                    /** Nothing to return. Simulates blocked shutdown. */
+                    if(offset == 0)
+                        throw new InterruptedException();
                     break;
                 }
                 
@@ -230,7 +289,13 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
                     break;
             }
             
-            return new String(buffer, 0, offset);
+            String returnString = new String(buffer, 0, offset);
+            
+            if(outputLogger.isDebugEnabled()){
+                outputLogger.debug("Read " + returnString + " from " + pHandle);
+            }
+            
+            return returnString;
         }
     }
     
