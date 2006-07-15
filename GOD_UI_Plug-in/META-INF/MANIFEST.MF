@@ -1,0 +1,18 @@
+Bundle-SymbolicName: ddproto1.plugin.ui; singleton=true
+Bundle-Version: 1.0.0
+Bundle-Name: GOD Prototype 1 UI Plug-in
+Bundle-Vendor: Giuliano Mega
+Bundle-Activator: ddproto1.plugin.ui.DDUIPlugin
+Require-Bundle: com.tools.logging,
+ org.eclipse.core.runtime,
+ org.eclipse.debug.ui,
+ org.junit,
+ org.eclipse.jface,
+ org.eclipse.jface.text,
+ org.eclipse.debug.core,
+ org.eclipse.ui,
+ ddproto1.plugin.core,
+ org.eclipse.core.resources,
+ br.usp.ime.ddproto1.god.core,
+ br.usp.ime.ddproto1.build
+Eclipse-AutoStart: true

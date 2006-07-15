@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin>
+   <extension
+         id="ddproto1.plugin.ui.launcher.DDTabGroup"
+         name="Distributed Debugger Tab Group"
+         point="org.eclipse.debug.ui.launchConfigurationTabGroups">
+         
+		<launchConfigurationTabGroup
+			type="ddproto1.plugin.core.distributedNodeLaunchConfiguration"
+			class="ddproto1.plugin.ui.launching.DDTabGroup"
+			id="ddproto1.plugin.ui.launching.ComponentConfiguratorTabGroup">
+	    </launchConfigurationTabGroup>
+   </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="ddproto1.ui.preferences.GODPreferences"
+            id="ddproto1.ui.preferences.GODPreferences"
+            name="GOD"/>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer class="ddproto1.ui.preferences.PreferenceInitializer"/>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.adapters">
+   </extension>
+   <extension point="org.eclipse.debug.ui.launchConfigurationTypeImages">
+		<launchConfigurationTypeImage
+			icon="images/launch_icon.png"
+			configTypeID="ddproto1.plugin.core.distributedNodeLaunchConfiguration"
+			id="ddproto1.plugin.ui.ddNodeLaunchConfigurationTypeImage">
+		</launchConfigurationTypeImage>
+	</extension>
+	
+	<extension
+		point="org.eclipse.ui.actionSets">
+		<actionSet
+			label="GOD Global Agent"
+			visible="true"
+			id="ddproto1.ui.launching.workbenchActionSet">
+		  <action
+		  		id="ddproto1.ui.launching.stopGlobalAgent"
+		  		label="Stop the GOD Global Agent"
+		  		icon="images/god_stop_btn.png"
+		  		tooltip="Stops the GOD Global Agent servers and kills all attached applications"
+				toolbarPath="Normal/additions"
+				class="ddproto1.plugin.ui.launching.StopCentralAgentDelegate">
+		  </action>
+			
+		  <action
+		  		id="ddproto1.ui.launching.startGlobalAgent"
+		  		label="Start the GOD Global Agent"
+		  		icon="images/god_start_btn.png"
+		  		tooltip="Starts the GOD Global Agent servers"
+				toolbarPath="Normal/additions"
+				class="ddproto1.plugin.ui.launching.LaunchCentralAgentDelegate">
+		  </action>
+		 </actionSet>
+	</extension>
+		  
+</plugin>

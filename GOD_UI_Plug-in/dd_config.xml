@@ -1,0 +1,848 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<!-- Configuration file for GOD Console Prototype 1 -->
+
+<dd_config>
+	<param key="thread-pool-size" value="20"/>
+	<param key="cdwp-port" value="8081"/>
+	<param key="connection-queue-size" value="10"/>
+	<param key="global-agent-address" value="localhost"/>
+	
+	<!-- Each entry in the debugee list correspond to an individual node setup -->
+	<!-- 
+	##############################################################################
+	################################ Library Nodes ###############################
+	##############################################################################
+	-->
+	<node-list>
+		<node name="Cliente Biblioteca" 
+			  type="ddproto1.debugger.managing.VirtualMachineManager" 
+			  CORBA-enabled="yes" 
+			  launcher="yes">
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2000"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="wait-until-dead"/>
+
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/SOD/bibclient.jar:
+							/home/giuliano/workspace/SOD/lib/mysql-connector-java-3.0.12-production-bin.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+				
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+				
+				<param key="main-class" value="Biblio.GUI.ClientGUI"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/pos/giuliano/workspace/SOD-client/client-src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Biblio._BibAdminStub;Biblio._BibliotecaStub;Biblio._BibliotecaVirtualStub;Biblio._ExemplarDeLivroStub;Biblio._LivroStub"/>
+			<param key="skeletonlist" value=""/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<!-- 
+		##############################################################################
+		################################ Non-CORBA Nodes #############################
+		##############################################################################
+		-->
+		<node name="Simple Application" 
+			  type="ddproto1.debugger.managing.VirtualMachineManager" 
+			  CORBA-enabled="no" 
+			  launcher="yes">
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2001"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="wait-until-dead"/>
+				
+				<param key="classpath" 
+					value="/home/giuliano/workspace/simpleapp:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="SimpleClass"/>
+				<param key="vm-parameters" value=""/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/simpleapp"/>
+			</source-mapper>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+	
+		<!-- 
+		##############################################################################
+		################### Standard Java/CORBA Test Suite Nodes #####################
+		##############################################################################
+		-->
+		<node name="CORBA Client" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2002"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbaclienttest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="Client"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+				<param key="app-parameters" value="normal"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbaclienttest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value=""/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="JacORB NS" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2003"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+	   
+				<param key="main-class" value="org.jacorb.naming.NameServer"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=/home/dduser/custom.props -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Djacorb.naming.ior_filename=/home/dduser/NameService.ref"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-ns.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/opt/JacORB_2_2/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="org.jacorb.naming.NamingContextImpl"/>
+			<!--
+			<param key="skeleton-excluded-methods" value="org.jacorb.naming.NamingContextImpl.init(org.omg.PortableServer.POA);
+														  org.jacorb.naming.NamingContextImpl.configure(org.apache.avalon.framework.configuration.Configuration);
+														  org.jacorb.naming.NamingContextImpl.cleanup();
+														  org.jacorb.naming.NamingContextImpl.howMany();
+														  org.jacorb.naming.NamingContextImpl.default_POA();
+														  org.jacorb.naming.NamingContextImpl.writeObject(java.io.ObjectOutputStream);
+														  org.jacorb.naming.NamingContextImpl.isDead(org.omg.CORBA.Object)"/>
+
+			-->
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="Reuters Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2004"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbatest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="server.Server"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dconfig.file=/home/giuliano/workspace/corbatest/server.reuters.conf"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbatest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+
+		<!-- 
+		##############################################################################
+		######################### Stack Overflow DEMO Nodes ##########################
+		##############################################################################
+		-->
+		<node name="Quoter SO Client" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2002"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbaclienttest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="Client"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+				<param key="app-parameters" value="overflow"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbaclienttest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value=""/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="Quoter SO 1" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2005"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbatest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="server.Server"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dconfig.file=/home/giuliano/workspace/StackOverflowDEMO/quoter1.quoter.conf"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbatest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="Quoter SO 2" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2006"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbatest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="server.Server"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dconfig.file=/home/giuliano/workspace/StackOverflowDEMO/quoter2.quoter.conf"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbatest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<!-- 
+		##############################################################################
+		####################### Distributed Deadlock DEMO Nodes ######################
+		##############################################################################
+		-->
+		
+		<node name="Database Server 1" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2007"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/DistributedDeadlockDEMO/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="db.dataserver.Main"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dsync.wait=4000"/>
+				<param key="app-parameters" value="--name=db1 --alternates=databases/db2 --entry-file=/home/giuliano/workspace/DistributedDeadlockDEMO/db1.entryset"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/DistributedDeadlockDEMO/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="db._DataBaseStub;db._TransactionManagerStub;db._TransactionStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="db.implementation.DataBaseImpl;db.implementation.transaction.TransactionImpl;db.implementation.transaction.TransactionManagerImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="Database Server 2" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2008"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/DistributedDeadlockDEMO/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="db.dataserver.Main"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dsync.wait=2000"/>
+				<param key="app-parameters" value="--name=db2 --alternates=databases/db1"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/DistributedDeadlockDEMO/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="db._DataBaseStub;db._TransactionManagerStub;db._TransactionStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="db.implementation.DataBaseImpl;db.implementation.transaction.TransactionImpl;db.implementation.transaction.TransactionManagerImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<node name="Database Server 3" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2009"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/DistributedDeadlockDEMO/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="db.dataserver.Main"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dsync.wait=100"/>
+				<param key="app-parameters" value="--name=db3 --alternates=databases/db2 --entry-file=/home/giuliano/workspace/DistributedDeadlockDEMO/db3.entryset"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/DistributedDeadlockDEMO/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="db._DataBaseStub;db._TransactionManagerStub;db._TransactionStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="db.implementation.DataBaseImpl;db.implementation.transaction.TransactionImpl;db.implementation.transaction.TransactionManagerImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+
+		
+		<node name="Database Client" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2010"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="launch-and-close"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/DistributedDeadlockDEMO/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="db.client.DBClient"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+				<param key="app-parameters" value="--name=db1 --alternates=databases/db2 --entry-file=/home/giuliano/workspace/DistributedDeadlockDEMO/db1.entryset"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/DistributedDeadlockDEMO/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="db._DataBaseStub;db._TransactionManagerStub;db._TransactionStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="db.implementation.DataBaseImpl;db.implementation.transaction.TransactionImpl;db.implementation.transaction.TransactionManagerImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		<!-- 
+		##############################################################################
+		####################### Exception Detection DEMO Nodes #######################
+		##############################################################################
+		-->
+		<node name="Messed Up Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2011"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="wait-until-dead"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbatest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="server.MessedUpServer"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton -Dconfig.file=/home/giuliano/workspace/corbatest/server.messed.conf"/>
+				<param key="app-parameters" value=""/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbatest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.MessedUpQuoterImpl"/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+		
+		
+		<node name="Messed Up Client" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2002"/>
+						
+			<tunnelled-launcher type="ddproto1.launcher.JVMShellLauncher">
+				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
+					<param key="ssh-port" value="22"/>
+					<param key="user" value="dduser"/>
+					<param key="pass" value="dduser123"/>
+					<param key="pass-type" value="plain"/>
+				</shell-tunnel>
+				
+				<param key="tunnel-closure-policy" value="wait-until-dead"/>
+				
+				<param key="classpath" 
+					value="/home/dduser:
+							/home/giuliano/workspace/corbaclienttest/bin:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/antlr-2.7.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/avalon-framework-4.1.5.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/concurrent-1.3.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/idl.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/jacorb.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/logkit-1.2.jar:
+							/home/giuliano/workspace/GOD Console Prototype 1/lib/wrapper-3.0.3.jar"/>
+
+				<param key="local-agent-jar" 
+					value="/home/giuliano/workspace/GOD Console Prototype 1/lib/local-agent.jar"/>
+										   
+				<param key="main-class" value="Client"/>
+				<param key="vm-parameters" 
+					value="-Dcustom.props=custom.props -Djacorb.home=/opt/JacORB_2_2 -Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB -Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+				<param key="app-parameters" value="messed"/>
+				
+				<param key="log4j-config-url" 
+					value="file:/home/giuliano/workspace/GOD Console Prototype 1/logging-config/log4j-client.conf"/>
+
+				
+			</tunnelled-launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:/home/giuliano/workspace/corbaclienttest/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value=""/>
+			
+			<attaching-connector type="ddproto1.debugger.managing.SocketAttachWrapper">
+				<param key="attaching-connector-type" value="com.sun.jdi.SocketAttach"/>
+			</attaching-connector>
+		</node>
+
+	</node-list>
+		
+</dd_config>
