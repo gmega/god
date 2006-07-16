@@ -14,7 +14,7 @@ public interface IControlClient extends Remote{
      * Notifies the client that the process of handle pHandle
      * has died.
      */
-    void notifyProcessDeath(int pHandle)
+    void notifyProcessDeath(int pHandle, int exitValue)
         throws RemoteException;
     
     /**

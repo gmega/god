@@ -42,7 +42,7 @@ public class RMIMultiDeathTest extends MultiDeathTest{
             return ops;
         }
 
-        public void notifyProcessDeath(int pHandle) {
+        public void notifyProcessDeath(int pHandle, int exitValue) {
             getOps().notifyProcessDeath(pHandle);
             System.out.println("Got notifyProcessDeath.");
             notifyDeath();

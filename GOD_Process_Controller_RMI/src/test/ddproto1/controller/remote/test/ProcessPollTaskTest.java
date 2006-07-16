@@ -43,7 +43,7 @@ public class ProcessPollTaskTest extends TestCase{
         LaunchParametersDTO lp = TestUtils.crankDefaultLaunch(0, 10000, 0);
         
         IControlClient cClient = EasyMock.createMock(IControlClient.class);
-        cClient.notifyProcessDeath(0);
+        cClient.notifyProcessDeath(0, 0);
         EasyMock.expectLastCall().once();
         
         

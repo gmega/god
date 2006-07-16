@@ -54,8 +54,11 @@ public class ProcessPollTask implements Runnable{
     }
     
     public void run() {
+        
+        int exitValue;
+        
         try{
-            getProcess().exitValue();
+            exitValue = getProcess().exitValue();
         }catch(IllegalThreadStateException ex){ 
             return;
         }
@@ -75,7 +78,7 @@ public class ProcessPollTask implements Runnable{
         if(!notifying.compareAndSet(false, true)) return;
         
         try{
-            getControlClient().notifyProcessDeath(handle);
+            getControlClient().notifyProcessDeath(handle, exitValue);
         }catch(RemoteException ex){
             logger.error("Failed to notify control client of process death (handle: " 
                     + handle + ")");

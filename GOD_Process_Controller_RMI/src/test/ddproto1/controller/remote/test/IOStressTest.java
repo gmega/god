@@ -36,7 +36,7 @@ public class IOStressTest extends TestCase{
     
     private class IOMatcher implements IControlClient{
 
-        public void notifyProcessDeath(int pHandle) throws RemoteException {
+        public void notifyProcessDeath(int pHandle, int exitValue) throws RemoteException {
             System.out.println("Dead");
             parkIntoBarrier();
         }
