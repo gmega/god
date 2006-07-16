@@ -55,6 +55,9 @@ class SSHExecutor:
             if pat == 0:
                 child.sendline(self.password)
                 print "Password sent."
+                # We break the timeout as it may be a while before we
+                # see another pattern.
+                self.ansTimeout = -1
                 continue;
 #                continue
 # Calling 'interact' will generate an exception if I launch the script from inside Eclipse or java.
