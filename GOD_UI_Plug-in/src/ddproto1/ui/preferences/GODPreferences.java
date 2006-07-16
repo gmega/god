@@ -5,7 +5,6 @@ import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.eclipse.ui.IWorkbench;
 
 import ddproto1.configurator.commons.IConfigurationConstants;
-import ddproto1.plugin.core.IDDCorePluginConstants;
 import ddproto1.plugin.ui.DDUIPlugin;
 import ddproto1.plugin.ui.IDebuggerConstantsUI;
 

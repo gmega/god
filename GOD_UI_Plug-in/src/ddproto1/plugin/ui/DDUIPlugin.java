@@ -33,6 +33,7 @@ import org.xml.sax.SAXException;
 
 import com.tools.logging.PluginLogManager;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.IObjectSpecType;
 import ddproto1.configurator.ISpecLoader;
@@ -48,8 +49,6 @@ import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.interfaces.IMessageBox;
-import ddproto1.plugin.core.DDCorePlugin;
-import ddproto1.plugin.core.IDDCorePluginConstants;
 import ddproto1.plugin.ui.launching.FSImplementationScanner;
 import ddproto1.plugin.ui.launching.IImplementationScanner;
 import ddproto1.plugin.ui.launching.listers.BundleEntryLister;
@@ -255,7 +254,7 @@ public class DDUIPlugin extends AbstractUIPlugin{
                 }
 
                 attName = preferences
-                        .getString(IDDCorePluginConstants.NAME_ATTRIBUTE);
+                        .getString(IConfigurationConstants.NAME_ATTRIBUTE);
                 
                 /** We now initialize the root spec attributes that depend
                  * on preferences.
@@ -454,13 +453,13 @@ public class DDUIPlugin extends AbstractUIPlugin{
         private void fireBindNodeEvent(String name, IObjectSpec theSpec){
 //            for(IConfigurationUser user : this.getLoadExtenders())
 //                user.bindConfiguration(theSpec, name);
-            DDCorePlugin.getDefault().getNodeManager().bindConfiguration(theSpec, name);
+            GODBasePlugin.getDefault().getNodeManager().bindConfiguration(theSpec, name);
         }
         
         private void fireUnbindNodeEvent(String name){
 //            for(IConfigurationUser user: this.getLoadExtenders())
 //                user.unbindConfiguration(name);
-            DDCorePlugin.getDefault().getNodeManager().unbindConfiguration(name);
+            GODBasePlugin.getDefault().getNodeManager().unbindConfiguration(name);
         }
 
         public void propertyChange(PropertyChangeEvent event) {

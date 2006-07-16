@@ -20,8 +20,8 @@ import ddproto1.configurator.IAttribute;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.IObjectSpecType;
 import ddproto1.configurator.ObjectSpecStringfier;
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.exception.commons.AttributeAccessException;
-import ddproto1.plugin.core.IDDCorePluginConstants;
 import ddproto1.plugin.ui.DDUIPlugin;
 import ddproto1.plugin.ui.IConfigurationManager;
 import ddproto1.plugin.ui.IDebuggerConstantsUI;
@@ -47,7 +47,7 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
          */
         Preferences preferences = plugin.getPluginPreferences();
         String rootType = preferences.getString(IDebuggerConstantsUI.NODE_CONFIG_TYPE);
-        String nameAtt  = preferences.getString(IDDCorePluginConstants.NAME_ATTRIBUTE);
+        String nameAtt  = preferences.getString(IConfigurationConstants.NAME_ATTRIBUTE);
         String defaultName = configuration.getName();
         IImplementationScanner iscanner = plugin.getConfigurationManager()
                 .getImplementationScanner();
@@ -63,7 +63,7 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
             os.setAttribute(nameAtt, defaultName);
             configuration.setAttribute(IDebuggerConstantsUI.ROOT_ATTRIBUTE, 
                     icm.getEncoder().makeFromObjectSpec(os));
-            configuration.setAttribute(IDDCorePluginConstants.NAME_ATTRIBUTE, 
+            configuration.setAttribute(IConfigurationConstants.NAME_ATTRIBUTE, 
                     defaultName);
             icm.getNodelist().rebindSpec(os);
                         
@@ -81,7 +81,7 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
         try{
             String root = configuration.getAttribute(
                     IDebuggerConstantsUI.ROOT_ATTRIBUTE, "");
-            String name = configuration.getAttribute(IDDCorePluginConstants.NAME_ATTRIBUTE, "");
+            String name = configuration.getAttribute(IConfigurationConstants.NAME_ATTRIBUTE, "");
             
             if(root.equals("")){
                 logger.error("Restored configuration does not contain a root attribute.");
@@ -111,7 +111,7 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
         DDUIPlugin plugin = DDUIPlugin.getDefault();
         IConfigurationManager icm = plugin.getConfigurationManager();
         Preferences prefs = plugin.getPluginPreferences();
-        String attName = prefs.getString(IDDCorePluginConstants.NAME_ATTRIBUTE);
+        String attName = prefs.getString(IConfigurationConstants.NAME_ATTRIBUTE);
         
         IObjectSpec spec = panel.getObjectSpecRoot();
         if(spec == null){
@@ -120,7 +120,7 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
         }
        
         try{
-            configuration.setAttribute(IDDCorePluginConstants.NAME_ATTRIBUTE, spec.getAttribute(attName));
+            configuration.setAttribute(IConfigurationConstants.NAME_ATTRIBUTE, spec.getAttribute(attName));
         }catch(AttributeAccessException ex){
             String error = "Cannot apply name attribute - unnamed configuration."; 
             logger.error(error, ex);

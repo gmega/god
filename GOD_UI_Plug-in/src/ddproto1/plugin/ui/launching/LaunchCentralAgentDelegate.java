@@ -23,8 +23,6 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.plugin.ui.DDUIPlugin;
 
-import ddproto1.plugin.core.IDDCorePluginConstants;
-
 public class LaunchCentralAgentDelegate implements IWorkbenchWindowActionDelegate, IConfigurationConstants{
 
     private static final Logger logger = DDUIPlugin.getDefault().getLogManager().getLogger(LaunchCentralAgentDelegate.class);
@@ -39,7 +37,7 @@ public class LaunchCentralAgentDelegate implements IWorkbenchWindowActionDelegat
              */
             DebugPlugin plugin = DebugPlugin.getDefault();
             ILaunchConfigurationType gacType = 
-                plugin.getLaunchManager().getLaunchConfigurationType(IDDCorePluginConstants.ID_GLOBAL_AGENT_APPLICATION);
+                plugin.getLaunchManager().getLaunchConfigurationType(IConfigurationConstants.ID_GLOBAL_AGENT_APPLICATION);
             ILaunchConfigurationWorkingCopy workingCopy = gacType.newInstance(null, CENTRAL_AGENT_CONFIG_NAME);
             
             IObjectSpec rootSpec = DDUIPlugin.getDefault().getConfigurationManager().getRootSpec();
