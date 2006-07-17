@@ -11,11 +11,6 @@ public interface IDebuggerConstantsUI {
     public static final String BOOTSTRAP_PROPERTIES_FILE="bootstrap.properties";
     
     /** Keys into the preferences dictionary. */
-    public static final String SPECS_SUBPATH_LIST   = "spec-dir-list";
-    public static final String TOC_SUBPATH          = "toc-subpath";
-    public static final String NODE_CONFIG_TYPE     = "node-config-type";
-    public static final String NODE_LIST_TYPE       = "node-list-type";
-    public static final String ROOT_TYPE            = "root-spec-type";
     public static final String LOG_PROPERTIES_FILE  = "log4j-config-filename";
     
     public static final String DEFAULT_THREAD_POOL   = "20";
