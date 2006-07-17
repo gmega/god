@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Global Online Debugger" default="all">
+
+	<target name="global-init">
+
+		<!--===================================================================
+			- These are the system-dependent properties you most likely will
+			- have to change. I had these in a properties file, but it wouldn't
+			- work when this xml is imported from another one.                   
+			===================================================================-->
+		<property name="workspace.root" value="/home/giuliano/workspace"/>
+		<property name="main.plugin.dir" value="GOD Console Prototype 1"/>
+		<property name="global.build.dir" value="GOD_Build"/>
+		<property name="process.controller.rmi.dir" value="GOD_Process_Controller_RMI"/>
+		<property name="log4j.jar" value="log4j-1.2.9.jar"/>
+		<property name="bcel.jar" value="bcel-5.1.jar"/>
+		<property name="junit.jar" value="junit.jar"/>
+		<property name="easymock.jar" value="easymock.jar"/>
+		<property name="local.agent.jar" value="local-agent.jar"/>
+		<property name="stubsuffix" value="stub"/>
+		
+		<!-- Composite and relative properties -->
+		<property name="thirdparty.library.dir" value="${workspace.root}/${global.build.dir}/lib"/>
+		<property name="jarArtifacts.dir" value="${workspace.root}/${global.build.dir}/jarArtifacts"/>
+		
+		<property name="base.dir"    value="."/>
+		<property name="src.dir"     value="${base.dir}/src/main/java"/>
+		<property name="tests.dir"   value="${base.dir}/src/test"/>
+		<property name="classes.dir" value="${base.dir}/classes"/>
+		<property name="docs.dir"    value="${base.dir}/src/docs"/>
+		
+		<!-- Defines third-party library paths for use with rmic -->
+		<fileset id="log4j.libs" dir="${thirdparty.library.dir}/log4j">
+			<include name="${log4j.jar}"/>
+		</fileset>
+
+		<fileset id="bcel.libs" dir="${thirdparty.library.dir}/bcel">
+			<include name="${bcel.jar}"/>
+		</fileset>
+		
+		<fileset id="junit.libs" dir="${thirdparty.library.dir}/junit">
+			<include name="${junit.jar}"/>
+		</fileset>
+
+		<fileset id="easymock.libs" dir="${thirdparty.library.dir}/easymock">
+			<include name="${easymock.jar}"/>
+		</fileset>
+	
+	</target>
+
+	<!-- =====================================================================
+      -  We use the "template target" approach as in 
+      -  http://www.onjava.com/pub/a/onjava/2005/06/22/modularant.html?page=2
+	  -  The template target never gets called explicitly.
+      -  ===================================================================== -->
+    <target name="template" depends="global-init">
+        <!-- This section defines the modules and the order in which they are
+             executed for any given target.  This means ORDER MATTERS.
+             Any dependencies that are to be satisified by one module for another
+             must be declared in the order the dependencies occur. -->
+	    <echo message="Executing &quot;${target}&quot; target for the console prototype module..."/>
+        <ant target="${target}" dir="${workspace.root}/${main.plugin.dir}"/>
+
+        <echo message="Executing &quot;${target}&quot; target for the process controller module..."/>
+        <ant target="${target}" dir="${workspace.root}/${process.controller.rmi.dir}"/>
+
+		<!-- add more modules as necessary... -->
+
+    </target>
+	
+	<target name="all">
+		<antcall target="template">
+			<param name="target" value="all"/>
+		</antcall>
+	</target>
+
+</project>
