@@ -3,6 +3,7 @@
 <project name="Distributed Debugger Prototype 1" default="all" basedir=".">
 
 	<import file="../GOD_Build/build.xml"/>
+	<property file="../GOD_Build/global.build.properties"/>
 	
 	<property name="interfacepackage" value="ddproto1/controller/interfaces"/>
 	<property name="constantspackage" value="ddproto1/controller/constants"/>

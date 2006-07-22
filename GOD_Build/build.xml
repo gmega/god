@@ -9,7 +9,7 @@
 			- have to change. I had these in a properties file, but it wouldn't
 			- work when this xml is imported from another one.                   
 			===================================================================-->
-		<property name="workspace.root" value="/home/giuliano/workspace"/>
+		<property file="global.build.properties"/>
 		<property name="main.plugin.dir" value="GOD Console Prototype 1"/>
 		<property name="global.build.dir" value="GOD_Build"/>
 		<property name="process.controller.rmi.dir" value="GOD_Process_Controller_RMI"/>
