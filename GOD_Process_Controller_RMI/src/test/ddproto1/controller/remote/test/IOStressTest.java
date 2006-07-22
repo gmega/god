@@ -8,6 +8,7 @@ package ddproto1.controller.remote.test;
 import java.rmi.RemoteException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -35,18 +36,22 @@ public class IOStressTest extends TestCase{
     private final CyclicBarrier barrier = new CyclicBarrier(2);
     
     private class IOMatcher implements IControlClient{
+        
+        private final AtomicInteger chars = new AtomicInteger(0);
 
         public void notifyProcessDeath(int pHandle, int exitValue) throws RemoteException {
-            System.out.println("Dead");
+            System.out.println("Dead.");
             parkIntoBarrier();
         }
 
         public void receiveStringFromSTDOUT(int pHandle, String data) throws RemoteException {
-            System.out.print(data);
+            chars.addAndGet(data.length());
+            System.err.println(chars);
         }
 
         public void receiveStringFromSTDERR(int pHandle, String data) throws RemoteException {
-            System.err.print(data);
+            chars.addAndGet(data.length());
+            System.err.println(chars);
         }
 
         public void notifyServerUp(IProcessServer procServer) 
@@ -91,6 +96,10 @@ public class IOStressTest extends TestCase{
         irp.writeToSTDIN("giuliano needs beer\n");
         
         barrier.await();
+        
+        Thread.sleep(15000);
+        
+        getServer().shutdownServer(true);
     }
 
 }

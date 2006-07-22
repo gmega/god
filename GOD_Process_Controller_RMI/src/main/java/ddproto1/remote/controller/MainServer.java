@@ -16,6 +16,7 @@ import java.util.Map;
 import javax.rmi.PortableRemoteObject;
 
 import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
@@ -145,7 +146,8 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
                 || !attributes.containsKey(CONTROLLER_REGISTRY_PORT)
                 || !attributes.containsKey(TRANSPORT_PROTOCOL)
                 || !attributes.containsKey(CONTROLLER_REGISTRY_PATH)
-                || !attributes.containsKey(LR_INSTANTIATION_POLICY)) {
+                || !attributes.containsKey(LR_INSTANTIATION_POLICY)
+                || !attributes.containsKey(PROCSERVER_IDENTIFIER)) {
             System.err.println("Missing required attributes.");
             System.exit(1);
         }
@@ -167,5 +169,6 @@ public class MainServer implements ProcessServerConstants, IErrorCodes {
         }
 
         BasicConfigurator.configure();
+        Logger.getRootLogger().setLevel(Level.INFO);
     }
 }
