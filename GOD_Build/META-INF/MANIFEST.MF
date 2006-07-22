@@ -12,7 +12,6 @@ Bundle-ClassPath: lib/bcel/bcel-5.1.jar,
  jarArtifacts/GODRPClient.jar
 Require-Bundle: org.eclipse.core.runtime,
  com.tools.logging
-Bundle-Activator: libplugin.BuildPlugin
 Bundle-Vendor: br.usp.ime
 Export-Package: ddproto1.controller.constants,
  ddproto1.controller.exception,
