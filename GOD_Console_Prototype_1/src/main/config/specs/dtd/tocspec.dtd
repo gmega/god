@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='ASCII'?>
+
+<!ELEMENT configuration_toc (element+,root-element)>
+
+<!ELEMENT element EMPTY>
+<!ATTLIST element
+	name				CDATA	#REQUIRED
+	spec-extension		CDATA	#REQUIRED
+	intended-interfaces CDATA	#IMPLIED
+>
+
+<!ELEMENT root-element EMPTY>
+<!ATTLIST root-element
+	name				CDATA	#REQUIRED
+>

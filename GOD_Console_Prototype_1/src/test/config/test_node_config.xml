@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<!-- Configuration file for GOD Console Prototype 1 -->
+<dd_config>
+	<param key="thread-pool-size" value="20"/>
+	<param key="cdwp-port" value="8081"/>
+	<param key="connection-queue-size" value="10"/>
+	<param key="global-agent-address" value="${global-agent-address}"/>
+	
+	<param key="callback-object-path" value="${callback-object-path}"/>
+	<param key="rmi-registry-port" value="${rmi-registry-port}"/>
+	<param key="pexpect-script" value="${pexpect-script}"/>
+	<param key="python-interpreter" value="${python-interpreter}"/>
+
+	<!-- Each entry in the debugee list correspond to an individual node setup -->
+	<node-list>
+		<!-- Simple application, used for single-node tests. -->
+		<node name="DebugTestProject" 
+			CORBA-enabled="no" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2008"/>
+		
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" value="auto"/>
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="SimpleClass"/>
+						<param key="debug-mode" value="true"/>
+<!--						<param key="transformation-agent-jar" value="${local-agent-jar}"/>-->
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${misc-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+
+					</command-line>	
+				</command-line>
+			</launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${misc-source-path}"/>
+			</source-mapper>
+
+			<!-- JDI connector configuration -->			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+		</node>
+		
+		
+		<!-- 
+		##############################################################################
+		################# DistributedThreadTest Test Suite Nodes #####################
+		##############################################################################
+		-->
+		<!-- CORBA Client. This node fires the initial request. -->
+		<node name="CORBA Client" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2000"/>
+		
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="Client"/>
+						<param key="debug-mode" value="true"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaclient-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaclient-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${workspace-home}/${client-project-name}/${config-dir}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+							
+						<!-- Application parameters -->
+						<jvm-parameter type="application-argument" element="normal"/>
+					</command-line>	
+				</command-line>
+			</launcher>
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${corbaclient-source-path}"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value=""/>
+
+			<!-- JDI connector configuration -->			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+		</node>
+		
+		<!-- Name server. All quoter objects should be registered here before the test begins. -->
+		<node name="JacORB NS" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2001"/>
+
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="org.jacorb.naming.NameServer"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+
+						<param key="debug-mode" value="true"/>
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${nameserver-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+					
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${workspace-home}/${server-project-name}/${config-dir}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.naming.ior_filename=${debugger-user-home}/NameService.ref"/>
+					</command-line>	
+				</command-line>
+			</launcher>	
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${jacorb-home}/src"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="org.jacorb.naming.NamingContextImpl"/>
+			
+			<!-- JDI connector configuration -->
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+		</node>
+		
+		<!-- Reuters quoter server. First and fifth server on the call chain. -->
+		<node name="Reuters Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2003"/>
+			
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+			
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="server.Server"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+
+						<param key="debug-mode" value="true"/>
+
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+					
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${workspace-home}/${server-project-name}/${config-dir}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+						<jvm-parameter type="jvm-argument" element="-Dconfig.file=${workspace-home}/${server-project-name}/${config-dir}/server.reuters.conf"/>
+					</command-line>	
+				</command-line>
+			</launcher>	
+
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${corbaserver-source-path}"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+
+		</node>
+		
+		<!-- Moody quoter server. Second server on the call chain. -->
+		<node name="Moody Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2004"/>
+
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+			
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="server.Server"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+						<param key="debug-mode" value="true"/>
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+					
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${workspace-home}/${server-project-name}/${config-dir}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+						<jvm-parameter type="jvm-argument" element="-Dconfig.file=${workspace-home}/${server-project-name}/${config-dir}/server.moody.conf"/>
+					</command-line>	
+				</command-line>
+			</launcher>	
+
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${corbaserver-source-path}"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+		</node>
+		
+		<!-- JPMorgan quoter server. Third server on the call chain. -->
+		<node name="JP Morgan Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2005"/>
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+			
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="server.Server"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+						<param key="debug-mode" value="true"/>
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+					
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${workspace-home}/${server-project-name}/${config-dir}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+						<jvm-parameter type="jvm-argument" element="-Dconfig.file=${workspace-home}/${server-project-name}/${config-dir}/server.jpmorgan.conf"/>
+					</command-line>	
+				</command-line>
+			</launcher>	
+			
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${corbaserver-source-path}"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+
+		</node>
+		
+		<!-- Bovespa quoter server. Fourth server on the call chain. -->
+		<node name="Bovespa Server" 
+			CORBA-enabled="yes" 
+			launcher="yes" 
+			type="ddproto1.debugger.managing.VirtualMachineManager">		
+			
+			<param key="local-agent-address" value="localhost"/>
+			<param key="jdwp-port" value="2006"/>
+			<launcher type="ddproto1.launcher.ProcessServerLauncher">
+				<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>		
+				<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+					<param key="ssh-port" value="${ssh-port}"/>
+					<param key="user" value="${user}"/>
+					<param key="password" value="${password}"/>
+					
+					<!-- This is the command line for launching the process server. This should be 
+						per-machine, but we specify them per-process because of the configuration 
+						infrastructure limitations. -->
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+						<param key="debug-mode" value="false"/>
+						<jvm-parameter type="classpath-element" 
+							element="${procserver-class-path}"/>
+						<jvm-parameter type="classpath-element" 
+							element="${log4j-jar-path}"/>
+					</command-line>	
+				</command-executor>
+				<!-- This command line will be launched by the process server. -->
+				<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+					<param key="log4j-config-url" 
+						value="${basedir-url}/${main-dir}/${config-dir}/logging/log4j-client.conf"/>
+
+					<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+						<param key="main-class" value="server.Server"/>
+						<param key="transformation-agent-jar" value="${local-agent-jar}"/>
+						<param key="debug-mode" value="true"/>
+						<!-- Machine classpath -->
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-binaries-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${corbaserver-config-path}"/>
+						<jvm-parameter type="classpath-element" element="${workspace-home}/${log4j-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${antlr-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${avalon-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${concurrent-utils-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${idl-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${jacorb-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${logkit-jar}"/>
+						<jvm-parameter type="classpath-element" element="${jacorb-home}/${wrapper-jar}"/>
+					
+						<!-- JVM arguments -->
+						<jvm-parameter type="jvm-argument" element="-Dcustom.props=${debugger-user-home}/custom.props"/>
+						<jvm-parameter type="jvm-argument" element="-Djacorb.home=${jacorb-home}"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.ORBClass=org.jacorb.orb.ORB"/>
+						<jvm-parameter type="jvm-argument" element="-Dorg.omg.CORBA.SingletonClass=org.jacorb.orb.ORBSingleton"/>
+						<jvm-parameter type="jvm-argument" element="-Dconfig.file=${workspace-home}/${server-project-name}/${config-dir}/server.bovespa.conf"/>
+					</command-line>	
+				</command-line>
+			</launcher>			
+
+			<!-- Class reponsible for finding source code -->
+			<source-mapper type="ddproto1.sourcemapper.URLSourceMapper">
+				<param key="sourcepath" value="file:${workspace-home}/${corbaserver-source-path}"/>
+			</source-mapper>
+			
+			<!-- Stubs and skeletons are separated by "dotted commas" - ";" -->
+			<param key="stublist" value="Stock._QuoterStub;org.omg.CosNaming._NamingContextExtStub"/>
+			<param key="skeletonlist" value="implementation.QuoterImpl"/>
+			
+			<connector type="ddproto1.debugger.managing.SocketListenWrapper">
+				<param key="connector-type" value="com.sun.jdi.SocketListen"/>
+				<param key="listening-interface-ip" value="${global-agent-address}"/>
+			</connector>
+		</node>
+	</node-list>
+</dd_config>

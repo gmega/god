@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<spec name="Java node with Launcher extension" 
+	spec-extension="true" 
+	type="node">
+	<child type="launcher" multiplicity="1"/>
+</spec>

@@ -1,0 +1,12 @@
+<spec name="Debuggee list specification" type="component-list">
+	<attribute id="local-agent-address" default-value="${machine-address1}"/>
+	<attribute id="jdwp-port"/>
+	<attribute id="cdwp-port"/>
+	<attribute id="rmi-registry-port"/>
+	<attribute id="python-interpreter"/>
+	<attribute id="pexpect-script"/>
+	<attribute id="global-agent-address"/>
+	<attribute id="callback-object-path" default-value="ClientController"/>
+	<child type="launcher" multiplicity="1"/>
+	<child type="command-line" multiplicity="1"/>
+</spec>

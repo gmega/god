@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Very simple spec for the sun JVM Command Line. -->
+<spec name="Sun JVM Command Line Debug Mode" spec-extension="true" type="command-line">
+	<attribute id="transport" default-value="dt_socket"/>
+	<attribute id="server-mode" default-value="false"/>
+	<attribute id="suspend-on-start" default-value="true"/>
+	<attribute id="jdwp-port" default-value="#context"/>
+	<attribute id="global-agent-address" default-value="#context"/>
+</spec>

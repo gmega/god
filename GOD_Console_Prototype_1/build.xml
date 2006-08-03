@@ -1,29 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project name="Distributed Debugger Prototype 1" default="all" basedir=".">
+<project name="GODMain" default="all" basedir=".">
 	
-	<property name="jar-dir" location="lib"/>
-	<property name="src-dir" location="src"/>
-	<property name="bin-dir" location="bin"/>
-
+	<import file="../GOD_Build/build.xml"/>
+	
 	<property name="client-agent-mainclass" value="ddproto1.localagent.instrumentation.java5.ClientSideAgent"/>
-	<property name="agent-library-list" value="bcel-5.1.jar log4j-1.2.9.jar local-agent.jar"/>
-	<property name="local-agent-subdir" value="ddproto1/localagent"/>
+	<property name="agent-library-list" value="${log4j.jar} ${bcel.jar} ${local.agent.jar}"/>
 	
+	<property name="local-agent-subdir" value="ddproto1/localagent"/>
 	<property name="commons-subdir" value="ddproto1/commons"/>
 	<property name="configurator-commons-subdir" value="ddproto1/configurator/commons"/>
 	<property name="exception-commons-subdir" value="ddproto1/exception/commons"/>
 	<property name="util-commons-subdir" value="ddproto1/util/commons"/>
 	<property name="traits-commons-subdir" value="ddproto1/util/traits/commons"/>
 	<property name="collections-commons-subdir" value="ddproto1/util/collection/commons"/>
+
+	<target name="init" depends="global-init">
+		<path id="rmic.class.path">
+			<fileset refid="log4j.libs"/>
+			<fileset dir="${jarArtifacts.dir}">
+				<include name="*.jar"/>
+			</fileset>
+		</path>
+	</target>	
 	
-	<target name="prepare">
-		<mkdir dir="${jar-dir}"/>
-	</target>
+	<!-- 
+		==================================================================
+		- This target generates the client side instrumentation agent jar. 
+		- In principle it should be simple, as all client-side code is 
+		- located under package 'ddproto1.localagent' and all shared code
+		- is located under packages that end with 'commons'.
+		================================================================== -->	
 	
-	<!-- Generates the client side instrumentation agent jar. -->	
-	<target name="gen-client-agent-jar" depends="prepare">
-		<jar destfile="${jar-dir}/local-agent.jar">
+	<target name="gen-client-agent-jar" depends="init">
+		<jar destfile="${jarArtifacts.dir}/${local.agent.jar}">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
 				<attribute name="Premain-Class" value="${client-agent-mainclass}"/>
@@ -31,50 +41,45 @@
 				<attribute name="Can-Redefine-Classes" value="true"/>
 			</manifest>
 			
-			<zipfileset dir="${bin-dir}/${local-agent-subdir}" 
+			<zipfileset dir="${classes.dir}/${local-agent-subdir}" 
 				includes="**/*.class" prefix="${local-agent-subdir}"/>
 			
-			<zipfileset dir="${bin-dir}/${commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${commons-subdir}" 
 				includes="**/*.class" prefix="${commons-subdir}"/>
 			
-			<zipfileset dir="${bin-dir}/${configurator-commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${configurator-commons-subdir}" 
 				includes="**/*.class" prefix="${configurator-commons-subdir}"/>			
 			
-			<zipfileset dir="${bin-dir}/${exception-commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${exception-commons-subdir}" 
 				includes="**/*.class" prefix="${exception-commons-subdir}"/>
 			
-			<zipfileset dir="${bin-dir}/${util-commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${util-commons-subdir}" 
 				includes="**/*.class" prefix="${util-commons-subdir}"/>
 
-			<zipfileset dir="${bin-dir}/${traits-commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${traits-commons-subdir}" 
 				includes="**/*.class" prefix="${traits-commons-subdir}"/>
 			
-			<zipfileset dir="${bin-dir}/${collections-commons-subdir}" 
+			<zipfileset dir="${classes.dir}/${collections-commons-subdir}" 
 				includes="**/*.class" prefix="${collections-commons-subdir}"/>
 		</jar>
 	</target>	
 	
-	<!-- Generates the server-side derived jar file w/o any interface -->
-	<target name="gen-server-jar" depends="prepare">
-		<jar destfile="${jar-dir}/god.jar">
-			<!-- Includes everything except the console code and the local agent code. -->
-			<fileset dir="${bin-dir}">
-				<include name="ddproto1/**/*.class"/>
-				<exclude name="ddproto1/localagent/**"/>
-				<exclude name="ddproto1/*.class"/>
-<!-- 				<exclude name="ddproto1/**/*Test*"/> -->
-			</fileset>
+	<!-- Compiles client-side stubs. -->
+	<target name="compilestubs" depends="init">
+		<rmic base="${classes.dir}" 
+			classname="ddproto1.launcher.procserver.ProcessServerManager.RMICallbackObject">
+			<classpath refid="rmic.class.path"/>
+		</rmic>
+	</target>
+
+	<!-- Generates a jar out of client-side stubs. -->
+	<target name="gen-stubjar" depends="init, compilestubs">
+		<jar destfile="${jarArtifacts.dir}/${ant.project.name}-${stubsuffix}.jar">
+			<fileset dir="${classes.dir}" 
+				includes="**/*_Stub.class"/>
 		</jar>
 	</target>
 	
-	<!-- Generates the console jar file. -->
-	<target name="gen-console-jar" depends="gen-server-jar">
-		<jar destfile="${jar-dir}/god-console.jar">
-			<fileset dir="${bin-dir}">
-				<include name="ddproto1/*.class"/>
-			</fileset>
-		</jar>
-	</target>
+	<target name="all" depends="gen-client-agent-jar, gen-stubjar"/>
 	
-	<target name="all" depends="gen-client-agent-jar, gen-console-jar"/>
 </project>

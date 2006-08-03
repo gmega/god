@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Very simple spec for the sun JVM Command Line. -->
+<spec name="Sun JVM Command Line" type="command-line">
+	<attribute id="jvm-location" default-value=""/>
+	<attribute id="main-class"/>
+	<attribute id="transformation-agent-jar" default-value=""/>
+	
+	<extension-attribute id="debug-mode" 
+		action="true:loadspec(SunVMCommandLineDebug);false:nop()"/>
+		
+	<child type="jvm-parameter" multiplicity="0...*"/> 
+</spec>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<spec name="Remote Process Launcher with Server auto-launch" type="launcher">
+
+	<!-- These attributes define the RMI registry port and the callback
+		object address into the RMI registry. While they can be different
+		among Process Servers, this is not necessary. -->
+	<attribute id="callback-object-path" default-value="#context"/>
+	<attribute id="rmi-registry-port" default-value="#context"/>
+	<attribute id="global-agent-address" default-value="#context"/>      
+	
+	<!-- This will define the remote process server location, which is the
+		same location as the local agent (after all, the process server just
+		launches local agents. -->        
+	<attribute id="local-agent-address" default-value="#context"/>      
+	
+
+	<!-- A process handle is required by the process server manager, 
+		but the user is not required to handle this. -->		
+	<attribute id="process-handle" default-value="auto"/>
+
+	<!-- log4j configuration file URL for the remote process server.
+		Default value is output to console. -->
+	<attribute id="log4j-config-url" default-value="auto"/>
+		
+	<!-- This command executor will be used to launch the remote agent. -->	
+	<child type="command-executor" multiplicity="1"/>
+	
+	<!-- This command line should launch the required remote process -->
+	<child type="command-line" multiplicity="1"/>
+</spec>

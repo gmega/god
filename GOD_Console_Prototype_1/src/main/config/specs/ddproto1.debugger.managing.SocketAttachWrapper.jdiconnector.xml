@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<spec name="JDI Attaching Socket Configurable Wrapper" type="connector">
+	<attribute id="connector-type"/>
+	<attribute id="local-agent-address" default-value="#context"/>
+	<attribute id="jdwp-port" default-value="#context"/> 
+</spec>
+

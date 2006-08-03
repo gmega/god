@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<spec name="Java Local Agent Commandline wrapper" type="command-line">
+	<attribute id="name" default-value="#context"/>
+	<attribute id="guid" default-value="auto"/>
+	<attribute id="log4j-config-url" default-value="auto"/>
+
+	<!-- =======================================================
+		 - This should be actually a JVM command line, but since
+		 - the service locator type system doesn't support inhe-
+		 - ritance, we have to underspecify this. It's a bug, no
+		 - doubt, but it's low priority. 
+		 ======================================================= -->
+	<child type="command-line" multiplicity="1"/>
+</spec>

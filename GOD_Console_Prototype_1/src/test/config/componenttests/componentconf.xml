@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<component-list>
+	<param key="local-agent-address" value="${machine-address1}"/>
+	<param key="jdwp-port" value="2000"/>
+	<param key="cdwp-port" value="${cdwp-test-port}"/>
+	<param key="rmi-registry-port" value="${rmi-registry-port}"/>
+	<param key="python-interpreter" value="${python-interpreter}"/>
+	<param key="pexpect-script" value="${pexpect-script}"/>
+	<param key="global-agent-address" value="${global-agent-address}"/>
+
+	<launcher type="ddproto1.launcher.ProcessServerLauncher">
+		<param key="log4j-config-url" value="${procservermanagertest-log4j-conf-url}"/>
+		<command-executor type="ddproto1.launcher.procserver.PyExpectSSHExecutor">
+			<param key="ssh-port" value="22"/>
+			<param key="user" value="${user}"/>
+			<param key="password" value="${password}"/>
+
+			<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+				<param key="main-class" value="ddproto1.remote.controller.MainServer"/>
+				<param key="debug-mode" value="false"/>
+				<jvm-parameter type="classpath-element" 
+					element="${procserver-class-path}"/>
+				<jvm-parameter type="classpath-element" 
+					element="${log4j-jar-path}"/>
+			</command-line>	
+		</command-executor>
+		
+		<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+			<param key="main-class" value="ddproto1.launcher.procserver.test.testapp.TestApplication"/>
+			<param key="debug-mode" value="false"/>
+			<jvm-parameter type="classpath-element"
+				element="${main-plugin-runtime}"/>
+			<jvm-parameter type="classpath-element"
+				element="${log4j-jar-path}"/>
+			<jvm-parameter type="classpath-element"
+				element="${test-resources-dir}"/>
+		</command-line>
+	</launcher>
+	
+	<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+		<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
+			<param key="main-class" value="ddproto1.launcher.procserver.test.testapp.TestApplication"/>
+			<param key="debug-mode" value="false"/>
+		</command-line>		
+	</command-line>
+</component-list>

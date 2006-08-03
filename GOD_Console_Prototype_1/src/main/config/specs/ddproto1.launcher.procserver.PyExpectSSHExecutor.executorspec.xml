@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<spec name="PExpect/SSH-based Remote command executor" type="command-executor">
+
+	<!-- Location of the remote SSH server, assumed to be the same as the 
+		location of the local agent. -->
+	<attribute id="local-agent-address"  default-value="#context"/>
+	<attribute id="ssh-port" default-value="22"/>
+	<attribute id="user"/>
+	<attribute id="password"/>
+	
+	<attribute id="python-interpreter" default-value="#context"/>
+	<attribute id="pexpect-script" default-value="#context"/>
+
+	<!-- This command line is the command line to be carried on by the
+		executor. -->
+	<child type="command-line" multiplicity="1"/>
+</spec>

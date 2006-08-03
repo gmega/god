@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="ASCII"?>
+
+<spec name="Secure Shell Tunnel (over bash command line)" type="shell-tunnel">
+	<attribute id="local-agent-address" default-value="#context"/>
+	<attribute id="ssh-port"/>
+	<attribute id="user"/>
+	<attribute id="pass"/>
+	<attribute id="pass-type"/>
+	
+	<!-- This attribute works more like a constant. -->
+	<attribute id="local-expect-script-path" default-value="/home/giuliano/workspace/GOD Console Prototype 1"/>
+	
+</spec>

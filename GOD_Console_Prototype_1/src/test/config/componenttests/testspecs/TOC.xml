@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration_toc>
+	<element name="component-list" spec-extension="clist"/>
+	
+	<element name="tunnelled-launcher"   
+			spec-extension="tunnelledlauncherspec" 
+			intended-interfaces="ddproto1.launcher.IApplicationLauncher;ddproto1.launcher.JVMShellLauncher"/>
+	
+	<element name="source-mapper" 
+			spec-extension="mapperspec"
+			intended-interfaces="ddproto1.sourcemapper.ISourceMapper"/>
+	
+	<element name="shell-tunnel" 
+			spec-extension="shtunnelspec"
+			intended-interfaces="ddproto1.launcher.IShellTunnel"/>
+	
+	<element name="connector"
+			spec-extension="jdiconnector"
+			intended-interfaces="ddproto1.debugger.managing.IJDIConnector"/>
+	
+	<element name="launcher" 
+		spec-extension="launcherspec"
+		intended-interfaces="ddproto1.launcher.IApplicationLauncher"/>
+	
+	<element name="command-line"
+		spec-extension="commandlinespec"
+		intended-interfaces="ddproto1.launcher.ICommandLine"/>
+	
+	<element name="command-executor"
+		spec-extension="executorspec"
+		intended-interfaces="ddproto1.launcher.procserver.IRemoteCommandExecutor"/>
+	
+	<element name="jvm-parameter" 
+		spec-extension="jvm-parameterspec"/>
+
+	<root-element name="component-list"/>
+	
+</configuration_toc>
