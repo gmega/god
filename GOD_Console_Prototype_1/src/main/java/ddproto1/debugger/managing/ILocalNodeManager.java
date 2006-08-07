@@ -10,11 +10,13 @@ import java.io.IOException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IProcess;
 
 import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.exception.commons.IllegalAttributeException;
+import ddproto1.util.commons.Event;
 
 /**
  * Language-neutral node manager interface. It kind of clashes with 
@@ -66,6 +68,12 @@ public interface ILocalNodeManager extends IAdaptable, IConfigurable, INodeManag
      */
     public DeferrableRequestQueue getDeferrableRequestQueue();
     
+    /**
+     * Returns the globally unique identifier in string form for
+     * this node.
+     * 
+     * @return
+     */
     public String getGID();
     
     /**
@@ -75,7 +83,29 @@ public interface ILocalNodeManager extends IAdaptable, IConfigurable, INodeManag
      */
     public ILocalThreadManager getThreadManager();
     
+    /**
+     * Sets the process that represents this ILocalNodeManager. Should be
+     * called only once.
+     * 
+     * @throws IllegalStateException if setProcess is called more than once.
+     * @param process
+     */
     public void setProcess(IProcess process);
     
+    /**
+     * Returns the IProcess that represents this node manager, or nil if 
+     * no process has yet been set.
+     * 
+     * @return
+     */
     public IProcess getProcess();
+    
+    /** 
+     * Sets a breakpoint from a DDWP event generated at a local agent whose
+     * target runtime matches the target runtime of this node manager. 
+     * 
+     * @param evt 
+     * @return
+     */
+    public IBreakpoint setBreakpointFromEvent(Event evt) throws DebugException;
 }

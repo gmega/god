@@ -65,7 +65,7 @@ public class NilDistributedThread implements IDistributedThread {
     }
 
     public String getModelIdentifier() {
-        return DebuggerConstants.PLUGIN_ID;
+        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 
     public IDebugTarget getDebugTarget() {

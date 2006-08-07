@@ -7,11 +7,13 @@
 package ddproto1.debugger.managing.tracker;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -25,6 +27,7 @@ import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.model.IThread;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.IJavaNodeManager;
 import ddproto1.debugger.managing.ILocalNodeManager;
@@ -70,9 +73,13 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
     /** Set of component elements. */
     private final Set<IThread> actualElements = new HashSet<IThread>();
     
-    /** List of breakpoints currently affecting this DT. */
-    private final List<IBreakpoint> breakpoints = new LinkedList<IBreakpoint>();
+    private final AtomicReference<RemoteStepHandler> pendingHandler = 
+        new AtomicReference<RemoteStepHandler>();
     
+    /** List of breakpoints currently affecting this DT. */
+    private final List<IBreakpoint> breakpoints = 
+        Collections.synchronizedList(new LinkedList<IBreakpoint>());
+       
     /* Virtual stack for this thread. */
     private final VirtualStack vs = new VirtualStack();
     
@@ -127,23 +134,15 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
     private volatile byte state;
     
     private String name;
-    
+        
     public DistributedThread(VirtualStackframe root, 
-            IThreadManager tm, 
-            IDebugTarget parentManager)
-    {
-        this(root, tm, UNKNOWN, parentManager);
-    }
-    
-    public DistributedThread(VirtualStackframe root, 
-            IThreadManager tm, 
-            byte initialState, 
+            IThreadManager tm,  
             IDebugTarget parentManager)
     {
         super(parentManager);
         this.uuid = root.getLocalThreadId().intValue();
         vs.pushFrameInternal(root);
-        setMode(initialState);
+        setMode((byte)(STEPPING | ILLUSION));
         this.name = cUtil.uuid2Dotted(this.getId());
     }
     
@@ -333,20 +332,26 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
     {
         checkOwner();
         
-	    if(this.isSuspended())
-	        throw new IllegalStateException(
+        try{
+            if(this.isSuspended())
+                throw new IllegalStateException(
 	                "You cannot suspend a thread that is not running.");
 
-	    getLockedHead().suspend();
+            getLockedHead().suspend();
         
-        /** We must clear all pending step requests for this distributed thread,
-         * because there might be a pending step over somewhere along the stack. */
-        for(VirtualStackframe vsf : (List<VirtualStackframe>)vs.frameStack.asList()){
-            vsf.getThreadReference().suspend();
-            vsf.getThreadReference().clearPendingStepRequests();
-        }
+            /** We must clear all pending step requests for this distributed thread,
+             * because there might be a pending step over somewhere along the stack. */
+            for(VirtualStackframe vsf : (List<VirtualStackframe>)vs.frameStack.asList()){
+                vsf.getThreadReference().suspend();
+                vsf.getThreadReference().clearPendingStepRequests();
+            }
 
-        setMode(SUSPENDED);
+            setMode(SUSPENDED);
+        }catch(Throwable t){
+            GODBasePlugin.throwDebugExceptionWithError("Error while suspending distributed thread.", t);
+        }finally{
+            rsLock.unlock();
+        }
 	}
 
     /**
@@ -373,10 +378,9 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         }
     }
     
-	protected void setStepping(byte stepMode)
+	private void setStepping(byte stepMode)
         throws InvalidAttributeValueException
     {
-	    checkOwner();
 	    ConversionUtil ct = ConversionUtil.getInstance();
 	    MessageHandler.getInstance().getDebugOutput().println(
 	    		"DT " + ct.uuid2Dotted(this.uuid) + " state set to "
@@ -384,6 +388,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         
 	    setMode(stepMode);
 	}
+
 	
 	protected synchronized void checkOwner()
 		throws IllegalStateException
@@ -544,7 +549,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
                  * adds a "thread frame" to the stack.
                  */
                 if(cThread == null || (cThread != null && !cThread.isSuspended())){
-                    allFrames.add(new ThreadStackFrame(cThread, this));
+                    allFrames.add(vsf);
                     continue;
                 }
                 
@@ -596,7 +601,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
     }
 
     public String getModelIdentifier() {
-        return DebuggerConstants.PLUGIN_ID;
+        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 
     public ILaunch getLaunch() {
@@ -631,11 +636,29 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         return false;
     }
 
-    public void stepInto() throws DebugException { }
+    public void stepInto() throws DebugException { 
+        try{
+            getLockedHead().stepInto();
+        }finally{
+            rsLock.unlock();
+        }
+    }
 
-    public void stepOver() throws DebugException { }
+    public void stepOver() throws DebugException { 
+        try{
+            getLockedHead().stepOver();
+        }finally{
+            rsLock.unlock();
+        }
+    }
 
-    public void stepReturn() throws DebugException { }
+    public void stepReturn() throws DebugException { 
+        try{
+            getLockedHead().stepReturn();
+        }finally{
+            rsLock.unlock();
+        }
+    }
 
     public boolean canTerminate() { return false; }
     
@@ -682,7 +705,12 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         if(isStaleOrEarly(lt)) return;
         ensureHeadEvent(lt);
         breakpoints.add(bp);
-        this.suspended(lt);
+        
+        if(pendingHandler.get() != null && pendingHandler.get().isTargetBreakpoint(bp)){
+            pendingHandler.set(null);
+            fireSuspendEvent(DebugEvent.STEP_END);
+        }
+        
         DebugEvent de = 
             new DebugEvent(this, DebugEvent.MODEL_SPECIFIC, DebuggerConstants.LOCAL_THREAD_SUSPENDED);
         de.setData(bp);
@@ -775,7 +803,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
      * @param lt
      * @return
      */
-    private boolean ensureHeadEvent(ILocalThread lt){
+    private boolean isHeadEvent(ILocalThread lt){
         try{     
             ILocalThread head = this.getLockedHead();
             if(!lt.equals(head)){
@@ -793,6 +821,14 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
             rsLock.unlock();
         }
     }
+    
+    private void ensureHeadEvent(ILocalThread lt){
+        if(!isHeadEvent(lt)){
+            VirtualStackframe vsf = virtualStack().frameOfThread(lt);
+            vsf.flagAsDamaged();
+            
+        }
+    }
 
     private void addSuspended(ILocalThread t){
         synchronized(suspended){
@@ -805,6 +841,45 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         synchronized(suspended){
             suspended.remove(t);
             actualElements.remove(t);
+        }
+    }
+    
+    protected void beginRemoteStepping(int stepMode){
+        if(!pendingHandler.compareAndSet(new RemoteStepHandler(), null))
+            throw new IllegalStateException("Pending step handler hasn't been cleared.");
+        
+        RemoteStepHandler rsh = pendingHandler.get();
+        if(!rsh.begin(stepMode)){
+            pendingHandler.set(null);
+            throw new IllegalStateException("Inconsistency detected - thread already in step mode.");
+        }
+    }
+    
+    protected void setServersideBreakpoint(IBreakpoint bkp){
+        if(pendingHandler.get() == null)
+            throw new IllegalStateException("Protocol error. Step remote hasn't begun.");
+        pendingHandler.get().setServerSideBreakpoint(bkp);
+    }
+    
+    public class RemoteStepHandler {
+        
+        private volatile IBreakpoint fBkp;
+        
+        private boolean begin(int stepMode){
+            int currentState = state;
+            if((currentState & STEPPING) != 0)
+                return false;
+            setMode(STEPPING);
+            fireResumeEvent(stepMode);
+            return true;
+        }
+        
+        public void setServerSideBreakpoint(IBreakpoint bkp){
+            fBkp = bkp;
+        }
+        
+        protected boolean isTargetBreakpoint(IBreakpoint bkp){
+            return fBkp.equals(bkp);
         }
     }
 }

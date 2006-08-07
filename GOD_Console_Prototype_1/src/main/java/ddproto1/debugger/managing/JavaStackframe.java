@@ -26,6 +26,7 @@ import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.util.MessageHandler;
 
@@ -166,7 +167,7 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     }
 
     public String getModelIdentifier() {
-        return DebuggerConstants.PLUGIN_ID;
+        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 
     public boolean canStepInto()  {

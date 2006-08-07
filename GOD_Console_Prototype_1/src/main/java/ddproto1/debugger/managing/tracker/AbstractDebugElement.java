@@ -11,6 +11,7 @@ import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.DebugElement;
 import org.eclipse.debug.core.model.IDebugTarget;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
 
 public abstract class AbstractDebugElement extends DebugElement{
@@ -20,7 +21,7 @@ public abstract class AbstractDebugElement extends DebugElement{
     }
     
     public void requestFailed(String reason, Exception cause) throws DebugException{
-        throw new DebugException(new Status(IStatus.ERROR, DebuggerConstants.PLUGIN_ID, 
+        throw new DebugException(new Status(IStatus.ERROR, GODBasePlugin.getDefault().getBundle().getSymbolicName(), 
                 IStatus.ERROR, reason, cause));
     }
     
@@ -29,6 +30,6 @@ public abstract class AbstractDebugElement extends DebugElement{
     }
     
     public String getModelIdentifier(){
-        return DebuggerConstants.PLUGIN_ID;
+        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 }

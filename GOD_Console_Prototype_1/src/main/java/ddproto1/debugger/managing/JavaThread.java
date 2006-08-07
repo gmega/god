@@ -36,6 +36,8 @@ import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
+import ddproto1.debugger.eventhandler.IProcessingContext;
+import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.IDistributedThread;
@@ -76,6 +78,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private volatile boolean isSuspending = false;
     
     private volatile boolean running = false;
+    
+    private volatile Integer fGUID = null;
     
     /** Lock that won't allow resume operations to be carried out at the same time
      * as operations that require thread suspension are being carried out. But will 
@@ -220,7 +224,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
 
     public String getModelIdentifier() {
-        return DebuggerConstants.PLUGIN_ID;
+        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 
     public boolean canResume() {
@@ -456,6 +460,15 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     public synchronized IDistributedThread getParentDistributedThread() {
         return this.parent;
     }
+    
+    public Integer getGUID(){
+        return fGUID;
+    }
+    
+    protected void setGUID(Integer guid){
+        fGUID = guid;
+        fireChangeEvent(DebugEvent.CONTENT);
+    }
 
     private class StepHandler extends AbstractEventProcessor {
         
@@ -484,13 +497,13 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             resumeUnderlyingThread();	
         }
         
-        private void stepComplete() {
+        private void stepComplete(boolean supressStepEnd) {
     		setRunning(false);
             clearStepRequest();
-            finalizeHandler();
+            finalizeHandler(supressStepEnd);
     	}
         
-        private void finalizeHandler(){
+        private void finalizeHandler(boolean supressStepEnd){
             IJavaNodeManager vmm = getVMM();
             try{
                 if(ourRequest != null)
@@ -500,7 +513,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             }
             
             JavaThread.this.setStepping(false);
-            fireSuspendEvent(DebugEvent.STEP_END);
+            if(!supressStepEnd)
+                fireSuspendEvent(DebugEvent.STEP_END);
         }
         
         private void clearStepRequest(){
@@ -525,7 +539,13 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         public synchronized void specializedProcess(Event e) {
             EventRequest incoming = e.request();
             assert ourRequest == incoming;
-            stepComplete();
+            IProcessingContext pc = ProcessingContextManager.getInstance().getProcessingContext();
+            boolean suppress = false;
+            if(pc != null){
+                if(pc.getResults(IEventManager.NO_SOURCE) > 0)
+                    suppress = true;
+            }
+            stepComplete(suppress);
         }
         
         protected void placeStepRequest() throws DebugException{
@@ -543,7 +563,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
                 ourRequest.putProperty(DebuggerConstants.VMM_KEY, vmm.getName());
                 
             }catch(Throwable t){
-                finalizeHandler();
+                finalizeHandler(false);
                 GODBasePlugin.throwDebugExceptionWithError("Failed to set step request.", t);
             }
         }
@@ -560,7 +580,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         public synchronized void abort() {
             if(done) return;
             clearStepRequest();
-    		finalizeHandler();
+    		finalizeHandler(false);
     	}
     }
 }

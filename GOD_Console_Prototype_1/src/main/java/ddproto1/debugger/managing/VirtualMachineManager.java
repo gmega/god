@@ -9,13 +9,16 @@
 package ddproto1.debugger.managing;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IProcess;
 
@@ -860,7 +863,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     private synchronized void setConn(IJDIConnector conn) {
         this.conn = conn;
     }
-
+    
     private synchronized void setHandler(DelegatingHandler handler) {
         this.handler = handler;
     }
@@ -875,5 +878,42 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
 
     private synchronized void set_thisProcessor(IJDIEventProcessor processor) {
         _thisProcessor = processor;
+    }
+
+    public IBreakpoint setBreakpointFromEvent(ddproto1.util.commons.Event evt) throws DebugException{
+        
+        try{
+            String brLine = evt.getAttribute("lin");
+            String clsName = evt.getAttribute("cls");
+            String ltuid = evt.getAttribute("ltid");
+        
+            JavaBreakpoint bkp = new JavaBreakpoint(clsName, Integer.parseInt(brLine), null);
+
+            /** This is really great. 
+             * The two lines of code that follow ensure that:
+             *         
+             * 1) This breakpoint will only halt the correct thread.
+             * 2) This breakpoint will remove itself after serving its purpose,
+             *    without affecting other threads or other user breakpoints. 
+             */
+            final List<Integer> tFilters = new ArrayList<Integer>(1);
+            tFilters.add(0, new Integer(ltuid));
+
+            bkp.addToTarget(this.getDebugTarget(),
+                    new JavaBreakpoint.IFilterProvider(){
+                        public List<Integer> getThreadFilters() {
+                            return tFilters;
+                        }
+
+                        public boolean isOneShot() {
+                            return true;
+                        }
+            });
+            
+            return bkp;
+        }catch(Exception ex){
+            GODBasePlugin.throwDebugExceptionWithError("Failed to set breakpoint from event.", ex);
+            return null;
+        }
     }
 }

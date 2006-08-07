@@ -7,6 +7,7 @@ package ddproto1.debugger.managing.test;
 
 import java.util.concurrent.ExecutionException;
 
+import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -23,17 +24,22 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.managing.ILocalNodeManager;
 import ddproto1.debugger.managing.LaunchHelper;
 import ddproto1.launcher.test.ConfiguratorSetup;
+import ddproto1.util.MessageHandler;
 import ddproto1.util.TestConfigurationConstants;
 import ddproto1.util.TestLocationConstants;
 import ddproto1.util.TestUtils;
 import junit.framework.TestCase;
 
 public class AbstractDebuggerTest extends TestCase implements TestLocationConstants, TestConfigurationConstants, IConfigurationConstants{
+    
+    protected static final Logger logger = 
+        MessageHandler.getInstance().getLogger(CondensedSingleNodeTest.class);
     
     private static volatile LaunchHelper fLaunchHelper;
     
@@ -144,6 +150,17 @@ public class AbstractDebuggerTest extends TestCase implements TestLocationConsta
 
         ilcw.doSave();
         ilcw.launch("debug", new NullProgressMonitor());
+    }
+    
+    public void performDistributedShutdown()
+        throws Exception
+    {
+        try{
+            GODBasePlugin.getDefault().getProcessServerManager().stop();
+        }catch(IllegalStateException ex){ 
+            logger.error("Failed to stop the process server manager.", ex);
+        }
+        GODBasePlugin.getDefault().getProcessServerManager().start();
     }
     
     private class ProjectGetter{

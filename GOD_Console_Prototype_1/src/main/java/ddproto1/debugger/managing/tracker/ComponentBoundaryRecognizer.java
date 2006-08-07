@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.debug.core.DebugEvent;
+
 import com.sun.jdi.ClassType;
 import com.sun.jdi.IntegerValue;
 import com.sun.jdi.Location;
@@ -35,7 +37,7 @@ import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.IResolutionListener;
 import ddproto1.debugger.request.StdPreconditionImpl;
 import ddproto1.debugger.request.StdTypeImpl;
-import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoContextException;
 import ddproto1.exception.RequestProcessorException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.interfaces.IUICallback;
@@ -67,7 +69,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     private IJavaNodeManager parent;
     private Set stublist;
     private ClassType taggerClass;
-    private Map<Integer, Byte> pendingModifiers = new HashMap<Integer, Byte>();
+    private Map<Integer, Integer> pendingModifiers = new HashMap<Integer, Integer>();
     
     private static MessageHandler mh = MessageHandler.getInstance();
     private static TaggerProxy tagger = TaggerProxy.getInstance();
@@ -142,9 +144,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                  */ 
 
                 /* Otherwise, marks the distributed thread as stepping remote. */
-                byte mode = (request.depth() == StepRequest.STEP_INTO) ? DistributedThread.STEPPING
-                        : DistributedThread.RUNNING;
-                pendingModifiers.put(dt_uuid.intValue(), (byte)(mode | DistributedThread.ILLUSION));
+                pendingModifiers.put(dt_uuid.intValue(), request.depth());
 
                 /* There should be no source printing in this processing chain.
                  * Otherwise we'll see part of the stub code (something we don't really want to).
@@ -166,13 +166,22 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     
     protected void applyPostUpcallModifiers(DistributedThread dt){
     	int dt_uuid = dt.getId();
-    	Byte modifier = pendingModifiers.get(dt_uuid);
+    	Integer modifier = pendingModifiers.get(dt_uuid);
     	if(modifier == null) return;
     	else{
     		pendingModifiers.remove(dt_uuid);
     		try {
-				dt.setStepping(modifier);
-			} catch (InvalidAttributeValueException e) {
+                int liModifier;
+                
+                if(modifier == StepRequest.STEP_INTO)
+                    liModifier = DebugEvent.STEP_INTO;
+                else if(modifier == StepRequest.STEP_OVER)
+                    liModifier = DebugEvent.STEP_OVER;
+                else
+                    liModifier = DebugEvent.STEP_RETURN;
+				dt.beginRemoteStepping(liModifier);
+                
+			} catch (IllegalStateException e) {
 				mh.getErrorOutput().println(
 						"Error setting deferred modifiers in thread "
 								+ ct.uuid2Dotted(dt_uuid));

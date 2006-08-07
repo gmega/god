@@ -35,6 +35,12 @@ public interface ILocalThread extends IThread {
      */
     public void unbindFromParentDT();
     
+    /** 
+     * Returns the distributed thread in which this local thread is
+     * currently participating, or a NilDistributedThread if none.
+     * 
+     * @return
+     */
     public IDistributedThread getParentDistributedThread();
     
     /**
@@ -50,4 +56,12 @@ public interface ILocalThread extends IThread {
      *         otherwise.
      */
     public boolean hasPendingStepRequests();
+    
+    /**
+     * Returns the Globally Unique ID for this local thread, or null
+     * if this thread hasn't received an ID yet. 
+     * 
+     * @return
+     */
+    public Integer getGUID();
 }

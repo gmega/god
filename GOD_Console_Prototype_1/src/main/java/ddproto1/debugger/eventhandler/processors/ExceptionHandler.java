@@ -25,7 +25,7 @@ import com.sun.jdi.event.ExceptionEvent;
 
 import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
-import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoContextException;
 import ddproto1.util.MessageHandler;
 
 /**
@@ -45,7 +45,7 @@ public class ExceptionHandler extends AbstractEventProcessor{
         IProcessingContext ipc = pcm.getProcessingContext();
         try{
             if(ipc.getResults(ApplicationExceptionDetector.NO_EXCEPTION_PRINTING) > 0) return;
-        }catch(NoSuchElementError ex) { /** The ApplicationExceptionDetector isn't even registered. */ }
+        }catch(NoContextException ex) { /** The ApplicationExceptionDetector isn't even registered. */ }
         
         ExceptionEvent ee = (ExceptionEvent) e;
         

@@ -22,7 +22,7 @@ public class DebugBreakpointWaiter extends DebugEventWaiter {
     @Override
     public boolean accept(DebugEvent evt){
         Object src = evt.getSource();
-        if(!(src instanceof IThread)) return false;
+        if(!((src instanceof IThread) && super.accept(evt))) return false;
         
         IThread thread = (IThread)src;
         for(IBreakpoint bkp : thread.getBreakpoints())

@@ -5,7 +5,7 @@
  */
 package ddproto1.debugger.eventhandler;
 
-import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoContextException;
 
 /**
  * @author giuliano
@@ -23,13 +23,8 @@ public class ProcessingContextManager {
     }
     
     public IProcessingContext getProcessingContext()
-    	throws NoSuchElementError
     {
-        IProcessingContext ipc = (IProcessingContext)contexts.get();
-        if(ipc == null)
-            throw new NoSuchElementError("No context!");
-        
-        return ipc;
+        return (IProcessingContext)contexts.get();
     }
     
     public void register(IProcessingContext ipc){

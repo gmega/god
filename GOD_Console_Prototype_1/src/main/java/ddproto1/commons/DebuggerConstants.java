@@ -65,7 +65,6 @@ public interface DebuggerConstants {
     public static final String STEP_GETTER = "isStepping";
     
     public static final String VMM_KEY = "vmm";
-    public static final String PLUGIN_ID = "ddproto1";
     
     public static final int    ILLEGAL_THREAD_MOVEMENT = 0;
     public static final int    LOCAL_THREAD_SUSPENDED  = 1;

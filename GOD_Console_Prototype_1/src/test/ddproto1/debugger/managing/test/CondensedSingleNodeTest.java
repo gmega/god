@@ -30,28 +30,28 @@ import ddproto1.util.TestUtils;
  * It will then perform a step into, a step over and a step return,
  * checking thread state as each step occurs. After that, the test
  * will remove the breakpoint and resume the main thread, and will
- * wait for the application to die.
+ * wait for the application to die. If the application dies within
+ * the alloted timeframe, the test succeeds.
  * 
  * @author giuliano
  *
  */
 public class CondensedSingleNodeTest extends AbstractDebuggerTest{
-    
-    private static final Logger logger = 
-        MessageHandler.getInstance().getLogger(CondensedSingleNodeTest.class);
-    
+
     private static volatile IThread fThread;
     private static volatile IBreakpoint fLineBkp;
     
+    /** Adds breakpoint, launches application and waits for breakpoint 
+     * to be hit. */
     public void testLineBreakpoint()
         throws Exception
     {
         configureEverything();
         IJavaProject miscProj = getMiscProject();
         IResource resource = getBreakpointResource(
-                CONDENSED_SINGLE_NODE_TEST_LOOP_BKP_CL, miscProj);
+                CSN_TEST_LOOP_BKP_CL, miscProj);
         fLineBkp = JDIDebugModel.createLineBreakpoint(resource,
-                CONDENSED_SINGLE_NODE_TEST_LOOP_BKP_CL, CONDENSED_SINGLE_NODE_TEST_BKP_LINE,
+                CSN_TEST_LOOP_BKP_CL, CSN_TEST_BKP_LINE,
                 -1, -1, 0, true, null);
         
         DebugBreakpointWaiter dbw = 
@@ -65,13 +65,14 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
         assertNotNull(fThread);
     }
     
+    /** Tests step into. */
     public void testStepInto()
         throws Exception
     {
         assertTrue(fThread.isSuspended());
         assertFalse(fThread.isStepping());
         assertTrue(fThread.canStepInto());
-        doStep(DebugEvent.STEP_INTO, 3, CONDENSED_SINGLE_NODE_TEST_STEPINTO_LINE,
+        doStep(DebugEvent.STEP_INTO, 3, CSN_TEST_STEPINTO_LINE,
                 new Stepper(){
                     public void step() throws Exception {
                         fThread.stepInto();
@@ -79,13 +80,14 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
                 });
     }
     
+    /** Tests step return */
     public void testStepReturn()
         throws Exception
     {
         assertTrue(fThread.isSuspended());
         assertFalse(fThread.isStepping());
         assertTrue(fThread.canStepReturn());
-        doStep(DebugEvent.STEP_RETURN, 2, CONDENSED_SINGLE_NODE_TEST_BKP_LINE + 1,
+        doStep(DebugEvent.STEP_RETURN, 2, CSN_TEST_BKP_LINE + 1,
                 new Stepper(){
                     public void step() throws Exception {
                         fThread.stepReturn();
@@ -93,11 +95,12 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
                 });
     }
     
+    /** Tests step over */
     public void testStepOver() throws Exception{
         assertTrue(fThread.isSuspended());
         assertFalse(fThread.isStepping());
         assertTrue(fThread.canStepReturn());
-        doStep(DebugEvent.STEP_OVER, 2, CONDENSED_SINGLE_NODE_TEST_BKP_LINE - 2,
+        doStep(DebugEvent.STEP_OVER, 2, CSN_TEST_BKP_LINE - 2,
                 new Stepper(){
                     public void step() throws Exception {
                         fThread.stepOver();
@@ -105,6 +108,9 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
                 });
     }
     
+    /** Cancels breakpoint and resumes current thread. Application should
+     * die shortly in less than DebugEventWaiter.DEFAULT_TIMEOUT
+     */
     public void testCancellation()
         throws Exception
     {
@@ -131,14 +137,10 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
     public void testTearDown()
         throws Exception
     {
-        try{
-            GODBasePlugin.getDefault().getProcessServerManager().stop();
-        }catch(IllegalStateException ex){ 
-            logger.error("Failed to stop the process server manager.", ex);
-        }
-        GODBasePlugin.getDefault().getProcessServerManager().start();
+        performDistributedShutdown();
     }
     
+    /** Actually performs each step request. */
     private void doStep(int stepKind, int stackLength, int expectedLine, Stepper stepper) 
         throws Exception{
         SpecificDebugElementEventWaiter waiterStart = 

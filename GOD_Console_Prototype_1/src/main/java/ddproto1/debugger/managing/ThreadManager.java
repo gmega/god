@@ -239,8 +239,8 @@ public class ThreadManager implements
          * We might be frozen here for a while. Launch another thread to handle
          * the other events in case we freeze (otherwise the program stops).
          * 
-         * That's what we get for relying in expression evaluation for program
-         * execution.
+         * If I could ensure that at this point the suspend count will always be
+         * 1, this problem would go away.
          */
         dc.getVMM().getDispatcher().handleNext();
         Integer id = extractId(current);
@@ -261,6 +261,7 @@ public class ThreadManager implements
             assert (!(uuid2thread.containsKey(id)));
             uuid2thread.put(id, current);
             thread2uuid.put(current, id);
+            getLIThread(current).setGUID(id);
         }
 
         /*

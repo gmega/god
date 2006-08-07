@@ -42,7 +42,7 @@ import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.IVotingManager;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.exception.IllegalStateException;
-import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoContextException;
 import ddproto1.exception.TargetRequestFailedException;
 import ddproto1.interfaces.ISemaphore;
 import ddproto1.util.ExternalSemaphore;
@@ -497,7 +497,7 @@ public class EventDispatcher implements IVotingManager {
         private Integer checkupGet(String vote, boolean active)
         {
             if(!existsVoteType(vote))
-            	throw new NoSuchElementError("Invalid vote type.");
+            	throw new NoContextException("Invalid vote type.");
             
             Integer v = votes.get(vote);
             if(v == null){

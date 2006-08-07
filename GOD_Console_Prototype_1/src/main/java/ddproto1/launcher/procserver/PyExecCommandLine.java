@@ -3,7 +3,7 @@
  * 
  * file: PySSHExecutorCommandLine.java
  */
-package ddproto1.debugger.eventhandler.processors;
+package ddproto1.launcher.procserver;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,7 +18,6 @@ import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.InvalidAttributeValueException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.launcher.ICommandLine;
-import ddproto1.launcher.procserver.SunVMCommandLine;
 import ddproto1.util.TestUtils;
 
 public class PyExecCommandLine implements ICommandLine{

@@ -28,18 +28,14 @@ public class LockingHashMap <Key, Val> extends ConcurrentHashMap <Key, Val>{
      * 
      */
     private static final long serialVersionUID = 4050759412157069108L;
-    private ReentrantReadWriteLock lock;
-    private ThreadLocal <Thread> readers = new ThreadLocal<Thread>();
-    private Lock readLock;
-    private Lock writeLock;
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(false);
+    private final ThreadLocal <Thread> readers = new ThreadLocal<Thread>();
+    private final Lock readLock = lock.readLock();
+    private final Lock writeLock = lock.writeLock();
 
-    public LockingHashMap(boolean fair){
+    public LockingHashMap(){
         super();
-        lock = new ReentrantReadWriteLock(fair);
-        readLock = lock.readLock();
-        writeLock = lock.writeLock();
     }
-
     
     public void lockForReading(){
         readLock.lock();

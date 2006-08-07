@@ -22,7 +22,6 @@ import ddproto1.controller.constants.ProcessServerConstants;
 import ddproto1.controller.interfaces.IProcessServer;
 import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.controller.interfaces.LaunchParametersDTO;
-import ddproto1.debugger.eventhandler.processors.PyExecCommandLine;
 import ddproto1.debugger.managing.identification.IGUIDManager;
 import ddproto1.exception.AmbiguousSymbolException;
 import ddproto1.exception.ConfigException;
@@ -37,6 +36,7 @@ import ddproto1.launcher.procserver.IProcessEventListener;
 import ddproto1.launcher.procserver.IProcessServerManager;
 import ddproto1.launcher.procserver.IRemoteCommandExecutor;
 import ddproto1.launcher.procserver.ProcessEventAdapter;
+import ddproto1.launcher.procserver.PyExecCommandLine;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 

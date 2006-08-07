@@ -6,20 +6,18 @@ package ddproto1.debugger.managing.tracker;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
 import org.apache.log4j.Logger;
+import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IThread;
 
 
 import com.sun.jdi.request.EventRequest;
 
-import ddproto1.util.JDIMiscUtil;
 import ddproto1.util.commons.ByteMessage;
 import ddproto1.util.commons.Event;
 import ddproto1.commons.DebuggerConstants;
@@ -34,19 +32,14 @@ import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.managing.tracker.DistributedThread.VirtualStack;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
 import ddproto1.debugger.request.DeferrableHookRequest;
-import ddproto1.debugger.request.IDeferrableRequest;
-import ddproto1.debugger.request.StdPreconditionImpl;
-import ddproto1.debugger.request.StdResolutionContextImpl;
-import ddproto1.debugger.request.StdTypeImpl;
 import ddproto1.debugger.server.IRequestHandler;
 import ddproto1.exception.DistributedStackOverflowException;
 import ddproto1.exception.InternalError;
-import ddproto1.exception.NoSuchElementError;
+import ddproto1.exception.NoContextException;
 import ddproto1.exception.NoSuchSymbolException;
 import ddproto1.exception.PropertyViolation;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.ParserException;
-import ddproto1.interfaces.IUICallback;
 import ddproto1.util.collection.LockingHashMap;
 import ddproto1.util.traits.commons.ConversionUtil;
 
@@ -57,6 +50,8 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * and in-band (JDWP) event dispatchers and merging them into an approximation
  * of the distributed systems state (toghether with other components).
  * 
+ * NOTE: The current implementation can be brutally optimized. It is also broken
+ * with respect to memory synchronization.
  * 
  * @author giuliano
  *
@@ -78,8 +73,6 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
      */
     private final boolean stackBuilderMode = false;
 
-    private DTStateUpdater dtsu;
-    
     private Map <Byte, Node> nodes;
     private LockingHashMap <Integer, DistributedThread> dthreads;
     private LockingHashMap <Integer, Integer> threads2dthreads;
@@ -87,12 +80,20 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
 
     public DistributedThreadManager(IDebugTarget parent){ 
         nodes = new HashMap<Byte, Node>();
-        dthreads = new LockingHashMap<Integer, DistributedThread>(false); // Fair read-write lock deadlocks.
-        threads2dthreads = new LockingHashMap<Integer, Integer>(false);   // Fair read-write lock deadlocks.
-        dtsu = new DTStateUpdater(this);
+        dthreads = new LockingHashMap<Integer, DistributedThread>();
+        threads2dthreads = new LockingHashMap<Integer, Integer>(); 
         this.parent = parent;
     }
     
+    
+    /** This method definitely doesn't belong here. 
+     * It's coupling the DT manager to JDI and it has nothing to do 
+     * with distributed thread management. This could be safely moved to 
+     * the VirtualMachineManager as, since the DistributedThreadManager doesn't
+     * care about ID's, there is no need to "register" node managers with it. 
+     * 
+     * @param vmms
+     */
     public void registerNode(ILocalNodeManager vmms)
     {
         /* Node registration is a complicated, error-prone process. The main 
@@ -133,9 +134,6 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
             
             /* Now adds the hook requests, which we hope will go into the right place */
             spec.cbr = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, cbr, policySet);
-            spec.dtsu_td = new DeferrableHookRequest(vmm.getName(), IEventManager.THREAD_DEATH_EVENT, dtsu, null);
-            spec.dtsu_step = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, dtsu, null);
-            spec.dtsu_break = new DeferrableHookRequest(vmm.getName(), IEventManager.BREAKPOINT_EVENT, dtsu, null);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.cbr);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_td);
             vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_step);
@@ -178,18 +176,18 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
     }
     
     public IThread getThread(Integer uuid) 
-    		throws NoSuchElementError {
+    		throws NoContextException {
     			return getByUUID(new Integer(uuid));
     }
     
     public DistributedThread getByUUID(Integer uuid)
-    	throws NoSuchElementError
+    	throws NoContextException
     {
         try{
             dthreads.lockForReading();
             DistributedThread dt = dthreads.get(uuid);
             if(dt == null)
-                throw new NoSuchElementError("Required distributed thread doesn't exist.");
+                throw new NoContextException("Required distributed thread doesn't exist.");
             return dt;
         }finally{
             dthreads.unlockForReading();
@@ -270,26 +268,6 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
             	
             	DistributedThread current = null;
             	
-                /** Thread inherits the state of the local thread. 
-                 * Since the thread got this far, it's possible states are:
-                 *
-                 * 1) RUNNING 
-                 *   This part of the code assumes the distributed thread is running
-                 *   if there are no pending step requests with 'into' depth on it.
-                 *   This never happens because the step into requests are processed
-                 *   by the ComponentBoundaryRecognizer, which will apply modifiers
-                 *   later if that's the case.
-                 * 
-                 * 2) STEPPING
-                 *   Never happens. The ComponentBoundaryRecognizer is responsible for
-                 *   knowing if the thread was stepping or not when it was resumed. 
-                 *  
-                 *  Note that if the thread is actually stepping into we won't
-                 *  be able to figure this out from here, but that's OK because
-                 *  the ComponentBoundaryRecognizer will.
-                 *  
-                 */
-            	mode = DistributedThread.RUNNING | DistributedThread.ILLUSION;
             	/* Thread promotion occurs here (local thread becomes
                  * distributed thread).
                  */
@@ -317,14 +295,14 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                         if(!stackBuilderMode){
                             ILocalThreadManager tm = vmm.getThreadManager();
                             ILocalThread ilt = tm.getLocalThread(lt_uuid_wrap);
-                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, ilt);
+                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, ilt, parent);
                             if(ilt == null)
                                 vsf.flagAsDamaged("Thread being pushed doesn't exist.");
 
-                            current = new DistributedThread(vsf, vmm.getThreadManager(), mode, parent);
+                            current = new DistributedThread(vsf, vmm.getThreadManager(), parent);
                         }else{
-                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, null);
-                            current = new DistributedThread(vsf, null, mode, null);
+                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, null, parent);
+                            current = new DistributedThread(vsf, null, null);
                         }
                         
                         current.lock();
@@ -352,14 +330,12 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                         vsf.setOutboundOperation(op);
                     }
                     
-                    current.setStepping(mode);
                     /** Apply post-upcall state modifiers, if any. */
                     ComponentBoundaryRecognizer cbr = (ComponentBoundaryRecognizer)node.cbr.getProcessor();
                     cbr.applyPostUpcallModifiers(current);
                     
                     mode = current.getMode();
-
-                
+                    
             	} finally {
                     if(!unlocked) unlockAllTables();
                     if(current != null)
@@ -376,9 +352,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
             	String ltuid = evt.getAttribute("ltid");
             	String fullOp = evt.getAttribute("fop");
             	String base = evt.getAttribute("siz");
-                String brLine = evt.getAttribute("lin");
-                String clsName = evt.getAttribute("cls");
-                
+               
                 boolean merge = false;
             	
             	/* Decodes and stores ids for usage during this request */
@@ -488,7 +462,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                              * at the client-side
                              */
                             ILocalThread ilt = vmm.getThreadManager().getLocalThread(lt_uuid_wrap);
-                            VirtualStackframe vsf = new VirtualStackframe(null, fullOp, lt_uuid_wrap, ilt);
+                            VirtualStackframe vsf = new VirtualStackframe(null, fullOp, lt_uuid_wrap, ilt, parent);
                             vsf.setCallBase(new Integer(base));
                             if(ilt == null) vsf.flagAsDamaged("Thread being pushed doesn't exist.");
 
@@ -546,20 +520,8 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                          * process annotations. That's because just having the method name
                          * was causing some AmbiguousSymbolExceptions to be thrown.
                          */       
-                        DeferrableBreakpointRequest bp = new DeferrableBreakpointRequest(
-                                vmm.getName(), clsName, Integer.parseInt(brLine));
-
-                        /** This is really great. 
-                         * The two lines of code that follow ensure that:
-                         * 
-                         * 1) This breakpoint will only halt the correct thread.
-                         * 2) This breakpoint will remove itself after serving its purpose,
-                         *    without affecting other threads or other user breakpoints. 
-                         */
-                        bp.addThreadFilter(lt_uuid_wrap);
-                        bp.setOneShot(true);
-                        
-                        vmm.getDeferrableRequestQueue().addEagerlyResolve(bp);
+                        IBreakpoint bkp = vmm.setBreakpointFromEvent(evt);
+                        current.setServersideBreakpoint(bkp);
                     }
 
             	} finally {
@@ -795,37 +757,28 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
 
 
     public IThread[] getThreads() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    public List<Integer> getThreadIDList() {
-        // TODO Auto-generated method stub
-        return null;
+        try{
+            beginSnapshot();
+            return (IThread[])dthreads.values().toArray(); 
+        }finally{
+            endSnapshot();
+        }
     }
 
     public boolean hasThreads() {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    public boolean allThreadsSuspended() {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    public void suspendAll() throws Exception {
-        // TODO Auto-generated method stub
+        try{
+            dthreads.lockForReading();
+            return !dthreads.isEmpty();
+        }finally{
+            dthreads.unlockForReading();
+        }
         
     }
 
-    public void resumeAll() throws Exception {
-        // TODO Auto-generated method stub
-        
-    }
+    // Maybe I'll remove these ops.
+    public void resumeAll() throws Exception { }
 
-    public Integer getThreadUUID(IThread tr) {
-        // TODO Auto-generated method stub
+    public Integer getThreadUUID(IThread tr) { 
         return null;
     }
 }
