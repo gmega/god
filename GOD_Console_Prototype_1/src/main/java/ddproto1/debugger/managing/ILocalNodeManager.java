@@ -12,8 +12,10 @@ import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IProcess;
+import org.eclipse.debug.core.model.IThread;
 
 import ddproto1.configurator.commons.IConfigurable;
+import ddproto1.debugger.managing.tracker.ILocalThread;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.util.commons.Event;
