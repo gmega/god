@@ -64,6 +64,9 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaThread.class);
     
     private static final Map<Integer, Integer> stepMap = new HashMap<Integer, Integer>();
+    
+    private AtomicBoolean fSuspendedByRS = new AtomicBoolean(false);
+    
     static{
         stepMap.put(StepRequest.STEP_INTO, DebugEvent.STEP_INTO);
         stepMap.put(StepRequest.STEP_OVER, DebugEvent.STEP_OVER);
@@ -140,6 +143,14 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         }finally{
             if(locked) readLock.unlock();
         }
+    }
+    
+    public boolean toggleSuspendedByRemoteStepping(){
+        return fSuspendedByRS.getAndSet(true);
+    }
+    
+    public boolean resumedByRemoteStepping(){
+        return fSuspendedByRS.getAndSet(false);
     }
 
     public boolean hasStackFrames() throws DebugException {
@@ -378,7 +389,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
     
     protected void setStepping(boolean mode){
-        assert isStepping.compareAndSet(mode, !mode);
+        assert isStepping.compareAndSet(!mode, mode);
     }
     
     protected void setRunning(boolean mode){
@@ -493,8 +504,15 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
              */
             registerAsListener();
             
+            registerAsVoter();
+            
             /** Resumes the underlying thread. */
             resumeUnderlyingThread();	
+        }
+        
+        private void registerAsVoter(){
+            /** We're interested in knowing about this vote type. */
+            getVMM().getVotingManager().declareVoterFor(IEventManager.NO_SOURCE);
         }
         
         private void stepComplete(boolean supressStepEnd) {
