@@ -20,6 +20,7 @@ import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
 import ddproto1.debugger.managing.tracker.IDistributedThread;
 import ddproto1.debugger.managing.tracker.ILocalThread;
+import ddproto1.debugger.managing.tracker.NilDistributedThread;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.traits.commons.ConversionUtil;
@@ -57,7 +58,7 @@ public class ThreadInfoGatherer extends AbstractEventProcessor {
                 str_ltid = ct.uuid2Dotted(ltid.intValue());
                 IDistributedThread dt = ltr.getParentDistributedThread();
                 Integer dt_uuid = null;
-                if(dt != null) dt_uuid = dt.getId();
+                if(!(dt instanceof NilDistributedThread)) dt_uuid = dt.getId();
                 if(dt_uuid != null) str_dtid = ct.uuid2Dotted(dt_uuid.intValue());
             }
                 
