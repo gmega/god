@@ -117,6 +117,8 @@ public class ByteMessage {
              * 
              * Because I can't know in advance if the message has the incorrect size or if 
              * it's just the rest of it that hasn't arrived yet.
+             * 
+             * We must trust TCP. 
              */
             byte r = (byte)byteStream.read();
             if(r == -1)
