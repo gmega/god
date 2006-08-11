@@ -209,7 +209,7 @@ public class ThreadManager implements
         if(uuid2thread.containsKey(uuid))
             uuid2thread.remove(uuid);
         
-        IThread eclipseThread = this.getLIThread(tr);
+        IThread eclipseThread = this.getAdapterForThread(tr);
         assert eclipseThread != null;
         
         if(eclipseThread instanceof DebugElement){
@@ -261,7 +261,7 @@ public class ThreadManager implements
             assert (!(uuid2thread.containsKey(id)));
             uuid2thread.put(id, current);
             thread2uuid.put(current, id);
-            getLIThread(current).setGUID(id);
+            getAdapterForThread(current).setGUID(id);
         }
 
         /*
@@ -320,14 +320,14 @@ public class ThreadManager implements
         }
     }
     
-    public JavaThread getLIThread(ThreadReference tr){
+    public JavaThread getAdapterForThread(ThreadReference tr){
         synchronized(liThreads){
             return (JavaThread)liThreads.get(tr);
         }
     }
     
     public synchronized JavaThread getLIThread(Integer id){
-        return getLIThread(findThreadByUUID(id));
+        return getAdapterForThread(findThreadByUUID(id));
     }
     
     public synchronized ThreadReference findThreadByUUID(int uuid){
@@ -479,5 +479,10 @@ public class ThreadManager implements
     
     public IThread getThread(Integer uuid){
         return getLIThread(uuid);
+    }
+
+    public Object getAdapter(Class adapter) {
+        if(adapter.isAssignableFrom(this.getClass())) return this;
+        return null;
     }
 }
