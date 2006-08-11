@@ -76,9 +76,9 @@ public class Event implements IQueriableConfigurable {
             for(int i = 1; i < _event.length; i++){
                 if(_event[i] == 0) break; // Key has zero length. We're done.
                 String key = read(_event, _event[i], i);
-                i += (key.length() + 1);
+                i += (_event[i] + 1);
                 String val = read(_event, _event[i], i);
-                i += (val.length());
+                i += (_event[i]);
                 attmap.put(key, val);
              }
             
