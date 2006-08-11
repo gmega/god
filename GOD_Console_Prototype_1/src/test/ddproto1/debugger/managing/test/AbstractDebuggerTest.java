@@ -73,7 +73,7 @@ public class AbstractDebuggerTest extends TestCase implements TestLocationConsta
     }
     
     public IJavaProject getClientProject(){
-        return getProtected(new ProjectGetter(TestConfigurationConstants.SERVER_PROJECT_NAME));
+        return getProtected(new ProjectGetter(TestConfigurationConstants.CLIENT_PROJECT_NAME));
     }
     
     public IJavaProject getMiscProject(){
