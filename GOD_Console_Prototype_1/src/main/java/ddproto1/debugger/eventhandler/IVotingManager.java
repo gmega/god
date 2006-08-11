@@ -10,5 +10,6 @@ package ddproto1.debugger.eventhandler;
  *
  */
 public interface IVotingManager {
-    public void declareVoterFor(IVoteType type);
+    public void declareVoterFor(String type);
+    // public void declareVoterFor(IVoteType type);
 }
