@@ -8,31 +8,27 @@
 
 package ddproto1.debugger.managing;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.apache.log4j.Logger;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
-import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IProcess;
 
 import com.sun.jdi.VMDisconnectedException;
 import com.sun.jdi.VirtualMachine;
-import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
 import com.sun.jdi.request.EventRequest;
-import com.sun.jdi.request.ExceptionRequest;
 import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
-import com.sun.jdi.request.VMDeathRequest;
 
 import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
@@ -52,7 +48,9 @@ import ddproto1.debugger.eventhandler.processors.SourcePrinter;
 import ddproto1.debugger.eventhandler.processors.StepRequestClearer;
 import ddproto1.debugger.eventhandler.processors.ThreadInfoGatherer;
 import ddproto1.debugger.eventhandler.processors.ThreadUpdater;
+import ddproto1.debugger.managing.tracker.ComponentBoundaryRecognizer;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
+import ddproto1.debugger.request.DeferrableHookRequest;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.StdPreconditionImpl;
@@ -75,6 +73,7 @@ import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
 import ddproto1.util.traits.JDIEventProcessorTrait;
 import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
+import ddproto1.util.traits.commons.ConversionUtil;
 
 
 /**
@@ -107,8 +106,8 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             "CONNECTED", "DISCONNECTING", "DISCONNECTED", "TERMINATING",
             "TERMINATED" };
 	
-    private static final String module = "VirtualMachineManager -";
     private static final Logger logger = MessageHandler.getInstance().getLogger(VirtualMachineManager.class);
+    private static final ConversionUtil fConversion = ConversionUtil.getInstance();
     
     private static final int JVM_EXIT_CODE = 1;
 
@@ -178,7 +177,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     		throws VMDisconnectedException
     {
         if(jvm == null)
-            throw new VMDisconnectedException(module + " VM proxy not ready.");
+            throw new VMDisconnectedException("VM proxy not ready.");
         return jvm;
     }
     
@@ -532,6 +531,15 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
              * to resume their execution.
              */
             AbstractEventProcessor rct = new ResumingChainTerminator();
+            
+            // Resumes threads that step into remote object stubs.
+            AbstractEventProcessor cbr = null;
+            try{
+                cbr = assembleCBR();
+            }catch(Exception ex){
+                logger.error("Could not initialize the component boundary recognizer. " +
+                        "Distributed stepping illusion will work properly.", ex);
+            }
 
             /* Registers the thread manager as a listener for events regarding
              * non-distributed thread births and deaths. 
@@ -554,6 +562,14 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             /* Clears fulfilled step requests. This guy should come before any processors
              * that make step requests. */
             handler.addEventListener(DelegatingHandler.STEP_EVENT, sc);
+            
+            if(cbr != null){
+                Set <Integer> policySet = new HashSet<Integer>();
+                policySet.add(new Integer(EventRequest.SUSPEND_ALL));
+                policySet.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
+                handler.addEventListener(DelegatingHandler.STEP_EVENT, cbr);
+                handler.setListenerPolicyFilters(cbr, policySet);
+            }
             
             /* Protocol for resuming threads should be processed just below the
              * thread information gatherer and after the step request clearer.
@@ -611,6 +627,34 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
         }
     }
     
+    private ComponentBoundaryRecognizer assembleCBR()
+        throws UninitializedAttributeException
+    {
+        try{
+            /* Obtains the stublist (or gets an exception if this node
+             * doesn't define it).
+             */
+            String stublist = getAttribute(IConfigurationConstants.STUB_LIST);
+            String skellist = getAttribute(IConfigurationConstants.SKELETON_LIST);
+            Set <String> stubclasses = new HashSet<String> ();
+            Set <String> skelclasses = new HashSet<String> ();
+            StringTokenizer st = new StringTokenizer(stublist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
+            while(st.hasMoreTokens())
+                stubclasses.add(st.nextToken());
+        
+            st = new StringTokenizer(skellist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
+            while(st.hasMoreTokens())
+                skelclasses.add(st.nextToken());
+            
+            return new ComponentBoundaryRecognizer(stubclasses, this);
+                        
+        }catch (IllegalAttributeException e){
+            /* Not an error - just means this node is not middleware-enabled */
+        }
+        
+        return null;
+    }
+    
     private void checkConnected() throws VMDisconnectedException{
         if(!disp.isConnected()){
             throw new VMDisconnectedException(
@@ -626,7 +670,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
         }else if(e instanceof VMDeathEvent){
             terminated();
         }else{
-            throw new UnsupportedException("Processor " + module + " can't handle event of type " + e.getClass().toString());
+            throw new UnsupportedException("Can't handle event of type " + e.getClass().toString());
         }
         
         getDeferrableRequestQueue().reset();
@@ -897,7 +941,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
              *    without affecting other threads or other user breakpoints. 
              */
             final List<Integer> tFilters = new ArrayList<Integer>(1);
-            tFilters.add(0, new Integer(ltuid));
+            tFilters.add(0, new Integer(fConversion.hex2Int(ltuid)));
 
             bkp.addToTarget(this.getDebugTarget(),
                     new JavaBreakpoint.IFilterProvider(){
