@@ -69,12 +69,7 @@ public class DistributedThreadTest extends AbstractDebuggerTest{
                 launchApplication(name);
                 
                 /** Give some time to get the stuff running. */
-                synchronized (this) {
-                    try {
-                        this.wait(NODE_STARTUP);
-                    } catch (InterruptedException ex) {
-                    }
-                }
+                Thread.sleep(NODE_STARTUP);
             }
                         
         } catch (Throwable t) {
@@ -97,6 +92,7 @@ public class DistributedThreadTest extends AbstractDebuggerTest{
             new DebugBreakpointThreadNameWaiter(DebugEvent.SUSPEND, clientBkp, DT_TEST_STEP_INTO_THREAD_NAME);
         
         /** Fires the client. */
+        Thread.sleep(NODE_STARTUP); // Safety margin
         launchApplication("CORBA Client");
         
         waiter.waitForEvent();
@@ -116,6 +112,7 @@ public class DistributedThreadTest extends AbstractDebuggerTest{
         DebugElementKindEventDetailWaiter remoteStepEnd = 
             new DebugElementKindEventDetailWaiter(DebugEvent.SUSPEND, DistributedThread.class, DebugEvent.STEP_END);
         
+        assertTrue(!clientSide.isStepping());        
         clientSide.stepInto();
         
         localStepStart.waitForEvent();  // Local thread started stepping
