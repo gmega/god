@@ -93,8 +93,8 @@ public class DDTestSuite extends TestSuite {
 //        addTest(new TestSuite(SunVMCommandLineTest.class));
 //        addTest(new TestSuite(LocalAgentCommandLineTest.class));
 //        addTest(new TestSuite(ProcessServerManagerTest.class));
-        addTest(new TestSuite(CondensedSingleNodeTest.class));
-//        addTest(new TestSuite(DistributedThreadTest.class));
+//        addTest(new TestSuite(CondensedSingleNodeTest.class));
+        addTest(new TestSuite(DistributedThreadTest.class));
         
     }
     
