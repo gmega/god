@@ -43,35 +43,29 @@ import ddproto1.util.traits.commons.ConversionUtil;
  */
 public class Tagger extends TagResponsible{
     
-    private static Tagger instance;
-    private static Logger getSetLogger = Logger.getLogger(Tagger.class.getName() + ".getSetLogger");
-    private static Logger stepPartLogger = Logger.getLogger(Tagger.class.getName() + ".stepPartLogger");
-    private static ConversionUtil ct = ConversionUtil.getInstance();
+    private static final Tagger instance = new Tagger();
+    private static final Logger getSetLogger = Logger.getLogger(Tagger.class.getName() + ".getSetLogger");
+    private static final Logger stepPartLogger = Logger.getLogger(Tagger.class.getName() + ".stepPartLogger");
+    private static final ConversionUtil ct = ConversionUtil.getInstance();
    
-    private boolean gidSet = false;
+    private volatile boolean gidSet = false;
     
-    private byte gid;
+    private volatile byte gid;
     
     private Set <Integer> stepping = new HashSet<Integer>();
     
-    private ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
-    private ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
-    
-    private PIManagementDelegate delegate;
+    private final ThreadLocal <Integer> currentguid = new ThreadLocal <Integer> ();
+    private final ThreadLocal <Integer> partOf      = new ThreadLocal <Integer> ();
     
     private Tagger() {}
     
-    public synchronized static Tagger getInstance(){
-        return (instance == null)?(instance = new Tagger()):instance;
+    public static Tagger getInstance(){
+        return instance;
     }
     
     public void setGID(byte gid){
         this.gid = gid;
         gidSet = true;
-    }
-    
-    public void setPICManagementDelegate(PIManagementDelegate delegate){
-        this.delegate = delegate;
     }
     
     public byte getGID(){
