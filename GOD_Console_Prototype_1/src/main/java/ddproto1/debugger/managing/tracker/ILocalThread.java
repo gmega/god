@@ -27,6 +27,25 @@ public interface ILocalThread extends IThread {
     public boolean setParentDT(IDistributedThread dt);
     
     /**
+     * Retrieves and clears the "resumed by stepping remote" status of this local thread.
+     * <br>
+     * This method is called by the distributed thread manager after each client upcall
+     * (although it could be called at server receive) so the manager may know whether
+     * to stop the distributed thread when it reaches the server-side or not.
+     * 
+     * @param thread The local thread which to check and clear the "resumed by stepping
+     * remote" status.
+     * @return This method may return:
+     * <ol>
+     * <li><b>true</b> if this thread has been resumed because it has stepped into a remote 
+     * object stub.</li>
+     * <li><b>false</b> if this thread isn't remote stepping or the status has been previously 
+     * cleared by a call to resumedBySteppingRemote.</li>
+     * </ol>
+     */
+    public boolean resumedByRemoteStepping();
+    
+    /**
      * Tells this local thread that it is no longer part of distributed
      * thread 'dt'. After this method returns, 'dt' should not receive
      * any event notifications.
