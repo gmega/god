@@ -333,9 +333,9 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
         IBreakpointManager bm = DebugPlugin.getDefault().getBreakpointManager();
         bm.removeBreakpointListener(this);
         try{
-        		this.removeAllBreakpoints();
+        	this.removeAllBreakpoints();
         }catch(DebugException ex){
-        		logger.error("Failed to remove breakpoint from target.", ex);
+        	// It's okay, we're shutting down.
         }
         fireTerminateEvent();
     }
