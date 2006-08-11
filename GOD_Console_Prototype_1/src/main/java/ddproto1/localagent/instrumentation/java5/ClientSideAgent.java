@@ -35,6 +35,7 @@ public abstract class ClientSideAgent {
     public static void premain(String agentArgs, Instrumentation instrumentation) {
         
         setUpLogger();
+        logger.info("Local agent logger has been configured.");
         
         /** Initializes the Tagger class */
         Byte gid = Byte.parseByte(System.getProperty("agent.local.gid"));
@@ -62,11 +63,9 @@ public abstract class ClientSideAgent {
                 PIManagementDelegate delegate = new PIManagementDelegate(new JacORBStampRetriever());
                 Tagger tagger = Tagger.getInstance();
                 tagger.setGID(gid);
-                tagger.setPICManagementDelegate(delegate);
                 ORBHolder oh = ORBHolder.getInstance();
                 oh.setPICManagementDelegate(delegate);
                 
-
                 BCELClientSideTransformer transformer = new BCELClientSideTransformer();
                 for (IClassLoadingHook modifier : getDefaultModifiers(transformer))
                     transformer.addModifier(modifier);
@@ -92,15 +91,20 @@ public abstract class ClientSideAgent {
         if(logfile != null){
             try{
                 URL url = new URL(logfile);
-                PropertyConfigurator.configure(url);
-                System.err.println("Log4j configured from source " + url);
-                return;
+                if(url != null){
+                    PropertyConfigurator.configure(url);
+                    System.err.println("Log4j configured from source " + url);
+                }else{
+                    System.err.println("Supplied log4j configuration URL is invalid. Falling back to default configuration.");
+                }
+                
             }catch(Exception ex){ 
                 System.err.println("Failed to configure logger. Falling back to default configuration.");      
             }
+        }else{
+            BasicConfigurator.configure();
         }
-        
-        BasicConfigurator.configure();
+
         logger = Logger.getLogger(ClientSideAgent.class);
     }
     
