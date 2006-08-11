@@ -136,7 +136,6 @@ public class EventDispatcher implements IVotingManager {
                     removing = true;
                     sema.v();
                     events = queue.remove();
-                    System.err.println(events);
                     event2int.put(events, new Integer(events.size()));
                     it = events.iterator();
                 } else {
@@ -301,7 +300,7 @@ public class EventDispatcher implements IVotingManager {
             for(ThreadReference tr : sThreads){
                 IJavaNodeManager vmm = getVMMByVM(tr.virtualMachine());
                 try{
-                    vmm.getThreadManager().getLIThread(tr).resume();
+                    vmm.getThreadManager().getAdapterForThread(tr).resume();
                 }catch(Exception ex){
                     throw new TargetRequestFailedException(ex);
                 }
