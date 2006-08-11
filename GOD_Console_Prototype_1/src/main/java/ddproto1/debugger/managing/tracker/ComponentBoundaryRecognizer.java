@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.eclipse.debug.core.DebugEvent;
 
 import com.sun.jdi.ClassType;
@@ -31,6 +32,8 @@ import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
 import ddproto1.debugger.managing.IJavaNodeManager;
+import ddproto1.debugger.managing.IJavaThreadManager;
+import ddproto1.debugger.managing.JavaThread;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.request.AbstractDeferrableRequest;
 import ddproto1.debugger.request.IDeferrableRequest;
@@ -61,24 +64,12 @@ import ddproto1.util.traits.commons.ConversionUtil;
  */
 public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
     
-	private static ConversionUtil ct = ConversionUtil.getInstance();
-	
-    private static final String module = "ComponentBoundaryRecognizer -";
+    private static final Logger logger = MessageHandler.getInstance().getLogger(ComponentBoundaryRecognizer.class);
     
-    private DistributedThreadManager dtm;
     private IJavaNodeManager parent;
     private Set stublist;
-    private ClassType taggerClass;
-    private Map<Integer, Integer> pendingModifiers = new HashMap<Integer, Integer>();
     
-    private static MessageHandler mh = MessageHandler.getInstance();
-    private static TaggerProxy tagger = TaggerProxy.getInstance();
-    
-    private static ConversionUtil fh = ConversionUtil.getInstance();
-    
-    public ComponentBoundaryRecognizer(DistributedThreadManager dtm,
-            Set stublist, IJavaNodeManager parent){
-        this.dtm = dtm;
+    public ComponentBoundaryRecognizer(Set stublist, IJavaNodeManager parent){
         this.stublist = stublist;
         this.parent = parent;
         
@@ -92,44 +83,36 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
      * REMARK I don't think this method has to be synchronized. 
      */
     public synchronized void specializedProcess(Event e) {
+        
+        /* Checks if we stepped into a remote object stub. */
         StepEvent se = (StepEvent)e;
         Location l = se.location();
-
-        /* There are basically two boundaries we might want to check. */        
-        VirtualMachine vm = se.virtualMachine();
         ReferenceType klass = l.declaringType();
-        ThreadReference te = se.thread();
+        ThreadReference tr = se.thread();
         
-        /* First one - we have stepped into remote object stub. */
         try {
             if (stublist.contains(klass.name())) {
                 
                 StepRequest request = (StepRequest)se.request();
+                                
                 /* This step event is part of the thread stopping
                  * protocol. We shouldn't mess with it.
                  */
-                if(isTrap(request))
+                if(isTrap(request)){
+                    logger.debug("Trap request detected.");
                     return;
-
-                /* REMARK DO NOT hotswap the tagger class. */
-                if (taggerClass == null) {
-                    taggerClass = tagger.getClass(vm,
-                            DebuggerConstants.TAGGER_CLASS_NAME);
                 }
 
-                /*
-                 * If we have stepped into a CORBA stub, then we must check if
-                 * this thread is actually "stepping remote".
-                 */
-                IntegerValue dt_uuid = tagger.getRemoteUUID(te, taggerClass);
-
-                /* This thread hasn't got a tag id */
-                if (dt_uuid == null) {
-                    mh.getWarningOutput().println(module 
-                                    + " Warning: Untagged thread has stepped into "
-                                    + " CORBA stub - debugger workings will be affected. "
-                                    + "Check if that's what you really intended to do.");
-                    return;
+                JavaThread javaLocalThread = (JavaThread) getJavaThreadManager()
+                        .getAdapterForThread(tr).getAdapter(JavaThread.class);
+                
+                if(logger.isDebugEnabled()){
+                    ConversionUtil cUtil = ConversionUtil.getInstance();
+                    logger.debug("Will resume java local thread ("
+                            + cUtil.uuid2Dotted(javaLocalThread.getGUID())
+                            + ")\nwho belongs to machine <"
+                            + javaLocalThread.getDebugTarget().getName()
+                            + ">\nand has hash code " + +javaLocalThread.hashCode());
                 }
 
                 /* Remote mode is disabled. Nothing to do. 
@@ -144,10 +127,10 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                  */ 
 
                 /* Otherwise, marks the distributed thread as stepping remote. */
-                pendingModifiers.put(dt_uuid.intValue(), request.depth());
+                javaLocalThread.toggleSuspendedByRemoteStepping();                
 
-                /* There should be no source printing in this processing chain.
-                 * Otherwise we'll see part of the stub code (something we don't really want to).
+                /* Votes for hiding this step event from the user interface and for resuming
+                 * the current event set.
                  */
                 IProcessingContext ipc = ProcessingContextManager.getInstance().getProcessingContext();
                 ipc.vote(IEventManager.NO_SOURCE);
@@ -164,30 +147,8 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
         }
     }
     
-    protected void applyPostUpcallModifiers(DistributedThread dt){
-    	int dt_uuid = dt.getId();
-    	Integer modifier = pendingModifiers.get(dt_uuid);
-    	if(modifier == null) return;
-    	else{
-    		pendingModifiers.remove(dt_uuid);
-    		try {
-                int liModifier;
-                
-                if(modifier == StepRequest.STEP_INTO)
-                    liModifier = DebugEvent.STEP_INTO;
-                else if(modifier == StepRequest.STEP_OVER)
-                    liModifier = DebugEvent.STEP_OVER;
-                else
-                    liModifier = DebugEvent.STEP_RETURN;
-				dt.beginRemoteStepping(liModifier);
-                
-			} catch (IllegalStateException e) {
-				mh.getErrorOutput().println(
-						"Error setting deferred modifiers in thread "
-								+ ct.uuid2Dotted(dt_uuid));
-				mh.printStackTrace(e);
-			}
-    	}
+    private IJavaThreadManager getJavaThreadManager(){
+        return (IJavaThreadManager)parent.getThreadManager().getAdapter(IJavaThreadManager.class);
     }
     
     private boolean isTrap(StepRequest se){
