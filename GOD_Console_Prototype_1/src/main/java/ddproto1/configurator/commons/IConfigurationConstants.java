@@ -43,6 +43,7 @@ public interface IConfigurationConstants {
     public static final String LOCAL_AGENT_JAR    		= "local-agent-jar";
     public static final String THREAD_POOL_SIZE 		= "thread-pool-size";
     public static final String CDWP_PORT 				= "cdwp-port";
+    public static final String CONN_POOL_SIZE           = "connection-pool-size";
     public static final String JDWP_PORT                = "jdwp-port";
     public static final String STUB_LIST 				= "stublist";
     public static final String SKELETON_LIST 			= "skeletonlist";
@@ -66,19 +67,21 @@ public interface IConfigurationConstants {
 
     
     /** Attribute value constants. */
-    public static final String TRUE                     = "yes";
-    public static final String FALSE 					= "no";
-    public static final String AUTO 					= "auto";
+    public static final String TRUE                         = "yes";
+    public static final String FALSE                        = "no";
+    public static final String AUTO                         = "auto";
 
     /** Misc constants */
-    public static final String XML_FILE_EXTENSION       = "xml";
-    public static final String FILE_URL_PREFIX          = "file:";
-    public static final String EXTENSION_SEPARATOR_CHAR = ".";
-    public static final String LIST_SEPARATOR_CHAR      = ";";
-    public static final String URL_FILE_PROTOCOL        = "file";
-    public static final String SERVICE_LOCATOR          = "service locator";
-    public static final String LOCAL_AGENT_GID_OPT      = "agent.local.gid";
-    public static final String LOCAL_AGENT_LOG4J_OPT    = "log4.configuration.url";
+    public static final String XML_FILE_EXTENSION           = "xml";
+    public static final String FILE_URL_PREFIX              = "file:";
+    public static final String EXTENSION_SEPARATOR_CHAR     = ".";
+    public static final String LIST_SEPARATOR_CHAR          = ";";
+    public static final String URL_FILE_PROTOCOL            = "file";
+    public static final String SERVICE_LOCATOR              = "service locator";
+    public static final String LOCAL_AGENT_GID_OPT          = "agent.local.gid";
+    public static final String LOCAL_AGENT_GA_ADDRESS_OPT   = "agent.global.address";
+    public static final String LOCAL_AGENT_CONNPOOL_OPT     = "connection.pool.size";
+    public static final String LOCAL_AGENT_LOG4J_OPT        = "log4.configuration.url";
 
     
     /** Keys into the preferences dictionary. */
