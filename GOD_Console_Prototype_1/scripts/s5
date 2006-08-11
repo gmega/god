@@ -1,6 +1,0 @@
-select <JacORB NS>
-break org.jacorb.naming.NamingContextImpl.resolve():0
-run <JacORB NS>
-select <Reuters Server>
-break server.Server.createResolve():0
-run <Reuters Server>

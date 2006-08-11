@@ -1,4 +1,0 @@
-run <Biblioteca Carlos Lyra>
-select <Cliente Biblioteca>
-break Biblio.GUI.biblioteca.BibAlcance.actionPerformed():0
-launch

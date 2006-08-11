@@ -1,3 +1,0 @@
-<spec name="Debuggee list specification" type="node-list">
-	<child type="node" multiplicity="1...*"/>
-</spec>

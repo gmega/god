@@ -1,6 +1,0 @@
-run <Biblioteca Carlos Lyra>
-run <Biblioteca de Dracena>
-select <Biblioteca Carlos Lyra>
-select <Cliente Biblioteca>
-break Biblio.GUI.biblioteca.BibPanel:368
-launch

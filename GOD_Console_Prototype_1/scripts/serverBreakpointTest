@@ -1,8 +1,0 @@
-run <JacORB NS>
-run <Reuters Server>
-select <CORBA Client>
-break Client$RunnableRequester.run():0
-run <CORBA Client>
-select <JacORB NS>
-break org.jacorb.naming.NamingContextImpl.resolve_str():0
-select <Global>

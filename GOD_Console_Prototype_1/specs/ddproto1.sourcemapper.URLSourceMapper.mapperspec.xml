@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="ASCII"?>
-<!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
-
-<spec name="URL-searching Source Mapper" type="source-mapper">
-	<attribute id="sourcepath"/>
-</spec>

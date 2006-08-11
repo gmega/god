@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="ASCII"?>
-<!DOCTYPE spec SYSTEM "dtd/attributespec.dtd">
-
-<spec name="Java node CORBA-enabled extension" 
-		spec-extension="true" 
-		type="node">
-	<attribute id="stublist"/>
-	<attribute id="skeletonlist"/>
-</spec>

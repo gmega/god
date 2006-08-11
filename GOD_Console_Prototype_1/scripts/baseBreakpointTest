@@ -1,5 +1,0 @@
-run <JacORB NS>
-run <Reuters Server>
-select <CORBA Client>
-break Client$RunnableRequester.run():0
-run <CORBA Client>
