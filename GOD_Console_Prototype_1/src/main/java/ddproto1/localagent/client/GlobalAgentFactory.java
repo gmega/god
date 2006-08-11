@@ -13,6 +13,7 @@ import java.net.UnknownHostException;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.localagent.client.PooledConnectionManager.WaitUntilAvailablePolicy;
 
 
@@ -21,14 +22,14 @@ import ddproto1.localagent.client.PooledConnectionManager.WaitUntilAvailablePoli
  *
  */
 public class GlobalAgentFactory {
-    private static final Logger logger = Logger.getLogger(GlobalAgentFactory.class);
+    //private static final Logger logger = Logger.getLogger(GlobalAgentFactory.class);
     
-    private static GlobalAgentFactory instance = null;
+    private static final GlobalAgentFactory instance = new GlobalAgentFactory();
     
     private static final int DEFAULT_POOLSIZE = 5;
     
     public synchronized static GlobalAgentFactory getInstance(){
-        return (instance == null)?(instance = new GlobalAgentFactory()):instance;
+        return instance;
     }
     
     private GlobalAgentFactory() { }
@@ -42,8 +43,8 @@ public class GlobalAgentFactory {
         if(the_agent != null)
             return the_agent;
         
-        String address = System.getProperty("agent.global.address");
-        String giddy   = System.getProperty("agent.local.gid");
+        String address = System.getProperty(IConfigurationConstants.LOCAL_AGENT_GA_ADDRESS_OPT);
+        String giddy   = System.getProperty(IConfigurationConstants.LOCAL_AGENT_GID_OPT);
         String params  = System.getenv("agent.local.parameters");
         
         int poolsize = -1;
