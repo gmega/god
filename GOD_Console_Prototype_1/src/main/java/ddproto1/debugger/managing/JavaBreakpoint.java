@@ -199,7 +199,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
 		}
 		
 		/** Gets the thread that was halted by this breakpoint */
-		JavaThread thread = target.getVMManager().getThreadManager().getLIThread(
+		JavaThread thread = target.getVMManager().getThreadManager().getAdapterForThread(
 				bevt.thread());
         
         thread.handleBreakpointHit(this);
@@ -260,7 +260,6 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
 			target.getVMManager().getDeferrableRequestQueue().removeRequest(
 					theRequest);
 		} catch (Exception ex) {
-			logger.error(ex);
             GODBasePlugin.throwDebugExceptionWithError("Failed to cancel deferrable "
 					+ "breakpoint request for target " + target, ex);
 		}
