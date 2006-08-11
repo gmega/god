@@ -142,7 +142,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
         super(parentManager);
         this.uuid = root.getLocalThreadId().intValue();
         vs.pushFrameInternal(root);
-        setMode((byte)(STEPPING | ILLUSION));
+        setMode(RUNNING);
         this.name = cUtil.uuid2Dotted(this.getId());
     }
     
@@ -408,7 +408,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
 	 */
 	public class VirtualStack {
 	    
-	    private LinkedMap frameStack = new LinkedMap();
+	    private final LinkedMap frameStack = new LinkedMap();
 	    
 	    public void pushFrame(VirtualStackframe tr) {
             checkOwner();
@@ -454,7 +454,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
                  * user who suspended it.
                  */
                 wsLock.lock();
-                VirtualStackframe popped = (VirtualStackframe) frameStack.lastKey();
+                VirtualStackframe popped = (VirtualStackframe) frameStack.get(frameStack.lastKey());
                 ILocalThread tr = popped.getThreadReference();
                 removeSuspended(tr);
                 return popped;
@@ -473,7 +473,7 @@ public class DistributedThread extends AbstractDebugElement implements IResumeSu
 	    }
         
         protected VirtualStackframe unlockedPeek(){
-            return(VirtualStackframe) frameStack.lastKey();
+            return(VirtualStackframe) frameStack.get(frameStack.lastKey());
         }
 	    
 	    public int getVirtualFrameCount() throws IllegalStateException{
