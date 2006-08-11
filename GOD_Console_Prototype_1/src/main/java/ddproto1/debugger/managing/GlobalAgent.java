@@ -144,7 +144,6 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     
     public synchronized void addTarget(IDebugTarget target){
         if(!isRunning()) throw new IllegalStateException("Cannot add targets while not running.");
-        dtm.registerNode((ILocalNodeManager)target.getAdapter(ILocalNodeManager.class));
         activeTargets.add(target);
     }
     
