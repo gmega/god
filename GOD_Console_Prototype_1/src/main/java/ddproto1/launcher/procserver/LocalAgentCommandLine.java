@@ -31,6 +31,9 @@ public class LocalAgentCommandLine implements ICommandLine, IConfigurationConsta
         attributes.declareAttribute(GUID_ATTRIBUTE);
         attributes.declareAttribute(LOG4J_CONFIG_URL);
         attributes.declareAttribute(NAME_ATTRIB);
+        attributes.declareAttribute(GLOBAL_AGENT_ADDRESS);
+        attributes.declareAttribute(CDWP_PORT);
+        attributes.declareAttribute(CONN_POOL_SIZE);
     }
     
     public String[] renderCommandLine() throws AttributeAccessException {
@@ -39,6 +42,15 @@ public class LocalAgentCommandLine implements ICommandLine, IConfigurationConsta
     		commLine.addVMParameter("-D"
     				+ LOCAL_AGENT_GID_OPT + "="
     				+ getGID());
+            
+            commLine.addVMParameter("-D" + 
+                    LOCAL_AGENT_GA_ADDRESS_OPT + "="
+                    + getAttribute(GLOBAL_AGENT_ADDRESS) + ":" +
+                    getAttribute(CDWP_PORT));
+            
+            commLine.addVMParameter("-D" +
+                    LOCAL_AGENT_CONNPOOL_OPT + "=" + 
+                    getAttribute(CONN_POOL_SIZE));
             
             String log4jconf = getAttribute(LOG4J_CONFIG_URL);
             if(!log4jconf.equals(AUTO)){
