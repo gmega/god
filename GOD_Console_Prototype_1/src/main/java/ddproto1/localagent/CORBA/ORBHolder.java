@@ -58,14 +58,19 @@ public class ORBHolder {
     public synchronized static ORBHolder getInstance()
     	throws IOException, UnknownHostException 
     {
-        return (instance == null)?(instance = new ORBHolder()):(instance);
+        if(instance == null){
+            ORBHolder newHolder = new ORBHolder();
+            newHolder.init();
+            instance = newHolder;
+        }
+        
+        return instance;
     }
     
-    private ORBHolder()
-    	throws IOException, UnknownHostException
+    private void init()
+        throws IOException, UnknownHostException 
     {
-        if(global == null)
-            global = GlobalAgentFactory.getInstance().resolveReference();
+        global = GlobalAgentFactory.getInstance().resolveReference();        
     }
     
     /**
@@ -342,8 +347,8 @@ public class ORBHolder {
                                             "\n Thread status: " + fh.statusText(stepStats));
             }
 
-            /** If I plan to support disabling of remote mode, I should probably relax these restrictions. */
-            if((stepStats & DebuggerConstants.ILLUSION) != 0 || stepStats == DebuggerConstants.RUNNING){
+            /** This will probably require modifications when the illusion becomes optional. */
+            if(((stepStats & DebuggerConstants.STEPPING) != 0) || ((stepStats & DebuggerConstants.RUNNING) != 0)){
                 Any any = ORB.init().create_any();
                 any.insert_short((short)stepStats);
                 
@@ -361,7 +366,7 @@ public class ORBHolder {
                     }
                 }
             }else{
-                notificationLogger.error("Threads that are doing requests must be either running or stepping.");
+                notificationLogger.error("Threads that are doing requests must be either running or stepping. Code received: " + stepStats);
             }
         }
     }
