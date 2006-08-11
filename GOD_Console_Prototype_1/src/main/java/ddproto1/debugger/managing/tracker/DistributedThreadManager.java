@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 
 import org.apache.log4j.Logger;
+import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IThread;
@@ -18,6 +19,7 @@ import org.eclipse.debug.core.model.IThread;
 
 import com.sun.jdi.request.EventRequest;
 
+import ddproto1.util.MessageHandler;
 import ddproto1.util.commons.ByteMessage;
 import ddproto1.util.commons.Event;
 import ddproto1.commons.DebuggerConstants;
@@ -59,8 +61,9 @@ import ddproto1.util.traits.commons.ConversionUtil;
 public class DistributedThreadManager implements IRequestHandler, IThreadManager {
     
     private static final int MAXIMUM_STACK_SIZE = 99;
-    private static final Logger logger = Logger.getLogger(DistributedThreadManager.class);
-    private static final Logger stackLogger = Logger.getLogger(DistributedThreadManager.class.getName() + ".stackLogger");
+    private static final Logger logger = MessageHandler.getInstance().getLogger(DistributedThreadManager.class);
+    private static final Logger modifiersLogger = MessageHandler.getInstance().getLogger(DistributedThreadManager.class.getName() + ".modifiersLogger");
+    private static final Logger stackLogger = MessageHandler.getInstance().getLogger(DistributedThreadManager.class.getName() + ".stackLogger");
     
     private static ConversionUtil fmh = ConversionUtil.getInstance();
    
@@ -72,107 +75,15 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
      * and the debuggees under another debugger and follow their flow.
      */
     private final boolean stackBuilderMode = false;
-
-    private Map <Byte, Node> nodes;
+    
     private LockingHashMap <Integer, DistributedThread> dthreads;
     private LockingHashMap <Integer, Integer> threads2dthreads;
     private IDebugTarget parent;
 
     public DistributedThreadManager(IDebugTarget parent){ 
-        nodes = new HashMap<Byte, Node>();
         dthreads = new LockingHashMap<Integer, DistributedThread>();
         threads2dthreads = new LockingHashMap<Integer, Integer>(); 
         this.parent = parent;
-    }
-    
-    
-    /** This method definitely doesn't belong here. 
-     * It's coupling the DT manager to JDI and it has nothing to do 
-     * with distributed thread management. This could be safely moved to 
-     * the VirtualMachineManager as, since the DistributedThreadManager doesn't
-     * care about ID's, there is no need to "register" node managers with it. 
-     * 
-     * @param vmms
-     */
-    public void registerNode(ILocalNodeManager vmms)
-    {
-        /* Node registration is a complicated, error-prone process. The main 
-         * cause for issues here concerns the hook requests, which make no guarantees
-         * as to where the actual hooks will be placed in the processing chain.
-         * REMARK A less loose hook request would be nice, though it will probably require
-         * a radical redesign of our event dispatcher (I�ll be thinking about it though). 
-         */
-        IJavaNodeManager vmm = (IJavaNodeManager)vmms.getAdapter(VirtualMachineManager.class);
-        Byte gid = new Byte(vmm.getGID());
-        
-        Node spec = new Node();
-        
-        Set <Integer> policySet = new HashSet<Integer>();
-        policySet.add(new Integer(EventRequest.SUSPEND_ALL));
-        policySet.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
-        
-        try{
-            /* Obtains the stublist (or gets an exception if this node
-             * doesn't define it).
-             */
-            String stublist = vmm.getAttribute("stublist");
-            String skellist = vmm.getAttribute("skeletonlist");
-            Set <String> stubclasses = new HashSet<String> ();
-            Set <String> skelclasses = new HashSet<String> ();
-            StringTokenizer st = new StringTokenizer(stublist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
-            while(st.hasMoreTokens())
-                stubclasses.add(st.nextToken());
-        
-            st = new StringTokenizer(skellist, IConfigurationConstants.LIST_SEPARATOR_CHAR);
-            while(st.hasMoreTokens())
-                skelclasses.add(st.nextToken());
-            
-            ComponentBoundaryRecognizer cbr = new ComponentBoundaryRecognizer(this, stubclasses, vmm);
-                        
-            spec.gid = gid;
-            spec.vmm = vmm;
-            
-            /* Now adds the hook requests, which we hope will go into the right place */
-            spec.cbr = new DeferrableHookRequest(vmm.getName(), IEventManager.STEP_EVENT, cbr, policySet);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.cbr);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_td);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_step);
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(spec.dtsu_break);
-                        
-        }catch (IllegalAttributeException e){
-            /* Not an error - just means this node is not middleware-enabled */
-        }catch(Exception e){
-            logger.error("Failed to register node " + vmm.getName() + " in the distributed thread manager.");
-            return;
-        }
-        
-        nodes.put(spec.gid, spec);
-    }
-    
-    public void unregisterNode(byte gid)
-        throws NoSuchSymbolException, InternalError
-    {
-        /* The registration process is so complicated that we would go nuts if we would like
-         * to allow nodes to be unregistered.
-         * 
-         * CORRECTION: Might not be that bad. If you look closely you'll realise that the only thing
-         * that actually gets registered is the Node structure. Also, after I added support for 
-         * deferrable request removal into the DeferrableRequestQueue class, things got a little better.
-         */
-        
-        Node spec = nodes.get(gid);
-        if(spec == null) throw new NoSuchSymbolException("Node " + gid + " doesn't exist.");
-        if(spec.cbr != null){
-            try{
-                spec.cbr.cancel();
-                assert spec.dtsu_step != null;
-                spec.dtsu_step.cancel();
-                assert spec.dtsu_td != null;
-                spec.dtsu_td.cancel();
-            }catch(Exception ex){
-                throw new InternalError("Unregistration of node " + gid + " could not be completed.", ex);
-            }
-        }
     }
     
     public IThread getThread(Integer uuid) 
@@ -226,8 +137,6 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
             throw new AssertionError("vmm == null");
         }
         
-        Node node = nodes.get(gid);
-               
         try {
             
             Event evt = new Event(req.getMessage());
@@ -281,6 +190,8 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                     unlocked = false;
 
                     VirtualStackframe vsf;
+                    
+                    ILocalThread ilt = null;
 
                     if (!dthreads.containsKey(dt_uuid_wrap)) {
                         /*
@@ -294,7 +205,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                          */
                         if(!stackBuilderMode){
                             ILocalThreadManager tm = vmm.getThreadManager();
-                            ILocalThread ilt = tm.getLocalThread(lt_uuid_wrap);
+                            ilt = tm.getLocalThread(lt_uuid_wrap);
                             vsf = new VirtualStackframe(op, null, lt_uuid_wrap, ilt, parent);
                             if(ilt == null)
                                 vsf.flagAsDamaged("Thread being pushed doesn't exist.");
@@ -315,9 +226,10 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
 
                         unlockAllTables();
                         unlocked = true;
-                        
+
+                        current.fireCreationEvent();
+
                         if(stackBuilderMode) break;
-                        
                     }
                     
                     else{
@@ -328,12 +240,25 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                     	current.lock();
                         vsf.setCallTop(st_size_wrap);
                         vsf.setOutboundOperation(op);
+                        ilt = vsf.getThreadReference();
                     }
                     
-                    /** Apply post-upcall state modifiers, if any. */
-                    ComponentBoundaryRecognizer cbr = (ComponentBoundaryRecognizer)node.cbr.getProcessor();
-                    cbr.applyPostUpcallModifiers(current);
-                    
+                    /** Apply state modifiers, if any. */
+                    if(!stackBuilderMode){
+                        assert ilt != null;
+                        if(modifiersLogger.isDebugEnabled()){
+                            ConversionUtil cUtil = ConversionUtil.getInstance();
+                            modifiersLogger.debug("Processing upcall modifiers for local thread ("
+                                    + cUtil.uuid2Dotted(ilt.getGUID())
+                                    + ")\nwho belongs to machine <"
+                                    + ilt.getDebugTarget().getName()
+                                    + ">\nand has hash code " + ilt.hashCode());
+                        }
+                        if(ilt.resumedByRemoteStepping()){
+                            current.beginRemoteStepping(DebugEvent.STEP_INTO);
+                        }
+                    }
+                        
                     mode = current.getMode();
                     
             	} finally {
@@ -341,6 +266,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                     if(current != null)
                         current.unlock();
                 }
+                
                 break;
             }
             
@@ -597,12 +523,12 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                      *  
                      * */
                     if(vf.getThreadReference().hasPendingStepRequests())
-                        mode = (byte)(DistributedThread.STEPPING | DistributedThread.ILLUSION);
-                    else mode = DistributedThread.ILLUSION | DistributedThread.RUNNING;
+                        mode = (byte)DistributedThread.STEPPING;
+                    else mode = DistributedThread.RUNNING;
                     
                     if(stackBuilderMode) break;
                     
-                    if ((mode & DistributedThread.ILLUSION) != 0 &&
+                    if (/*(mode & DistributedThread.ILLUSION) != 0 &&*/
                     		(mode & DistributedThread.STEPPING) != 0) {
                         ILocalThread tr = vmm.getThreadManager().getLocalThread(lt_uuid);
 
@@ -681,6 +607,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
              * is zero, but in fact, if it's different from zero we
              * get an array out of bounds exception.
              */
+            assert mode != 0;
             ret.writeAt(DebuggerConstants.EVENT_TYPE_IDX, mode);
         }
 
@@ -744,17 +671,6 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
         dthreads.unlockForReading();
         threads2dthreads.unlockForReading();
     }
-    
-
-    private class Node{
-        protected IJavaNodeManager vmm;
-        protected Byte gid;
-        protected DeferrableHookRequest cbr;
-        protected DeferrableHookRequest dtsu_td;
-        protected DeferrableHookRequest dtsu_step;
-        protected DeferrableHookRequest dtsu_break;
-    }
-
 
     public IThread[] getThreads() {
         try{
@@ -779,6 +695,11 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
     public void resumeAll() throws Exception { }
 
     public Integer getThreadUUID(IThread tr) { 
+        return null;
+    }
+
+    public Object getAdapter(Class adapter) {
+        if(adapter.isAssignableFrom(this.getClass())) return this;
         return null;
     }
 }
