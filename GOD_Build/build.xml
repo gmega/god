@@ -11,6 +11,7 @@
 			===================================================================-->
 		<property file="global.build.properties"/>
 		<property name="main.plugin.dir" value="GOD Console Prototype 1"/>
+		<property name="sun.jdi.plugin.dir" value="Sun JDI Plug-in"/>
 		<property name="global.build.dir" value="GOD_Build"/>
 		<property name="process.controller.rmi.dir" value="GOD_Process_Controller_RMI"/>
 		<property name="log4j.jar" value="log4j-1.2.9.jar"/>
@@ -31,10 +32,12 @@
 		<property name="docs.dir"    value="${base.dir}/src/docs"/>
 		
 		<!-- Defines third-party library paths for use with rmic -->
+		<property name="log4j.jar.file" value="${thirdparty.library.dir}/log4j/${log4j.jar}"/>
 		<fileset id="log4j.libs" dir="${thirdparty.library.dir}/log4j">
 			<include name="${log4j.jar}"/>
 		</fileset>
 
+		<property name="bcel.jar.file" value="${thirdparty.library.dir}/bcel/${bcel.jar}"/>
 		<fileset id="bcel.libs" dir="${thirdparty.library.dir}/bcel">
 			<include name="${bcel.jar}"/>
 		</fileset>
@@ -54,7 +57,7 @@
       -  http://www.onjava.com/pub/a/onjava/2005/06/22/modularant.html?page=2
 	  -  The template target never gets called explicitly.
       -  ===================================================================== -->
-    <target name="template" depends="global-init">
+    <target name="template">
         <!-- This section defines the modules and the order in which they are
              executed for any given target.  This means ORDER MATTERS.
              Any dependencies that are to be satisified by one module for another
@@ -69,7 +72,8 @@
 
     </target>
 	
-	<target name="all">
+	<target name="all" depends="global-init">
+		<ant target="update-tools-jar" dir="${workspace.root}/${sun.jdi.plugin.dir}"/>
 		<antcall target="template">
 			<param name="target" value="all"/>
 		</antcall>
