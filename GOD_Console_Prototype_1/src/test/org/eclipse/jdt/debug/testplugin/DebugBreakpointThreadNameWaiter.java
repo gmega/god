@@ -7,6 +7,7 @@ package org.eclipse.jdt.debug.testplugin;
 
 import org.apache.log4j.Logger;
 import org.eclipse.debug.core.DebugEvent;
+import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IThread;
 

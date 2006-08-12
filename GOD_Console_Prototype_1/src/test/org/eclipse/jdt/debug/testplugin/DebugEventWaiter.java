@@ -66,6 +66,8 @@ public class DebugEventWaiter implements IDebugEventSetListener {
 		fEventType= eventType;
 		fTimeout= DEFAULT_TIMEOUT;
 
+        // This is kind of bad - leaking reference to possibly partially constructed object
+        // but hey, we're testing. 
 		fDebugPlugin.addDebugEventListener(this);
 	}
 

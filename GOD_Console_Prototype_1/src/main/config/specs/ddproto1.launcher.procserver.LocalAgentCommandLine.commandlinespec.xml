@@ -4,6 +4,9 @@
 	<attribute id="name" default-value="#context"/>
 	<attribute id="guid" default-value="auto"/>
 	<attribute id="log4j-config-url" default-value="auto"/>
+	<attribute id="connection-pool-size" default-value="#context"/>
+	<attribute id="global-agent-address" default-value="#context"/>
+	<attribute id="cdwp-port" default-value="#context"/>
 
 	<!-- =======================================================
 		 - This should be actually a JVM command line, but since

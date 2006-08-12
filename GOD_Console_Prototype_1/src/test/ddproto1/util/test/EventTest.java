@@ -35,7 +35,7 @@ public class EventTest extends TestCase {
         mp.put("nome", "Giuliano");
         mp.put("idade", "22");
         mp.put("sobrenome", "Mega");
-        mp.put("numer�o usp�o", "3286245");
+        mp.put("número usp", "3286245");
         mp.put("telefone:", "5579-9706");
         
         Event evt = new Event(mp, DebuggerConstants.CLIENT_UPCALL);

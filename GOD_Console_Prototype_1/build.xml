@@ -37,9 +37,15 @@
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/>
 				<attribute name="Premain-Class" value="${client-agent-mainclass}"/>
-				<attribute name="Boot-Class-Path" value="${agent-library-list}"/>
+ 				<attribute name="Boot-Class-Path" value="${local.agent.jar}"/>
 				<attribute name="Can-Redefine-Classes" value="true"/>
 			</manifest>
+			
+			<zipfileset src="${log4j.jar.file}"
+				includes="**/*.class"/>
+			
+			<zipfileset src="${bcel.jar.file}"
+				includes="**/*.class"/>
 			
 			<zipfileset dir="${classes.dir}/${local-agent-subdir}" 
 				includes="**/*.class" prefix="${local-agent-subdir}"/>
