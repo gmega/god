@@ -251,6 +251,7 @@ public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
                  * request.
                  */ 
 			    ClassPrepareRequest cpr = vm.eventRequestManager().createClassPrepareRequest();
+                cpr.setSuspendPolicy(PolicyManager.getInstance().getPolicy(ClassPrepareRequest.class));
 				cpr.addClassFilter(pattern);
                 cpr.enable();
 
