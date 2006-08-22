@@ -20,16 +20,16 @@ public class NilDistributedThread implements IDistributedThread {
     public void hitByBreakpoint(IBreakpoint bp, ILocalThread lt) {
     }
 
-    public void beganStepping(ILocalThread lt) {
+    public void beganStepping(ILocalThread lt, int detail) {
     }
 
     public void finishedStepping(ILocalThread lt) {
     }
 
-    public void suspended(ILocalThread lt) {
+    public void suspended(ILocalThread lt, int detail) {
     }
 
-    public void resumed(ILocalThread lt) {
+    public void resumed(ILocalThread lt, int detail) {
     }
 
     public void died(ILocalThread lt) {
