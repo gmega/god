@@ -22,6 +22,8 @@ public interface DebuggerConstants {
     public static final byte STATUS_FIELD_OFFSET = 0;
     public static final int  GUID_REUSE_INTERVAL = 10;
     
+    public static final int  MAX_SOURCE_LINE = (1 << 16) - 1;
+    
     public static final byte ICW_INVALID_GID = 1;
     public static final byte ICW_ILLEGAL_ATTRIBUTE = 2;
     
