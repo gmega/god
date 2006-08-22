@@ -17,6 +17,7 @@ import ddproto1.interfaces.IUICallback;
 /**
  * @author giuliano
  *
+ * @deprecated interface for the console.
  */
 public interface IDebugger {
 
