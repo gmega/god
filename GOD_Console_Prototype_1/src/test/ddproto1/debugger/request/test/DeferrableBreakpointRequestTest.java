@@ -122,6 +122,8 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         EasyMock.expectLastCall().once();
         nonPatterned.addCountFilter(1);
         EasyMock.expectLastCall().once();
+        nonPatterned.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+        EasyMock.expectLastCall().once();
         nonPatterned.enable();
         EasyMock.expectLastCall().once();
 
@@ -130,6 +132,8 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         EasyMock.expect(erm.createClassPrepareRequest()).andReturn(patterned);
         EasyMock.expectLastCall().once();
         patterned.addClassFilter("com.test.SomeClass*");
+        EasyMock.expectLastCall().once();
+        patterned.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         EasyMock.expectLastCall().once();
         patterned.enable();
         EasyMock.expectLastCall().once();
