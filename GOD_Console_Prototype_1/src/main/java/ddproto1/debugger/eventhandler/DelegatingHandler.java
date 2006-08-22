@@ -332,8 +332,8 @@ public class DelegatingHandler implements IEventHandler, IEventManager {
             }
         }
 
-        broadcastToRequestListeners(e);
         broadcastToEventListeners(typeIndex, e);
+        broadcastToRequestListeners(e);
     }
 
     private void broadcastToRequestListeners(Event e) {
@@ -350,8 +350,13 @@ public class DelegatingHandler implements IEventHandler, IEventManager {
              * filters to be set for event request listeners (it doesn't make
              * sense).
              */
-            for (IJDIEventProcessor proc : procs)
-                proc.process(e);
+            for (IJDIEventProcessor proc : procs){
+                try{
+                    proc.process(e);
+                }catch(Exception ex){
+                    logger.error("Error while processing event", ex);
+                }
+            }
         } finally {
             listenersByRequest.removeProcessingMark();
             listenersByRequest.releaseReadLock();
@@ -371,8 +376,13 @@ public class DelegatingHandler implements IEventHandler, IEventManager {
                 return;
 
             for (IJDIEventProcessor el : l) {
-                if (isEligible(el, e))
-                    el.process(e);
+                if (isEligible(el, e)) {
+                    try {
+                        el.process(e);
+                    } catch (Exception ex) {
+                        logger.error("Error while processing event", ex);
+                    }
+                }
             }
 
         } finally {
