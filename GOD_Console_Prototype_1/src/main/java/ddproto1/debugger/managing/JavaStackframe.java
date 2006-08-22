@@ -103,7 +103,7 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
         return loc.lineNumber();
     }
     
-    protected Location getLocation() throws DebugException{
+    public Location getLocation() throws DebugException{
         try{
             return getJDIStackframe().location();
         }catch(InvalidStackFrameException ex){
