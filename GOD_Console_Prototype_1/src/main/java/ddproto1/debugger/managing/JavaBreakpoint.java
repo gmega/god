@@ -11,6 +11,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugException;
@@ -36,6 +37,15 @@ import ddproto1.util.MessageHandler;
 import ddproto1.util.traits.JDIEventProcessorTrait;
 import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
 
+/**
+ * This class is responsible for performing the mapping between JDT's 
+ * line breakpoints and our breakpoint representation. These breakpoints
+ * aren't "real" Eclipse breakpoints as they only make sense in the context
+ * of JDT breakpoints. 
+ * 
+ * @author giuliano
+ *
+ */
 public class JavaBreakpoint extends Breakpoint implements IResolutionListener, JDIEventProcessorTraitImplementor {
 
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaBreakpoint.class);
@@ -70,10 +80,19 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
     
     private volatile IJDIEventProcessor next;
     
-    public JavaBreakpoint(String typeName, int line, IJavaBreakpoint jlb) {
+    public JavaBreakpoint(String typeName, int line, 
+            IJavaBreakpoint jlb) 
+        throws CoreException
+    {
         this.typeName = typeName;
         this.line = line;
         this.associated = jlb;
+        /** This is a hack just to get breakpoints with no
+         * markers going for now. When we get to the source mapping
+         * part, this will probably have to vanish.
+         */
+        if(jlb != null)
+            this.setMarker(jlb.getMarker());
     }
     
 	public String getModelIdentifier() {
@@ -98,7 +117,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
             IJavaNodeManager vmm = target.getVMManager();
             
             synchronized(targetByRequest){
-                if(isRegistered(target))
+                if(isTargetRegistered(target))
                     GODBasePlugin.throwDebugException("Already registered for target.");
                 registerTarget(target);
                 dbr = new DeferrableBreakpointRequest(vmm.getName(), typeName, line);
@@ -219,12 +238,22 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
     public void cancelForTarget(IJavaDebugTarget target) throws DebugException {
 		synchronized (targetByRequest) {
 			/** Removes all requests for this target. */
-			if (!isRegistered(target))
+			if (!isTargetRegistered(target))
 				GODBasePlugin.throwDebugExceptionWithError("Invalid target.", 
                         new NoSuchElementException());
 			unregisterTarget(target);
 		}
 	}
+    
+    /** We had to hack equals to get non-mapped breakpoints working. */
+    @Override
+    public boolean equals(Object another){
+        if(getMappedBreakpoint() != null)
+            return super.equals(another);
+        
+        // java.lang.Object implementation.
+        return this == another;
+    }
     
     protected void unregisterTarget(IJavaDebugTarget target)
 			throws DebugException {
@@ -275,7 +304,7 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
         }
     }
     
-    protected boolean isRegistered(IJavaDebugTarget target){
+    protected boolean isTargetRegistered(IJavaDebugTarget target){
         return this.targetsByName.containsKey(target.getVMManager().getName());
     }
 
