@@ -9,6 +9,7 @@
 package ddproto1.util;
 
 import com.sun.jdi.event.StepEvent;
+import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.StepRequest;
 
@@ -38,7 +39,7 @@ public class PolicyManager {
     public int getPolicy(String eventType){
         
         if(eventType.equals("request.breakpoint") || eventType.equals("request.step") || eventType.equals("request.exception") ||
-                eventType.equals(StepRequest.class.getName())){
+                eventType.equals(StepRequest.class.getName()) || eventType.equals(ClassPrepareRequest.class.getName())){
             return EventRequest.SUSPEND_EVENT_THREAD;
         }
         
