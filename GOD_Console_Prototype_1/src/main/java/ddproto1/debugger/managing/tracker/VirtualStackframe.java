@@ -54,8 +54,7 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
     private boolean cleared = false;
     private boolean damaged = false;
    
-    VirtualStackframe(String outOp, String inOp, Integer ltid, 
-            ILocalThread reference, IDebugTarget parentTarget){
+    protected VirtualStackframe(String outOp, String inOp, ILocalThread reference, IDebugTarget parentTarget){
         super(parentTarget);
         this.fOutputOperation = outOp;
         this.fInputOperation = inOp;
@@ -65,8 +64,8 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
     }
     
     protected void setParent(DistributedThread parentDT){
-        if(!fParentDT.compareAndSet(parentDT, null))
-            throw new IllegalStateException();
+        if(!fParentDT.compareAndSet(null, parentDT))
+            throw new IllegalStateException("Virtual stackframe already belongs to DT " + parentDT);
     }
     
     public void flagAsDamaged(){
