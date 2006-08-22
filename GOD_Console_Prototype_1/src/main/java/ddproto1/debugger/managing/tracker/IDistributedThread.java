@@ -19,24 +19,14 @@ public interface IDistributedThread extends IThread{
     public void hitByBreakpoint(IBreakpoint bp, ILocalThread lt);
 
     /**
-     * Method called by local thread when it finishes stepping.
-     */
-    public void beganStepping(ILocalThread lt);
-
-    /**
-     * Method called by local thread when it begins stepping.
-     */
-    public void finishedStepping(ILocalThread lt);
-
-    /**
      * Method called by local thread when it's suspended.
      */
-    public void suspended(ILocalThread lt);
+    public void suspended(ILocalThread lt, int detail);
 
     /**
      * Method called by local thread when it's resumed.
      */
-    public void resumed(ILocalThread lt);
+    public void resumed(ILocalThread lt, int detail);
 
     /**
      * Method called by local thread when it dies.
