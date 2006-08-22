@@ -525,7 +525,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             tu.setDebugContext(dc);
             
             // Clears fulfilled step requests.
-            AbstractEventProcessor sc = new StepRequestClearer();
+            //AbstractEventProcessor sc = new StepRequestClearer();
                         
             /* Forces all processing chains into which it's installed
              * to resume their execution.
@@ -561,7 +561,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             
             /* Clears fulfilled step requests. This guy should come before any processors
              * that make step requests. */
-            handler.addEventListener(DelegatingHandler.STEP_EVENT, sc);
+            //handler.addEventListener(DelegatingHandler.STEP_EVENT, sc);
             
             if(cbr != null){
                 Set <Integer> policySet = new HashSet<Integer>();
