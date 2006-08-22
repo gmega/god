@@ -127,7 +127,7 @@ public class ComponentBoundaryRecognizer extends AbstractEventProcessor{
                  */ 
 
                 /* Otherwise, marks the distributed thread as stepping remote. */
-                javaLocalThread.toggleSuspendedByRemoteStepping();                
+                javaLocalThread.resumeForRemoteStepInto();                
 
                 /* Votes for hiding this step event from the user interface and for resuming
                  * the current event set.
