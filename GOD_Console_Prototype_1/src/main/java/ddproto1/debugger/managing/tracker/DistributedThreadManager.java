@@ -55,6 +55,11 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * NOTE: The current implementation can be brutally optimized. It is also broken
  * with respect to memory synchronization.
  * 
+ * Note about this class: I'm getting more and more convinced that this class should
+ * be internal to distributed thread, that each local thread should have an associated
+ * "default" distributed thread to which it is associated when it is not associated 
+ * to other distributed threads, and that the CLIENT_UPCALL stage is useless. 
+ * 
  * @author giuliano
  *
  */
@@ -128,14 +133,17 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
      */
     public ByteMessage handleRequest(Byte gid, ByteMessage req) 
     {
+        /**
+         * Note: I'm almost certain that I could only earn cohesion by moving
+         * event processing code to the distributed thread themselves, since
+         * their event processing is completely independent. 
+         * 
+         */
         ByteMessage ret = null;
         byte mode;
         
         ILocalNodeManager vmm = VMManagerFactory.getInstance().getNodeManager(gid);
-        if(vmm == null){
-            logger.error("Invalid gid " + gid + ". Assertion failed.");
-            throw new AssertionError("vmm == null");
-        }
+        assert vmm != null;
         
         try {
             
@@ -206,13 +214,13 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                         if(!stackBuilderMode){
                             ILocalThreadManager tm = vmm.getThreadManager();
                             ilt = tm.getLocalThread(lt_uuid_wrap);
-                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, ilt, parent);
+                            vsf = new VirtualStackframe(op, null, ilt, parent);
                             if(ilt == null)
                                 vsf.flagAsDamaged("Thread being pushed doesn't exist.");
 
                             current = new DistributedThread(vsf, vmm.getThreadManager(), parent);
                         }else{
-                            vsf = new VirtualStackframe(op, null, lt_uuid_wrap, null, parent);
+                            vsf = new VirtualStackframe(op, null, null, parent);
                             current = new DistributedThread(vsf, null, null);
                         }
                         
@@ -241,6 +249,19 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                         vsf.setCallTop(st_size_wrap);
                         vsf.setOutboundOperation(op);
                         ilt = vsf.getThreadReference();
+                        
+                        /** Checks to see if there haven't been any
+                         * inconsistencies.
+                         */
+                        if(!ilt.getGUID().equals(lt_uuid)){
+                            logger.error("Upcall thread doesn't match " +
+                                    "stack top." + 
+                                    "Top thread is: " + fmh.uuid2Dotted(ilt.getGUID()) +
+                                    "When it should be: " + fmh.uuid2Dotted(lt_uuid) +
+                                    "Flagging Distributed Thread as damaged as it can no longer provide " +
+                                    "reliable information.");
+                            current.flagAsDamaged();
+                        }
                     }
                     
                     /** Apply state modifiers, if any. */
@@ -257,6 +278,13 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                         if(ilt.resumedByRemoteStepping()){
                             current.beginRemoteStepping(DebugEvent.STEP_INTO);
                         }
+                    }
+                    
+                    if(stackLogger.isDebugEnabled()){
+                        stackLogger.debug("Upcall processed: "
+                                + "\n Operation name: " + op 
+                                + "\n Distributed thread: " + fmh.uuid2Dotted((int)dt_uuid)
+                                + "\n Client-side thread: " + fmh.uuid2Dotted((int)lt_uuid));
                     }
                         
                     mode = current.getMode();
@@ -388,7 +416,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                              * at the client-side
                              */
                             ILocalThread ilt = vmm.getThreadManager().getLocalThread(lt_uuid_wrap);
-                            VirtualStackframe vsf = new VirtualStackframe(null, fullOp, lt_uuid_wrap, ilt, parent);
+                            VirtualStackframe vsf = new VirtualStackframe(null, fullOp, ilt, parent);
                             vsf.setCallBase(new Integer(base));
                             if(ilt == null) vsf.flagAsDamaged("Thread being pushed doesn't exist.");
 
@@ -405,7 +433,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                                 stackLogger.debug("Pushed frame: "
                                         + "\n Full operation: " + fullOp 
                                         + "\n Distributed thread: " + fmh.uuid2Dotted((int)dt_uuid)
-                                        + "\n Server-side thread: " + fmh.uuid2Dotted((int)dt_uuid));
+                                        + "\n Server-side thread: " + fmh.uuid2Dotted((int)lt_uuid));
                             }
                             
                             if(vs.length() >= MAXIMUM_STACK_SIZE){
@@ -435,7 +463,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                      * over the call anyway (unless the user inserts a breakpoint
                      * at the server side).
                      */
-                    if ((mode & DistributedThread.ILLUSION) != 0 && (mode & DistributedThread.STEPPING) != 0) {
+                    if (/*(mode & DistributedThread.ILLUSION)  != 0 &&*/ (mode & DistributedThread.STEPPING) != 0) {
                         /**
                          * Old code was:
                          *                                                 
@@ -525,6 +553,14 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                     if(vf.getThreadReference().hasPendingStepRequests())
                         mode = (byte)DistributedThread.STEPPING;
                     else mode = DistributedThread.RUNNING;
+                    
+                    if(stackLogger.isDebugEnabled()){
+                        stackLogger.debug("Server return processed: "
+                                + "\n Operation name: " + fullOp 
+                                + "\n Distributed thread: " + fmh.uuid2Dotted((int)dt_uuid)
+                                + "\n Returning thread: " + fmh.uuid2Dotted((int)lt_uuid));
+                    }
+                        
                     
                     if(stackBuilderMode) break;
                     
