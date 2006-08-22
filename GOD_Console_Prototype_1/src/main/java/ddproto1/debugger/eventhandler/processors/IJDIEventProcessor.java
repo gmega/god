@@ -18,7 +18,7 @@ import com.sun.jdi.event.Event;
  *
  */
 public interface IJDIEventProcessor {
-    public void process(Event e);
+    public void process(Event e) throws Exception;
     public void setNext(IJDIEventProcessor iep);
     public IJDIEventProcessor getNext();
     public void enable(boolean status);
