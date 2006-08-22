@@ -27,8 +27,6 @@ public class LaunchCentralAgentDelegate implements IWorkbenchWindowActionDelegat
 
     private static final Logger logger = DDUIPlugin.getDefault().getLogManager().getLogger(LaunchCentralAgentDelegate.class);
     
-    private static final String CENTRAL_AGENT_CONFIG_NAME = "Distributed System";
-    
     public void run(IAction action) {
         try{
             
