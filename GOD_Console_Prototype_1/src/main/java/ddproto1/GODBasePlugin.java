@@ -609,7 +609,11 @@ public class GODBasePlugin extends Plugin {
 
     public static void throwDebugExceptionWithError(String reason, Throwable t)
             throws DebugException {
-        throw new DebugException(new Status(IStatus.ERROR, pluginInstance
+        throw debugExceptionWithError(reason, t);
+    }
+    
+    public static DebugException debugExceptionWithError(String reason, Throwable t){
+        return new DebugException(new Status(IStatus.ERROR, pluginInstance
                 .getBundle().getSymbolicName(), IStatus.ERROR, reason, t));
     }
 }
