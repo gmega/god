@@ -17,6 +17,7 @@ import org.apache.bcel.Constants;
 import org.apache.bcel.classfile.Code;
 import org.apache.bcel.classfile.JavaClass;
 import org.apache.bcel.classfile.LineNumber;
+import org.apache.bcel.classfile.LineNumberTable;
 import org.apache.bcel.classfile.Method;
 import org.apache.bcel.generic.ALOAD;
 import org.apache.bcel.generic.ASTORE;
@@ -46,6 +47,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     private static final String ORBHOLDER_NAME = "ddproto1.localagent.CORBA.ORBHolder";
     
     private static final Logger logger = Logger.getLogger(CORBAHook.class);
+    private static final Logger codeIndexLogger = Logger.getLogger(CORBAHook.class.getName() + ".codeIndexLogger");
     
     private static final boolean DEBUG_MODE = true;
     private static final String DUMP_DIR = "/home/giuliano/workspace/GOD Console Prototype 1/runtime-gen";
@@ -118,6 +120,17 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
            
             mg.setMaxLocals();
             mg.setMaxStack();
+            
+            if(codeIndexLogger.isDebugEnabled() && serverClass){
+                codeIndexLogger.debug("---- Will now dump line number table for method " + mg.getName());
+                InstructionList iList = mg.getInstructionList();
+                iList.setPositions();
+                InstructionHandle[] handles = iList.getInstructionHandles();
+                LineNumberTable lnTable = mg.getLineNumberTable(mg.getConstantPool());
+                for(InstructionHandle handle : handles)
+                    codeIndexLogger.debug("[" + lnTable.getSourceLine(handle.getPosition()) 
+                            + "]->[" + handle.getInstruction().toString(false) + "]");
+            }
             
             cgen.addMethod(mg.getMethod());
             
@@ -212,24 +225,28 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
     }
     
     private void annotateLineNumbers(InstructionList startHook, MethodGen mg){
-        int addedLines = startHook.getLength();
+        
+        /** Starts by getting the first line of source code */
+        LineNumberGen [] linenumbers = mg.getLineNumbers();
+        int firstIndex = -1;
+        if(linenumbers.length != 0){
+            /** Gets the first line index. */
+            firstIndex = linenumbers[0].getSourceLine();
+        }
+        
+        int addedInstructions = startHook.getLength();
         
         /** Adds the starting hook to the actual method code. */
         InstructionList methodCode = mg.getInstructionList();
         methodCode.insert(methodCode.getStart(), startHook);
-        mg.setInstructionList(methodCode);  // Is this necessary?
 
-        /** First gets the first line index . */
-        LineNumberGen [] linenumbers = mg.getLineNumbers();
-        
-        /** If there's debug information, we apply it. */
-        if(linenumbers.length != 0){
-            /** Gets the first line index. */
-            int firstIndex = linenumbers[0].getSourceLine();
-            InstructionHandle [] handles = mg.getInstructionList().getInstructionHandles();
-            
-            for(int i = 0; i < addedLines; i++)
-                mg.addLineNumber(handles[i], firstIndex-1);
+        /** If there's debug information, we apply it. 
+         * In valid Java code, firstIndex will always be either -1 or some
+         * value strictly greater than 0. */
+        if(firstIndex != -1){ 
+            InstructionHandle [] handles = methodCode.getInstructionHandles();
+            for(int i = 0; i < addedInstructions; i++)
+                mg.addLineNumber(handles[i], firstIndex-1); 
         }
         
     }
@@ -267,15 +284,16 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         
         /* Glues the stuff together.*/
         InstructionHandle last = methodCode.getEnd();
+        int appendIdx = methodCode.getLength();
+        int endHookLength = endHook.getLength();
+        methodCode.append(methodCode.getEnd(), endHook);
         
-        /* Fix the source line of the end hook so that it points to the end of the method. */
-        InstructionHandle endHookBegin = methodCode.append(methodCode.getEnd(), endHook);
-//        int maxIndex = -1;
-//        for(LineNumberGen lnGen : mg.getLineNumbers())
-//            if(maxIndex < lnGen.getSourceLine()) maxIndex = lnGen.getSourceLine();
-//
-//        mg.addLineNumber(endHookBegin, maxIndex);
-        
+        /* Assigns a special line of code to the exception handler. This will
+         * allow the debugger to know if it has been hit during the client-side
+         * thread stopping protocol. */
+        InstructionHandle [] handles = methodCode.getInstructionHandles();
+        for(int i = 0; i < endHookLength; i++)
+            mg.addLineNumber(handles[appendIdx+i], Integer.MAX_VALUE);
         
         /* Insert calls to the finally block before each return instruction 
          * so that it gets called in even if there is no exception. */
