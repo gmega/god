@@ -5,6 +5,8 @@
  */
 package ddproto1.debugger.managing.test;
 
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.log4j.Logger;
@@ -19,10 +21,13 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationType;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.debug.core.model.IBreakpoint;
+import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.debug.core.JDIDebugModel;
 
 import ddproto1.GODBasePlugin;
 import ddproto1.configurator.IObjectSpec;
@@ -30,6 +35,7 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.managing.ILocalNodeManager;
 import ddproto1.debugger.managing.LaunchHelper;
 import ddproto1.launcher.test.ConfiguratorSetup;
+import ddproto1.util.BreakpointCreationWaiter;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.TestConfigurationConstants;
 import ddproto1.util.TestLocationConstants;
@@ -37,6 +43,8 @@ import ddproto1.util.TestUtils;
 import junit.framework.TestCase;
 
 public class AbstractDebuggerTest extends TestCase implements TestLocationConstants, TestConfigurationConstants, IConfigurationConstants{
+    
+    public static final int BKP_TIMEOUT = 10000;
     
     protected static final Logger logger = 
         MessageHandler.getInstance().getLogger(CondensedSingleNodeTest.class);
@@ -161,6 +169,37 @@ public class AbstractDebuggerTest extends TestCase implements TestLocationConsta
             logger.error("Failed to stop the process server manager.", ex);
         }
         GODBasePlugin.getDefault().getProcessServerManager().start();
+    }
+    
+    public IBreakpoint ensureCreateBreakpoint(IResource res, String typeName, 
+            int line, 
+            int charStart, 
+            int charEnd, 
+            int hitCount,
+            boolean register, 
+            Map attributes)
+        throws CoreException
+    {
+        
+        BreakpointCreationWaiter waiter = new BreakpointCreationWaiter(
+                JDIDebugModel.createLineBreakpoint(res, typeName, line,
+                        charStart, charEnd, hitCount, register, attributes));
+        
+        assertTrue(waiter.awaitCreation(BKP_TIMEOUT));
+        return waiter.getBreakpoint();
+    }
+    
+    public IDebugTarget findTarget(String name){
+        IDebugTarget [] targets = DebugPlugin.getDefault().getLaunchManager().getDebugTargets();
+        try{
+            for(IDebugTarget target : targets){
+                if(target.getName().equals(name))
+                    return target;
+            }
+        }catch(Exception ex){ }
+        
+        fail();
+        return null;
     }
     
     private class ProjectGetter{
