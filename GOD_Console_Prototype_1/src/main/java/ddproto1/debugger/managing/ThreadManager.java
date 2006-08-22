@@ -421,10 +421,9 @@ public class ThreadManager implements
     /* (non-Javadoc)
      * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#process(com.sun.jdi.event.Event)
      */
-    public void process(Event e) {
-        
-        IProcessingContext pc = pcm.getProcessingContext();
-        
+    public void process(Event e) 
+        throws Exception
+    {
         if(enabled) specializedProcess(e);
         if(next != null) next.process(e);
     }
