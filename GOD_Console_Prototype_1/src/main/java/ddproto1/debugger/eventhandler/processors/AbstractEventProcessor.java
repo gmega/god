@@ -28,7 +28,9 @@ public abstract class AbstractEventProcessor implements IJDIEventProcessor, JDIE
     
     private JDIEventProcessorTrait jdiTrait = new JDIEventProcessorTrait(this);
     
-    public void process(Event e){
+    public void process(Event e)
+        throws Exception
+    {
     	jdiTrait.process(e);
     }
     
