@@ -5,6 +5,7 @@
  */
 package ddproto1.debugger.managing.tracker;
 
+import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IThread;
 /**
  * Language-independent interface that must be implemented by all 
@@ -65,7 +66,7 @@ public interface ILocalThread extends IThread {
     /**
      * Clears all pending step requests from this thread.
      */
-    public void clearPendingStepRequests();
+    public void clearPendingStepRequests() throws DebugException;
     
     /**
      * Asks if the current thread has a pending step request (a step
