@@ -171,7 +171,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
              * Result: The user does a step into and his/her thread simply resumes. 
              */  
 
-            if((stats & DebuggerConstants.ILLUSION) != 0 && (stats&DebuggerConstants.STEPPING) != 0){
+            if((stats&DebuggerConstants.STEPPING) != 0){
                 tagger.setStepping(ltgid);
             }else{
                 tagger.unsetStepping(ltgid);
@@ -226,7 +226,7 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                 	debugBuffer.append("\n Status: " + fh.statusText(data[0])) ;
                 }
                                 
-                if((data[0] & DebuggerConstants.ILLUSION) != 0 &&
+                if(/*(data[0] & DebuggerConstants.ILLUSION) != 0 &&*/
                 		(data[0] & DebuggerConstants.STEPPING) != 0){
                 	if(requestLogger.isDebugEnabled()){
                 		debugBuffer.append("Marked thread for halt. ");
