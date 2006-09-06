@@ -23,11 +23,11 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 
+import ddproto1.GODBasePlugin;
 import ddproto1.configurator.IAttribute;
 import ddproto1.configurator.IContextSearchable;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.IObjectSpecType;
-import ddproto1.configurator.SpecLoader;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.plugin.ui.DDUIPlugin;
@@ -89,7 +89,7 @@ public class ConfigurationPanelMediator implements IAttributeChangeListener {
         list.setLabelProvider(new MissingChildrenLabelProvider(listContentProvider));
         
         implList.setContentProvider(new AvailableImplementationContentProvider(
-                DDUIPlugin.getDefault().getConfigurationManager()
+                GODBasePlugin.getDefault().getConfigurationManager()
                         .getImplementationScanner(), implList));
         implList.setLabelProvider(new AvailableImplementationsLabelProvider());
                 
@@ -97,8 +97,11 @@ public class ConfigurationPanelMediator implements IAttributeChangeListener {
             public void selectionChanged(SelectionChangedEvent event) {
                 IStructuredSelection selection = (IStructuredSelection)event.getSelection();
                 IObjectSpec spec = (IObjectSpec)selection.getFirstElement();
+                
                 table.setInput(spec);
                 list.setInput(spec);
+                
+                if(spec == null) return;
                 
                 try{
                     implList.setInput(spec.getType().getInterfaceType());
@@ -121,6 +124,7 @@ public class ConfigurationPanelMediator implements IAttributeChangeListener {
             public void widgetSelected(SelectionEvent e) {
                 IStructuredSelection selection = (IStructuredSelection)tree.getSelection();
                 IContextSearchable spec = (IContextSearchable)selection.getFirstElement();
+                if(spec == null) return;
                 if(forbiddenSpecs.contains(spec)){
                     MessageDialog error = new MessageDialog(
                             parent.getShell(),
