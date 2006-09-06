@@ -12,6 +12,6 @@ Require-Bundle: com.tools.logging,
  org.eclipse.debug.core,
  org.eclipse.ui,
  org.eclipse.core.resources,
- br.usp.ime.ddproto1.god.core,
- br.usp.ime.ddproto1.build
+ br.usp.ime.ddproto1.build,
+ br.usp.ime.ddproto1.god
 Eclipse-AutoStart: true
