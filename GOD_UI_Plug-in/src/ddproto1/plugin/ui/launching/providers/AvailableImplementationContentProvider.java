@@ -11,12 +11,12 @@ import java.util.List;
 import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.swt.SWTException;
 import org.eclipse.swt.widgets.Display;
 
 import ddproto1.configurator.IObjectSpecType;
-import ddproto1.plugin.ui.launching.IImplementationScanner;
-import ddproto1.plugin.ui.launching.IImplementationScannerListener;
-
+import ddproto1.configurator.plugin.IImplementationScanner;
+import ddproto1.configurator.plugin.IImplementationScannerListener;
 
 public class AvailableImplementationContentProvider implements
         IStructuredContentProvider, IImplementationScannerListener {
@@ -61,8 +61,10 @@ public class AvailableImplementationContentProvider implements
         this.theData = answerList;
         display.asyncExec(new Runnable(){
             public void run() {
-                viewer.refresh();
-                viewer.getCombo().select(0);
+                if(!viewer.getCombo().isDisposed()){    
+                    viewer.refresh();
+                    viewer.getCombo().select(0);
+                }
             }
         });
     }
