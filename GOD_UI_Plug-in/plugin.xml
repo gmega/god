@@ -32,6 +32,12 @@
 			configTypeID="ddproto1.plugin.core.distributedNodeLaunchConfiguration"
 			id="ddproto1.plugin.ui.ddNodeLaunchConfigurationTypeImage">
 		</launchConfigurationTypeImage>
+	   
+		<launchConfigurationTypeImage
+			icon="images/global_agent.png"
+			configTypeID="ddproto1.plugin.core.centralAgentLaunchConfiguration"
+			id="ddproto1.plugin.ui.centralAgentLaunchConfigurationTypeImage">									
+		</launchConfigurationTypeImage>
 	</extension>
 	
 	<extension
@@ -59,5 +65,12 @@
 		  </action>
 		 </actionSet>
 	</extension>
+	
+	<extension point = "org.eclipse.debug.ui.debugModelPresentations"> 
+         <debugModelPresentation
+             class = "ddproto1.plugin.ui.GODDebugModelPresentation"
+             id = "br.usp.ime.ddproto1.god">
+		 </debugModelPresentation> 
+</extension>
 		  
 </plugin>
