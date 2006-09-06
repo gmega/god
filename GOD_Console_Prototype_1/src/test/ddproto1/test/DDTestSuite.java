@@ -64,45 +64,46 @@ public class DDTestSuite extends TestSuite {
     public DDTestSuite(){
         /** Base tasks */
         addTest(new TestSuite(ProjectCreationDecorator.class));
-//        
-//        /** Configurator tests **/
-//        addTest(new TestSuite(ObjectSpecFactoryTest.class));
-//        addTest(new TestSuite(BaseObjectSpecTypeImplTest.class));
-//        addTest(new TestSuite(ExtendedObjectSpecTypeImplTest.class));
-//        addTest(new TestSuite(XMLParserTest.class));
-//        addTest(new TestSuite(FSImplementationScannerTest.class));
-//        
-//        /** ID manager tests */
-//        addTest(new TestSuite(FIFOGUIDManagerTest.class));
-//        
-//        /** Utility class tests */
-//        addTest(new TestSuite(AbstractMultiMapTest.class));
-//        addTest(new TestSuite(ByteArrayTest.class));
-//        addTest(new TestSuite(ConversionTest.class));
-//        addTest(new TestSuite(EventTest.class));
-//        addTest(new TestSuite(FormatHandlerTest.class));
-//        addTest(new TestSuite(LockingHashMapTest.class));
-//        addTest(new TestSuite(UtilityTest.class));
-//        addTest(new TestSuite(StepRequestSpecTest.class));
-//        
-//        /** Server/handler simulation tests */
-//        addTest(new TestSuite(DelegatingHandlerTest.class));
-//        addTest(new TestSuite(SocketServerTest.class));
-//
-//        /** Request mechanism simulation tests */
-//        addTest(new TestSuite(DeferrableBreakpointRequestTest.class));
-//        addTest(new TestSuite(DeferrableRequestQueueTest.class));
-//        /** Other simulation tests */
-//        addTest(new TestSuite(DistributedThreadFrameMappingTest.class));
-//        
-//        /** Process server manager and launcher tests (these are 
-//         * real tests) */
-//        addTest(new TestSuite(SunVMCommandLineTest.class));
-//        addTest(new TestSuite(LocalAgentCommandLineTest.class));
-//        addTest(new TestSuite(ProcessServerManagerTest.class));
-//        addTest(new TestSuite(CondensedSingleNodeTest.class));
+        
+        /** Configurator tests **/
+        addTest(new TestSuite(ObjectSpecFactoryTest.class));
+        addTest(new TestSuite(BaseObjectSpecTypeImplTest.class));
+        addTest(new TestSuite(ExtendedObjectSpecTypeImplTest.class));
+        addTest(new TestSuite(XMLParserTest.class));
+        addTest(new TestSuite(FSImplementationScannerTest.class));
+        
+        /** ID manager tests */
+        addTest(new TestSuite(FIFOGUIDManagerTest.class));
+        
+        /** Utility class tests */
+        addTest(new TestSuite(AbstractMultiMapTest.class));
+        addTest(new TestSuite(ByteArrayTest.class));
+        addTest(new TestSuite(ConversionTest.class));
+        addTest(new TestSuite(EventTest.class));
+        addTest(new TestSuite(FormatHandlerTest.class));
+        addTest(new TestSuite(LockingHashMapTest.class));
+        addTest(new TestSuite(UtilityTest.class));
+        addTest(new TestSuite(StepRequestSpecTest.class));
+        
+        /** Server/handler simulation tests */
+        addTest(new TestSuite(DelegatingHandlerTest.class));
+        addTest(new TestSuite(SocketServerTest.class));
+
+        /** Request mechanism simulation tests */
+        addTest(new TestSuite(DeferrableBreakpointRequestTest.class));
+        addTest(new TestSuite(DeferrableRequestQueueTest.class));
+        /** Other simulation tests */
+        addTest(new TestSuite(DistributedThreadFrameMappingTest.class));
+        
+        /** Process server manager and launcher tests (these are 
+         * real tests) */
+        addTest(new TestSuite(SunVMCommandLineTest.class));
+        addTest(new TestSuite(LocalAgentCommandLineTest.class));
+        addTest(new TestSuite(ProcessServerManagerTest.class));
+        addTest(new TestSuite(CondensedSingleNodeTest.class));
         addTest(new TestSuite(DistributedThreadControlTest.class));
         
+        TestUtils.setPluginTest(true);
     }
     
     public static void registerSharedObject(Object key, Object object){

@@ -127,16 +127,12 @@ public class DeferrableRequestQueue {
         nullResolutionContext = srci;
     }
   
-    private DeferrableRequestQueue() { 
+    public DeferrableRequestQueue(){
+        this(ALLOW_DUPLICATES);
+    }
+    
+    public DeferrableRequestQueue(int duplicatePolicy){
         reset();
-    }
-    
-    public DeferrableRequestQueue(String vmid){
-        this(vmid, ALLOW_DUPLICATES);
-    }
-    
-    public DeferrableRequestQueue(String vmid, int duplicatePolicy){
-        this();
         this.duplicatePolicy = duplicatePolicy;
     }
     

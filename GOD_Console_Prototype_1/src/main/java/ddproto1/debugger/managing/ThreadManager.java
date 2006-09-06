@@ -65,7 +65,8 @@ public class ThreadManager implements
     private ThreadReference currentThread = null;
     private IDebugContext dc;
    
-    private boolean enabled = true;
+    private boolean fEnabled = true;
+    private boolean fTerminating = false;
     private IJDIEventProcessor next;
     
     /* Thanks to JDI we have to use this ugly, explicit mapping (I had
@@ -85,6 +86,7 @@ public class ThreadManager implements
     
     public void specializedProcess(Event e) {
         try{
+            if(!isEnabled()) return;
             IProcessingContext pc = pcm.getProcessingContext();
             if(e instanceof VMStartEvent){
                 handleVMStart((VMStartEvent)e);
@@ -116,6 +118,30 @@ public class ThreadManager implements
         }catch(Exception ex){
             mh.printStackTrace(ex);
         }
+    }
+    
+    public void prepareForShutdown(){
+        toggleTerminating();
+        runOnThreads(true);
+    }
+    
+    public void notifyDeath(){
+        runOnThreads(false);
+    }
+    
+    private void runOnThreads(boolean justWarn){
+        List<Exception> errList = new ArrayList<Exception>();
+        synchronized(liThreads){
+            Iterator it = liThreads.values().iterator();
+            while(it.hasNext()){
+                try{
+                    JavaThread jt = (JavaThread)it.next();
+                    if(justWarn) jt.issueTerminationWarning();
+                    else jt.handleDeath();
+                }catch(Exception ex){ errList.add(ex); }
+            }
+        }
+        mh.logExceptions(errList);
     }
 
     /* (non-Javadoc)
@@ -209,16 +235,9 @@ public class ThreadManager implements
         if(uuid2thread.containsKey(uuid))
             uuid2thread.remove(uuid);
         
-        IThread eclipseThread = this.getAdapterForThread(tr);
+        JavaThread eclipseThread = this.getAdapterForThread(tr);
         assert eclipseThread != null;
-        
-        if(eclipseThread instanceof DebugElement){
-            ((DebugElement)eclipseThread).fireTerminateEvent();
-        }else{
-            mh.getErrorOutput().println("Don't know how to notify termination of" +
-                    " classes that don't extend DebugElement.");
-        }
-        
+        releaseThread(eclipseThread);
         return true;
     }
     
@@ -373,6 +392,8 @@ public class ThreadManager implements
             if(ijdt == null) return;
             jt = new JavaThread(tr, ijdt);
             liThreads.put(tr, jt);
+            if(isTerminating())
+                jt.issueTerminationWarning();
         }
         
         jt.fireCreationEvent();
@@ -383,7 +404,7 @@ public class ThreadManager implements
             liThreads.remove(jt.getJDIThread());
         }
         
-        jt.fireTerminateEvent();
+        jt.handleDeath();
     }
     
     protected ILocalThread [] liThreads(){
@@ -412,7 +433,7 @@ public class ThreadManager implements
     		Iterator<JavaThread> it = liThreads.values().iterator();
     		while(it.hasNext()){
     			JavaThread jt = it.next();
-    			jt.fireTerminateEvent();
+                jt.handleDeath();
     			it.remove();
     		}
     	}
@@ -424,7 +445,7 @@ public class ThreadManager implements
     public void process(Event e) 
         throws Exception
     {
-        if(enabled) specializedProcess(e);
+        if(fEnabled) specializedProcess(e);
         if(next != null) next.process(e);
     }
 
@@ -445,8 +466,20 @@ public class ThreadManager implements
     /* (non-Javadoc)
      * @see ddproto1.debugger.eventhandler.processors.IJDIEventProcessor#enable(boolean)
      */
-    public void enable(boolean status) {
-        enabled = status;
+    public synchronized void enable(boolean status) {
+        fEnabled = status;
+    }
+    
+    private synchronized boolean isEnabled(){
+        return fEnabled && !isTerminating();
+    }
+    
+    private synchronized boolean isTerminating(){
+        return fTerminating;
+    }
+    
+    private synchronized void toggleTerminating(){
+        fTerminating = true;
     }
 
     public void notifyVMSuspend() { }

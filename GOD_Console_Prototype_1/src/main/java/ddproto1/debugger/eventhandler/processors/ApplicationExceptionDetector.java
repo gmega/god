@@ -29,7 +29,7 @@ import ddproto1.debugger.eventhandler.IVotingManager;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.managing.IDebugContext;
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
 import ddproto1.debugger.managing.IJavaThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.tracker.DistributedThread;
@@ -45,7 +45,7 @@ public class ApplicationExceptionDetector extends AbstractEventProcessor{
     public static String NO_EXCEPTION_PRINTING = "NO_EXCEPTION_PRINTING";
     
     private static Logger logger = Logger.getLogger(ApplicationExceptionDetector.class);
-    private static IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private static IJavaNodeManagerRegistry vmmf = VMManagerFactory.getRegistryManagerInstance();
     
     private Set<String> applicationClasses = new HashSet<String>();
     private List<IApplicationExceptionListener> listeners = new ArrayList<IApplicationExceptionListener>();

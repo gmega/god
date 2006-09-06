@@ -64,6 +64,7 @@ public interface IConfigurationConstants {
     public static final String NAME_ATTRIBUTE                   = "name";
     public static final String BOOTSTRAP_PROPERTIES_FILE        = "bootstrap.properties";
     public static final String CENTRAL_AGENT_CONFIG_NAME        = "Distributed System";
+    public static final String CENTRAL_AGENT_NAME               = "Global Agent";
 
     
     /** Attribute value constants. */

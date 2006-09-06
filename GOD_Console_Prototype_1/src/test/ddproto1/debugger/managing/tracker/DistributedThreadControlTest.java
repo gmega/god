@@ -119,7 +119,7 @@ public class DistributedThreadControlTest extends AbstractDebuggerTest{
             new DebugElementKindEventDetailWaiter(DebugEvent.SUSPEND, DistributedThread.class, DebugEvent.STEP_END);
         
         assertFalse(clientSide.isStepping());
-        INodeManager globalAgent = (INodeManager)findTarget(CENTRAL_AGENT_CONFIG_NAME).
+        INodeManager globalAgent = (INodeManager)findTarget(CENTRAL_AGENT_NAME).
             getAdapter(INodeManager.class);
 
         /** Casts thread reference into distributed thread. */

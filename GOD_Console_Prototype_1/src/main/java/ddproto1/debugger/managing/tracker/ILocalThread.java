@@ -29,6 +29,8 @@ public interface ILocalThread extends IThread {
     
     /**
      * Retrieves and clears the "resumed by stepping remote" status of this local thread.
+     * The "resumed by stepping remote" status of a local thread will also be cleared if
+     * if the thread is again suspended. 
      * <br>
      * This method is called by the distributed thread manager after each client upcall
      * (although it could be called at server receive) so the manager may know whether
@@ -40,8 +42,9 @@ public interface ILocalThread extends IThread {
      * <ol>
      * <li><b>true</b> if this thread has been resumed because it has stepped into a remote 
      * object stub.</li>
-     * <li><b>false</b> if this thread isn't remote stepping or the status has been previously 
-     * cleared by a call to resumedBySteppingRemote.</li>
+     * <li><b>false</b> if this thread isn't remote stepping, if the status has been previously 
+     * cleared by a call to resumedBySteppingRemote, or if the status has been cleared because
+     * the thread has been suspended.</li>
      * </ol>
      */
     public boolean resumedByRemoteStepping();
@@ -79,7 +82,8 @@ public interface ILocalThread extends IThread {
     
     /**
      * Returns the Globally Unique ID for this local thread, or null
-     * if this thread hasn't received an ID yet. 
+     * if this thread hasn't received an ID yet (this is mostly intended
+     * for system threads which don't go through the registration protocol).
      * 
      * @return
      */

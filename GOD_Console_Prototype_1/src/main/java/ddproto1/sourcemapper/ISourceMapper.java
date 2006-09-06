@@ -15,7 +15,8 @@ import com.sun.jdi.Location;
 
 /**
  * @author giuliano
- *
+ *  
+ * @deprecated No longer in use.
  */
 public interface ISourceMapper {
     public String getLine(Location loc);

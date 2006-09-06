@@ -203,7 +203,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         startHook.append(iFactory.createInvoke("ddproto1.localagent.CORBA.ORBHolder", "retrieveStamp", Type.VOID, Type.NO_ARGS, Constants.INVOKEVIRTUAL));
         
         this.annotateLineNumbers(startHook, mg);
-        this.wrapFinally(iFactory, mg, cgen, finallyName);
+        this.wrapFinally(iFactory, mg, cgen, finallyName, true);
     }
     
     private void glueStubSnippet(MethodGen mg, ClassGen cgen, String finallyName){
@@ -221,7 +221,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         mg.setInstructionList(methodCode);  // Is this necessary?
         
         // Wrap the method into a thread-trapping mechanism.
-        this.wrapFinally(iFactory, mg, cgen, finallyName);
+        this.wrapFinally(iFactory, mg, cgen, finallyName, true);
     }
     
     private void annotateLineNumbers(InstructionList startHook, MethodGen mg){
@@ -251,7 +251,7 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         
     }
     
-    private void wrapFinally(InstructionFactory iFactory, MethodGen mg, ClassGen cgen, String finallyName){
+    private void wrapFinally(InstructionFactory iFactory, MethodGen mg, ClassGen cgen, String finallyName, boolean assignLinesToHandler){
         InstructionList methodCode = mg.getInstructionList();
         InstructionHandle first = methodCode.getStart();
         
@@ -291,9 +291,11 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         /* Assigns a special line of code to the exception handler. This will
          * allow the debugger to know if it has been hit during the client-side
          * thread stopping protocol. */
-        InstructionHandle [] handles = methodCode.getInstructionHandles();
-        for(int i = 0; i < endHookLength; i++)
-            mg.addLineNumber(handles[appendIdx+i], Integer.MAX_VALUE);
+        if(assignLinesToHandler){
+            InstructionHandle [] handles = methodCode.getInstructionHandles();
+            for(int i = 0; i < endHookLength; i++)
+                mg.addLineNumber(handles[appendIdx+i], Integer.MAX_VALUE);
+        }
         
         /* Insert calls to the finally block before each return instruction 
          * so that it gets called in even if there is no exception. */

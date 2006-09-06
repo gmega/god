@@ -5,14 +5,15 @@ import java.util.Collections;
 import java.util.List;
 
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.exception.commons.UnsupportedException;
 
 public abstract class AbstractDeferrableRequest implements IDeferrableRequest{
 
-    private static IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    // Not static anymore since it may change during a test run.
+    protected final IJavaNodeManagerRegistry vmmf = VMManagerFactory.getRegistryManagerInstance();
     
 	private List<IPrecondition> preconditions = new ArrayList<IPrecondition>();
 	private List<IResolutionListener> listeners = new ArrayList<IResolutionListener>();
@@ -75,7 +76,7 @@ public abstract class AbstractDeferrableRequest implements IDeferrableRequest{
     protected IJavaNodeManager getVMM(){
         if(vmid == null) throw new UnsupportedException("Unsupported operation for this type " +
                 "of deferrable request");
-        return (IJavaNodeManager)vmmf.getNodeManager(vmid).getAdapter(IJavaNodeManager.class);
+        return vmmf.getJavaNodeManager(vmid);
     }
     
     public String getVMID(){

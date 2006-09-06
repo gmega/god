@@ -72,6 +72,7 @@ import ddproto1.launcher.procserver.ProcessServerManager;
 import ddproto1.launcher.procserver.PyExpectSSHExecutor;
 import ddproto1.util.Base64Encoder;
 import ddproto1.util.ILogManager;
+import ddproto1.util.IServiceLifecycle;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
 
@@ -136,7 +137,6 @@ public class GODBasePlugin extends Plugin {
     public void stop(BundleContext context) throws Exception {
         super.stop(context);
         getProcessServerManager().stop();
-        pluginInstance = null;
     }
     
     protected void initializeLoggerManager(){
@@ -206,14 +206,6 @@ public class GODBasePlugin extends Plugin {
             public Logger getLogger(String name) { return plManager.getLogger(name); }
         });
         
-//        Logger foo = mh.getLogger("ddproto1.debugger.foo");
-//        Logger bar = mh.getLogger("ddproto1.debugger.foo.bar");
-//        Logger zoo = mh.getLogger("ddproto1.debugger.foo.bar.zoo");
-//        
-//        System.out.println(foo.getLevel() == Level.ERROR);
-//        System.out.println(bar.getLevel() == Level.INFO);
-//        System.out.println(zoo.getLevel() == Level.DEBUG);
-        
         defaultLogger.info("Logger service has been configured successfully.");        
     }
     
@@ -231,23 +223,21 @@ public class GODBasePlugin extends Plugin {
         }
     }
     
-    protected void initializeProcserverManager()
+    protected void initializeProcserverManager(ProcessServerManager psManager)
     {
         try{
             Preferences prefs = 
                 GODBasePlugin.this.getPluginPreferences();
-            psManager = new ProcessServerManager();
             psManager.setAttribute(IConfigurationConstants.CALLBACK_OBJECT_PATH,
                     prefs.getString(IConfigurationConstants.CALLBACK_OBJECT_PATH));
             psManager.setAttribute(IConfigurationConstants.RMI_REGISTRY_PORT,
                     prefs.getString(IConfigurationConstants.RMI_REGISTRY_PORT));
-            psManager.start();
         }catch(Exception ex){
             defaultLogger.error("Failed to start the process server manager. " +
                     "Launching of remote processes is disabled.", ex);
         }
     }
-    
+        
     public synchronized IGUIDManager processGUIDManager(){
         return processGUIDManager;
     }
@@ -277,8 +267,16 @@ public class GODBasePlugin extends Plugin {
     }
     
     public synchronized IProcessServerManager getProcessServerManager(){
+        return getProcessServerManagerInternal();
+    }
+    
+    private synchronized ProcessServerManager getProcessServerManagerInternal(){
         if(psManager == null)
-            initializeProcserverManager();
+            psManager = new ProcessServerManager();
+        
+        if(psManager.currentState() == IServiceLifecycle.STOPPED)
+            initializeProcserverManager(psManager);
+        
         return psManager;
     }
     
@@ -286,7 +284,7 @@ public class GODBasePlugin extends Plugin {
         return cmi;
     }
 
-    public GlobalAgent getGlobalAgent(){
+    public GlobalAgent getGlobalAgent() {
         return gaSingleton;
     }
     
@@ -304,7 +302,6 @@ public class GODBasePlugin extends Plugin {
 
         private ISpecLoader             loader;
         private IImplementationScanner  scanner;
-        private Properties              bootstrap;
         
         private IObjectSpec             rootSpec;
         private IObjectSpec             nodeList;
@@ -344,12 +341,7 @@ public class GODBasePlugin extends Plugin {
 
             return encoder;
         }
-        
-        
-        public synchronized Properties getBootstrapProperties(){
-            return bootstrap;
-        }
-        
+
         public synchronized void initRootSpec() 
             throws CoreException
         {
@@ -558,10 +550,15 @@ public class GODBasePlugin extends Plugin {
                 String key = event.getProperty();
                 String value = (String)event.getNewValue();
                 this.getRootSpec().setAttribute(key, value);
-                if(psManager.getAttributeKeys().contains(key))
-                    psManager.setAttribute(key, value);
-                if(gaSingleton.getAttributeKeys().contains(key))
-                    gaSingleton.setAttribute(key, value);
+                
+                ProcessServerManager pManager = getProcessServerManagerInternal();
+                GlobalAgent ga = getGlobalAgent();
+                
+                if(pManager.getAttributeKeys().contains(key))
+                    pManager.setAttribute(key, value);
+                if(ga.getAttributeKeys().contains(key))
+                    ga.setAttribute(key, value);
+                
             }catch(IllegalAttributeException ex){
                 defaultLogger.error("Unrecognized property " + event.getProperty(), ex);
             }catch(InvalidAttributeValueException ex){
@@ -612,8 +609,19 @@ public class GODBasePlugin extends Plugin {
         throw debugExceptionWithError(reason, t);
     }
     
-    public static DebugException debugExceptionWithError(String reason, Throwable t){
-        return new DebugException(new Status(IStatus.ERROR, pluginInstance
-                .getBundle().getSymbolicName(), IStatus.ERROR, reason, t));
+    public static void throwDebugExceptionWithErrorAndStatus(String reason, Throwable t, int status)
+        throws DebugException
+    {
+        throw debugExceptionWithErrorAndStatus(reason, t, status);
     }
+    
+    public static DebugException debugExceptionWithError(String reason, Throwable t){
+        return debugExceptionWithErrorAndStatus(reason, t, IStatus.ERROR);
+    }
+
+    public static DebugException debugExceptionWithErrorAndStatus(String reason, Throwable t, int status){
+        return new DebugException(new Status(IStatus.ERROR, pluginInstance
+                .getBundle().getSymbolicName(), status, reason, t));
+    }
+
 }

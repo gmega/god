@@ -14,9 +14,6 @@ import junit.framework.TestCase;
  */
 public class FormatHandlerTest extends TestCase {
 
-    public static void main(String[] args) {
-    }
-
     public void testInt2Hex() {
         ConversionUtil fh = ConversionUtil.getInstance();
         

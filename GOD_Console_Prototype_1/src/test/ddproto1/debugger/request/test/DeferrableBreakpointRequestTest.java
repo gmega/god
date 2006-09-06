@@ -21,7 +21,9 @@ import com.sun.jdi.request.EventRequestManager;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
+import ddproto1.debugger.managing.INodeManager;
+import ddproto1.debugger.managing.INodeManagerRegistry;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
@@ -52,16 +54,15 @@ public class DeferrableBreakpointRequestTest extends TestCase {
     
     private IJavaNodeManager vmm;
     private Location loc;
-    private IVMManagerFactory vmmf;
+    private IJavaNodeManagerRegistry vmmf;
     private EventRequestManager erm;
     private VirtualMachine vm;
     
     public void setUp()
         throws Exception
     {
-        setUpLogger();
         
-        drq = new DeferrableRequestQueue(VMID);
+        drq = new DeferrableRequestQueue();
         
         /** Creates a fake outer class, */
         outerClass = EasyMock.createMock(ReferenceType.class);
@@ -102,12 +103,10 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         EasyMock.expectLastCall().atLeastOnce();
         EasyMock.expect(vmm.getName()).andReturn(VMID);
         EasyMock.expectLastCall().atLeastOnce();
-        EasyMock.expect(vmm.getAdapter(IJavaNodeManager.class)).andReturn(vmm);
-        EasyMock.expectLastCall().atLeastOnce();
         
         /** and a fake VMManagerFactory. */
-        vmmf = EasyMock.createMock(IVMManagerFactory.class);
-        EasyMock.expect(vmmf.getNodeManager(VMID)).andReturn(vmm);
+        vmmf = EasyMock.createMock(IJavaNodeManagerRegistry.class);
+        EasyMock.expect(vmmf.getJavaNodeManager(VMID)).andReturn(vmm);
         EasyMock.expectLastCall().atLeastOnce();
         
         VMManagerFactory.setInstance(vmmf);
@@ -166,14 +165,6 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         DeferrableClassPrepareRequest.registerVM(VMID);
     }
     
-    private void setUpLogger(){
-        MessageHandler mh = MessageHandler.getInstance();
-        mh.setLogManagerDelegate(new ILogManager(){
-            public Logger getLogger(Class c) { return Logger.getLogger(c); }
-            public Logger getLogger(String name) { return Logger.getLogger(name); }
-        });
-    }
-    
     public void testAbsoluteInnerClassBreakpoint()
         throws Exception
     {
@@ -183,7 +174,7 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         ResolutionListener rl = new ResolutionListener(innerBreakpoint);
         
         IJavaNodeManager vmm = 
-            (IJavaNodeManager)VMManagerFactory.getInstance().getNodeManager(VMID).getAdapter(IJavaNodeManager.class);
+            (IJavaNodeManager)VMManagerFactory.getRegistryManagerInstance().getJavaNodeManager(VMID);
         
         vmm.getDeferrableRequestQueue().addEagerlyResolve(innerBreakpoint);
         
@@ -211,6 +202,10 @@ public class DeferrableBreakpointRequestTest extends TestCase {
         drq.removeRequest(innerBreakpoint);
         
         EasyMock.verify(outerClass, innerClass, erm, vm, vmm, vmmf, patterned, nonPatterned, bkp);
+    }
+    
+    public void tearDown(){
+        VMManagerFactory.setInstance(VMManagerFactory.getInstance());
     }
     
     private IDeferrableRequest.IResolutionContext createResolutionContext(String clsName, int eventType, int matchType, Object ctxContents){

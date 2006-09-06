@@ -17,6 +17,14 @@ import ddproto1.exception.commons.UnsupportedException;
 
 public class NilDistributedThread implements IDistributedThread {
 
+    private volatile IDebugTarget fParentTarget;
+    
+    public NilDistributedThread() { this(null); }
+    
+    public NilDistributedThread(IDebugTarget target){
+        fParentTarget = target;
+    }
+    
     public void hitByBreakpoint(IBreakpoint bp, ILocalThread lt) {
     }
 
@@ -52,7 +60,6 @@ public class NilDistributedThread implements IDistributedThread {
     }
 
     public IStackFrame getTopStackFrame() throws DebugException {
-        GODBasePlugin.throwDebugException("Unsupported operation.");
         return null;
     }
 
@@ -69,14 +76,22 @@ public class NilDistributedThread implements IDistributedThread {
     }
 
     public IDebugTarget getDebugTarget() {
-        throw new UnsupportedOperationException();
+        return getParentTarget();
     }
 
     public ILaunch getLaunch() {
-        throw new UnsupportedOperationException();
+        return getParentTarget().getLaunch();
+    }
+    
+    private IDebugTarget getParentTarget(){
+        if(fParentTarget == null)
+            throw new UnsupportedOperationException();
+        return fParentTarget;
     }
 
     public Object getAdapter(Class adapter) {
+        if(adapter.isAssignableFrom(this.getClass()))
+            return this;
         return null;
     }
 
@@ -121,6 +136,8 @@ public class NilDistributedThread implements IDistributedThread {
     public boolean canTerminate() { return false; }
 
     public boolean isTerminated() {
+        if(fParentTarget.isTerminated())
+            return true;
         return false;
     }
 

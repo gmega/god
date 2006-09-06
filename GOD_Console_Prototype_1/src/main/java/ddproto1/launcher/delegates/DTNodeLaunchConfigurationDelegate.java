@@ -9,6 +9,8 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.debug.core.DebugException;
+import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.model.IDebugTarget;
@@ -28,9 +30,11 @@ public class DTNodeLaunchConfigurationDelegate implements ILaunchConfigurationDe
     public void launch(ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor) throws CoreException {
         
         /** Checks to see if the global agent is running. */
-        GlobalAgent gb = GODBasePlugin.getDefault().getGlobalAgent();
-        if(!gb.isRunning())
+        IDebugTarget gAgentTarget = findGlobalAgentTarget();
+        if(gAgentTarget == null || gAgentTarget.isTerminated() || gAgentTarget.isDisconnected())
             launchFailed("Global agent must be started before launching remote processes.", null);
+        
+        GlobalAgent gAgent = (GlobalAgent) gAgentTarget.getAdapter(GlobalAgent.class);
         
         String nodeName = configuration.getAttribute(IConfigurationConstants.NAME_ATTRIBUTE, "");
         if(nodeName.equals(""))
@@ -46,11 +50,21 @@ public class DTNodeLaunchConfigurationDelegate implements ILaunchConfigurationDe
             ILocalNodeManager jnm = (ILocalNodeManager) inm
                     .getAdapter(ILocalNodeManager.class);
             jnm.connect();
-            gb.addTarget((IDebugTarget)jnm.getAdapter(IDebugTarget.class));
+            gAgent.addTarget((IDebugTarget)jnm.getAdapter(IDebugTarget.class));
 
         } catch (Exception ex) {
             launchFailed("Launch failed.", ex);
         }
+    }
+    
+    private IDebugTarget findGlobalAgentTarget()
+        throws DebugException
+    {
+        IDebugTarget [] allTargets = DebugPlugin.getDefault().getLaunchManager().getDebugTargets();
+        for(IDebugTarget target : allTargets)
+            if(target.getName().equals(IConfigurationConstants.CENTRAL_AGENT_NAME))
+                return target;
+        return null;
     }
     
     private void launchFailed(String reason, Exception nested) throws CoreException{

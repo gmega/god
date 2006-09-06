@@ -6,6 +6,7 @@
 package ddproto1.debugger.managing;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,13 +52,15 @@ import ddproto1.util.PolicyManager;
 
 /**
  * 
- * Wrapper for a Java thread. JDT's poorer cousin. 
+ * Eclipse model thread for JDI thread representations. JDT's poorer cousin. 
  * 
  * @author giuliano
  *
  */
 public class JavaThread extends JavaDebugElement implements ILocalThread{
     
+    public static final int RETURN_CONTROL_TO_CLIENT = 0;
+        
 	/** Move this to the debugger preferences. */
 	private static final int TIMEOUT = 5000;
     private static final int SUSPEND_BACKOFF = 200;
@@ -65,13 +68,21 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private static final IDistributedThread NIL_DT = new NilDistributedThread();
     
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaThread.class);
+
+    /** Suspend-resume and stackframe logger. */
+    private static final Logger srsfLogger = MessageHandler.getInstance().getLogger(JavaThread.class.getName() + ".stackAndSuspensionLogger");
+
+    /** Static mapping between JDI step modes and Eclipse step modes */
+    private static final Map<Integer, Integer> stepMap;
     
-    private static final Map<Integer, Integer> stepMap = new HashMap<Integer, Integer>();
+    private static final IStackFrame[] NO_CALLSTACK = new IStackFrame[0];
     
     static{
-        stepMap.put(StepRequest.STEP_INTO, DebugEvent.STEP_INTO);
-        stepMap.put(StepRequest.STEP_OVER, DebugEvent.STEP_OVER);
-        stepMap.put(StepRequest.STEP_OUT, DebugEvent.STEP_RETURN);
+        Map <Integer, Integer> sMap = new HashMap<Integer, Integer>();
+        sMap.put(StepRequest.STEP_INTO, DebugEvent.STEP_INTO);
+        sMap.put(StepRequest.STEP_OVER, DebugEvent.STEP_OVER);
+        sMap.put(StepRequest.STEP_OUT, DebugEvent.STEP_RETURN);
+        stepMap = Collections.unmodifiableMap(sMap);
     }
     
     /** JDI thread delegate. */
@@ -86,6 +97,10 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private final AtomicReference<StepHandler> fPendingHandler = new AtomicReference<StepHandler>();
     
     private volatile boolean fRunning = false;
+    
+    private volatile boolean fTerminated = false;
+    
+    private volatile boolean fTerminating = false;
     
     private volatile Integer fGUID = null;
     
@@ -124,8 +139,12 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         	/** Locks so no one can resume this thread while we're looking at it's stack. */
             fStackRead.lock();
             locked = true;
-            if(fRunning) // Illegal state.
-                this.requestFailed("Cannot acquire stack frames from running thread.", null);
+            
+            if(srsfLogger.isDebugEnabled())
+                srsfLogger.debug("Getting frames from thread " + getNameSafe());
+            
+            if(isRunning()) 
+                return NO_CALLSTACK;
 
             try{
                 if(fJDIThread.frameCount() == -1) return null; 
@@ -135,16 +154,38 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
                     nFrames.add(new JavaStackframe(this, sf));
                 fStackRead.unlock();
                 locked = false;
+                if(srsfLogger.isDebugEnabled())
+                    srsfLogger.debug("Got " + nFrames.size() + " frames from thread " + getNameSafe());
+
                 return nFrames.toArray(new IStackFrame[nFrames.size()]);
                 
             }catch(IncompatibleThreadStateException ex){
                 this.requestFailed("Error while acquiring thread frames. ", ex);
                 return null; // Line is never reached.
+            }catch(VMDisconnectedException ex){
+                if(terminationWarnIssued()){
+                    return NO_CALLSTACK;
+                }else{
+                    this.requestFailed("Error while acquiring thread frames. ", ex);
+                    return null;
+                }
             }
-            
         }finally{
             if(locked) fStackRead.unlock();
         }
+    }
+    
+    /** 
+     * This will cause the JavaThread to prepare for termination.
+     * In termination mode, the JavaThread will swallow certain types
+     * of exceptions, like VMDisconnectedExceptions.
+     */
+    public void issueTerminationWarning(){
+        fTerminating = true;
+    }
+    
+    private boolean terminationWarnIssued(){
+        return fTerminating;
     }
     
     public boolean resumeForRemoteStepInto(){
@@ -189,7 +230,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             fStackRead.lock();
             locked = true;
             if(fRunning) return null;
-            if(fJDIThread.frameCount() == -1) return null;
+            if(fJDIThread.frameCount() <= 0) return null;
             return new JavaStackframe(this, fJDIThread.frame(0));
         }catch(IncompatibleThreadStateException ex){
             requestFailed("Error while acquiring top stack frame.", ex);
@@ -200,7 +241,21 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
 
     public String getName() throws DebugException {
-        return fJDIThread.name();
+        try{
+            return getJDIThread().name();
+        }catch(ObjectCollectedException ex){
+            return "<has been garbage collected>";
+        }catch(VMDisconnectedException ex){
+            return "<disconnected>";
+        }
+    }
+    
+    private String getNameSafe(){
+        try{
+            return getJDIThread().name();
+        }catch(Exception ex){
+            return "Error";
+        }
     }
 
     public IBreakpoint[] getBreakpoints() {
@@ -256,10 +311,11 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
     
     public boolean isRunning(){
-        return fRunning;
+        return fRunning && !isTerminated();
     }
 
     public void resume() throws DebugException {
+        if(!isSuspended()) return;
         resumeWithDetail(DebugEvent.CLIENT_REQUEST, true, true, false);
     }
     
@@ -283,6 +339,11 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
     
     public void fireResumeEvent(int de, boolean fireEclipse, boolean fireParent){
+        if(srsfLogger.isDebugEnabled()){
+            srsfLogger.debug("Resuming thread " + getNameSafe() + " with opts "
+                    + (fireEclipse?"fireEclipse":"") + (fireParent?"fireParent":""));
+        }
+        
         if(fireParent)
             fDTParent.resumed(this, de);
         if(fireEclipse)
@@ -339,8 +400,6 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
                         return;
                     }
                     setRunning(false);
-                    getParentDistributedThread().suspended(JavaThread.this,
-                            DebugEvent.CLIENT_REQUEST);
                     fireSuspendEvent(DebugEvent.CLIENT_REQUEST, true, true);
                 } finally {
                     fSuspending.set(false);
@@ -353,6 +412,10 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
 	}
     
     public void fireSuspendEvent(int de, boolean fireEclipse, boolean fireParent){
+        if(srsfLogger.isDebugEnabled()){
+            srsfLogger.debug("Thread " + getNameSafe() + " suspended.");
+        }
+
         if(fireParent)
             fDTParent.suspended(this, de);
         if(fireEclipse)
@@ -418,7 +481,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private boolean canStep(){
         try{
             return (fPendingHandler.get() == null) 
-                && fJDIThread.isSuspended() 
+                && !isTerminated()
+                && !isRunning()
                 && (this.getTopStackFrame() != null);
         }catch(DebugException ex){
             logger.error("Error while querying thread's step capabilities.", ex);
@@ -430,8 +494,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         return fStepping.get();
     }
     
-    private void setStepping(boolean mode){
-        assert fStepping.compareAndSet(!mode, mode);
+    private boolean setStepping(boolean mode){
+        return fStepping.compareAndSet(!mode, mode);
     }
     
     protected void setRunning(boolean mode){
@@ -468,13 +532,24 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         sh.doGenerateEclipseEvents();
         sh.doNotifyParent();
     }
+    
+    public void handleDeath(){
+        setRunning(false);
+        setTerminated(true);
+        getParentDistributedThread().died(this);
+        fireTerminateEvent();
+    }
+    
+    private void setTerminated(boolean value){
+        fTerminated = value;
+    }
 
     public boolean canTerminate() {
-		return getDebugTarget().canTerminate();
+		return !fTerminated;
 	}
 
     public boolean isTerminated() {
-        return getDebugTarget().isTerminated(); 
+        return fTerminated; 
     }
 
     public void terminate() throws DebugException {
@@ -546,7 +621,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         
         private volatile EventRequest fStepRequest;
         
-        private volatile boolean fDone = false;
+        private final AtomicBoolean fDone = new AtomicBoolean(false);
         private StepRequestSpec fRequestSpec;
         
         public StepHandler(int granularity, int depth, 
@@ -635,14 +710,17 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             throws DebugException
         {
             IProcessingContext pc = ProcessingContextManager.getInstance().getProcessingContext();
-            if(pc.getResults(IEventManager.RESUME_SET) == 0)
+            if(pc.getResults(IEventManager.RESUME_SET) == 0){
                 setRunning(false);
+            }
             finalizeHandler(fireEclipse, fRequestSpec.generateParentStepEnd());
     	}
         
         private void finalizeHandler(boolean generateStepEnd, boolean notifyParent)
             throws DebugException
         {
+            fDone.set(true);
+            
             DebugException toThrow = null;
             
             // Clears the step request.
@@ -659,7 +737,6 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             
             JavaThread.this.setStepping(false);
             
-            fDone = true;
             if(!fPendingHandler.compareAndSet(this, null)){
                 toThrow = GODBasePlugin.
                     debugExceptionWithError("StepHandler mutated. This indicates an error in program logic.", 
@@ -669,7 +746,6 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             // Notify interested parties if applicable.
             fireSuspendEvent(DebugEvent.STEP_END, notifyParent, generateStepEnd);
             
-            fDone = true;
             if(toThrow != null) throw toThrow;
         }
         
@@ -686,7 +762,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         }
         
         private void resumeUnderlyingThread() throws DebugException {
-            JavaThread.this.setStepping(true);
+            if(!JavaThread.this.setStepping(true))
+                GODBasePlugin.throwDebugException("Inconsistent state - thread already in step mode.");
             JavaThread.this.resumeWithDetail(
                     mapStep(fDepth), 
                     fRequestSpec.generateStepStart(), 
@@ -694,13 +771,19 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
                     !fRequestSpec.shouldResume());
     	}
     
-        public synchronized void specializedProcess(Event e) 
+        public void specializedProcess(Event e) 
             throws DebugException
         {
-            if(fDone) return; 
+            IProcessingContext pc = ProcessingContextManager.getInstance().getProcessingContext();
+            /** Step request has been aborted, vote for resumption. */
+            if(!fDone.compareAndSet(false, true)){
+                pc.vote(IEventManager.RESUME_SET);
+                abort();
+                return;
+            }
+            
             EventRequest incoming = e.request();
             assert fStepRequest == incoming;
-            IProcessingContext pc = ProcessingContextManager.getInstance().getProcessingContext();
             boolean noisy = true;
             if(pc != null){
                 if(pc.getResults(IEventManager.NO_SOURCE) > 0)
@@ -752,12 +835,15 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             return stepMap.get(stepCode);
         }
         
-        public synchronized void abort() 
+        public void abort() 
             throws DebugException
         {
-            if(fDone) return;
-    		finalizeHandler(false, false); // Step abortion is always quiet.
-    	}
+            if(!fDone.compareAndSet(false, true)) return;
+            // Aborted steps don't generate suspend notifications.
+    		finalizeHandler(false, false);
+            // Generate resumption event (thread no longer stepping).
+            fireResumeEvent(DebugEvent.CLIENT_REQUEST, true, false);
+        }
     }
 
     public boolean resumedByRemoteStepping() {

@@ -28,7 +28,7 @@ import com.sun.jdi.request.ClassPrepareRequest;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
 import ddproto1.debugger.managing.IJavaThreadManager;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.VirtualMachineManager;
@@ -62,8 +62,6 @@ public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
     private List argumentList;
     private List <IDeferrableRequest.IPrecondition>preconList = new ArrayList<IDeferrableRequest.IPrecondition>();
     private List <ThreadReference> threadFilters = new LinkedList<ThreadReference>();
-    
-    private IVMManagerFactory vmmf = VMManagerFactory.getInstance();
     
     // Eclipse is really annoying. If we don't declare the generic as <Object, Object> it complains.
     private Map <Object, Object> properties = new HashMap<Object, Object>();
@@ -201,7 +199,7 @@ public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
 			    DeferrableClassPrepareRequest cpr = new DeferrableClassPrepareRequest(
 							vmid);
 			    cpr.addClassFilter(classId);
-			    IJavaNodeManager vmm = (IJavaNodeManager)vmmf.getNodeManager(vmid).getAdapter(IJavaNodeManager.class);
+			    IJavaNodeManager vmm = vmmf.getJavaNodeManager(vmid);
 			    vmm.getDeferrableRequestQueue().addEagerlyResolve(cpr);
                 
                 assert loadRequest == null;
@@ -226,7 +224,7 @@ public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
                  * This sucks. If I could specify that this breakpoint should receive
                  * events that pair to its request only, I wouldn't have to 
                  * worry about this at all.
-                 * 
+                 * --
                  * Well, anyway, this is wrong. To preserve one-shot semantics (and keep
                  * broken with respect to multiple class loaders) I must remove the class
                  * prepare request (our) when the breakpoint is satisfied.
@@ -353,7 +351,7 @@ public class DeferrableBreakpointRequest extends AbstractDeferrableRequest{
                     /** This request is our spawn and should die with us. */
                     DeferrableBreakpointRequest dbr = getSpawn(classId + "*", line_no);
                     
-                    IJavaNodeManager vmm = (IJavaNodeManager)vmmf.getNodeManager(vmid).getAdapter(IJavaNodeManager.class);
+                    IJavaNodeManager vmm = vmmf.getJavaNodeManager(vmid);
                     vmm.getDeferrableRequestQueue().addEagerlyResolve(dbr);
                 
                     /* Returns something just to get us out of the deferred queue (we'll be replaced by the 

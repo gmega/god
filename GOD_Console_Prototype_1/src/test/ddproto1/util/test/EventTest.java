@@ -20,11 +20,6 @@ import junit.framework.TestCase;
  *
  */
 public class EventTest extends TestCase {
-
-    public static void main(String[] args) {
-        junit.textui.TestRunner.run(EventTest.class);
-    }
-
     /*
      * Class under test for void Event(byte[])
      */

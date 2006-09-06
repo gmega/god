@@ -212,7 +212,8 @@ public class SocketServer implements Runnable, IServiceLifecycle{
             try {
                 inbound = ssocket.accept();
             } catch (IOException e) {
-                logger.error("Error while accepting connection.", e);
+                if(!isDeactivating() && !isDeactivated())
+                    logger.error("Error while accepting connection.", e);
                 continue;
             }
 

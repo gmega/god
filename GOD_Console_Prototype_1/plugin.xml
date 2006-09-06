@@ -1,23 +1,35 @@
 <?eclipse version="3.0"?>
 <plugin>
-   <extension
+	<extension
          point="org.eclipse.debug.core.launchConfigurationTypes">
-	   <launchConfigurationType
+		<launchConfigurationType
 		   name="Distributed Node"
 		   delegate="ddproto1.launcher.delegates.DTNodeLaunchConfigurationDelegate"
 		   modes="debug"
-		   id="ddproto1.plugin.core.distributedNodeLaunchConfiguration">
-	   </launchConfigurationType>
+		   id="ddproto1.plugin.core.distributedNodeLaunchConfiguration"
+		   sourceLocatorId="ddproto1.plugin.core.sourceLookupDirector.godMapper">
+		</launchConfigurationType>
 
-	   <launchConfigurationType
+		<launchConfigurationType
 	   		name="Central Agent"
 	   		delegate="ddproto1.launcher.delegates.DTLaunchConfigurationDelegate"
 	   		modes="debug"
 			public="false"
-	   		id="ddproto1.plugin.core.centralAgentLaunchConfiguration">
-	   	</launchConfigurationType>
-   </extension>
-   
+	   		id="ddproto1.plugin.core.centralAgentLaunchConfiguration"
+		    sourceLocatorId="ddproto1.plugin.core.sourceLookupDirector.godMapper">
+		</launchConfigurationType>
+	</extension>
+	
+	<extension
+		point="org.eclipse.debug.core.sourceLocators">
+		<sourceLocator
+			name="Generic GOD Source Locator"
+			class="ddproto1.sourcemapper.GenericSourceLookupDirector"
+			id="ddproto1.plugin.core.sourceLookupDirector.godMapper">
+		</sourceLocator>
+	</extension>
+
+<!--      
    <extension
          point="org.eclipse.debug.core.breakpoints">
       <breakpoint
@@ -27,14 +39,14 @@
             name="Java line breakpoint">
       </breakpoint>
    </extension>
-   
+
    <extension
    		id="ddproto1.lineBreakpoint.marker"
    		point="org.eclipse.core.resources.markers">
    		<super type="org.eclipse.debug.core.lineBreakpointMarker"/>
    		<persistent value="true"/>
    	</extension>
-
+-->
    <extension
          point="org.eclipse.core.runtime.preferences">
       <initializer class="ddproto1.configurator.BootstrapPreferenceInitializer"/>

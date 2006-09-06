@@ -6,12 +6,15 @@
 package ddproto1.launcher;
 
 import java.io.IOException;
+import java.rmi.ConnectException;
+import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.apache.log4j.Logger;
 import org.eclipse.core.runtime.PlatformObject;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
@@ -28,13 +31,18 @@ import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.launcher.procserver.IProcessEventListener;
+import ddproto1.util.MessageHandler;
 
 public class RemoteGODProcess extends PlatformObject 
     implements IProcess, IProcessEventListener, IStreamsProxy {
     
+    private static final Logger asyncLogger = 
+        MessageHandler.getInstance().getLogger(RemoteGODProcess.class.getName() + 
+                ".asyncErrorReporter"); 
+    
+    
     private volatile String processLabel;
     private volatile ILaunch launch;
-    private volatile IObjectSpec nodeSpec;
     private volatile IRemoteProcess proc;
     
     private final StreamMonitorImpl stdout = new StreamMonitorImpl();
@@ -64,21 +72,11 @@ public class RemoteGODProcess extends PlatformObject
     }
 
     public void setAttribute(String key, String value) {
-        try{
-            nodeSpec.setAttribute(key, value);
-        }catch(AttributeAccessException ex){
-            attributes.put(key, value);
-        }
+        attributes.put(key, value);
     }
 
     public String getAttribute(String key) {
-        if(attributes.containsKey(key)) return attributes.get(key);
-        
-        try{
-            return nodeSpec.getAttribute(key);
-        }catch(AttributeAccessException ex){
-            return null;
-        }
+        return attributes.get(key);
     }
 
     public int getExitValue() 
@@ -108,8 +106,10 @@ public class RemoteGODProcess extends PlatformObject
 
     public void terminate() throws DebugException {
         try{
-            checkAlive();
-            proc.dispose();
+            terminated();
+        }catch(ConnectException ex){
+            // Okay, process server is dead. We're probably
+            // quitting Eclipse.
         }catch(Exception ex){
             GODBasePlugin
                     .throwDebugExceptionWithError(
@@ -119,9 +119,23 @@ public class RemoteGODProcess extends PlatformObject
     }
     
     public void notifyProcessKilled(int exitValue) {
-        setTerminated(true);
-        setExitValue(exitValue);
+        try{
+            terminated();
+        }catch(Exception ex){
+            asyncLogger.error("Error while cleaning up dead process.", ex);
+        }
         fireTerminateEvent();
+    }
+    
+    private void terminated()
+        throws RemoteException
+    {
+        synchronized(this){
+            if(isTerminated()) return;
+            setTerminated(true);
+            setExitValue(exitValue);
+        }
+        proc.dispose();
     }
 
     public void notifyNewSTDOUTContent(String data) {
@@ -143,11 +157,11 @@ public class RemoteGODProcess extends PlatformObject
     }
 
     public IFlushableStreamMonitor getErrorStreamMonitor() {
-        return stdout;
+        return stderr;
     }
 
     public IFlushableStreamMonitor getOutputStreamMonitor() {
-        return stderr;
+        return stdout;
     }
     
     private void setTerminated(boolean value){
@@ -158,13 +172,6 @@ public class RemoteGODProcess extends PlatformObject
         this.exitValue = exitValue;
     }
     
-    private void checkAlive() throws DebugException{
-        if(isTerminated())
-            GODBasePlugin
-                    .throwDebugException("Cannot perform this operation on " +
-                            "a process that is not running.");
-    }
-
     /**
      * Fires the given debug event.
      * 

@@ -21,6 +21,7 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.launcher.test.ConfiguratorSetup;
+import ddproto1.util.MessageHandler;
 import ddproto1.util.TestConfigurationConstants;
 import ddproto1.util.TestUtils;
 
@@ -30,14 +31,12 @@ import ddproto1.util.TestUtils;
  */
 public class XMLParserTest extends BasicSpecTest {
 
+    private static MessageHandler mh = MessageHandler.getInstance();
+    
     private IObjectSpec root;
     
     private static final String DD_CONFIG_FILENAME = "dd_config.xml";
     private static final String DD_CONFIG_TEMPLATED_FILENAME = "dd_config_tpl.xml";
-    
-    public static void main(String[] args) {
-        junit.textui.TestRunner.run(XMLParserTest.class);
-    }
     
     public void testParseConfig() {
         

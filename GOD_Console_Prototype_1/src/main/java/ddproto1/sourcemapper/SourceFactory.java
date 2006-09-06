@@ -13,7 +13,7 @@ import java.io.InputStream;
 
 /**
  * @author giuliano
- *
+ * @deprecated
  */
 public interface SourceFactory {
     public ISource make(InputStream srcstream, String name)

@@ -38,7 +38,7 @@ import ddproto1.util.MessageHandler;
  * which source will be used when finding a given source location.  
  * 
  * @author giuliano
- *
+ * @deprecated
  */
 public class URLSourceMapper implements ISourceMapper, IConfigurable{
 

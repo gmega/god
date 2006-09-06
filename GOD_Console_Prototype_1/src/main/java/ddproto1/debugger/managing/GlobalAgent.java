@@ -11,13 +11,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IMarkerDelta;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.debug.core.DebugException;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.model.DebugElement;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
@@ -28,12 +29,11 @@ import org.eclipse.debug.core.model.IThread;
 import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.IObjectSpec;
-import ddproto1.configurator.IObjectSpecType;
 import ddproto1.configurator.PropertyHandler;
-import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.commons.IQueriableConfigurable;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
+import ddproto1.debugger.managing.tracker.NilDistributedThread;
 import ddproto1.debugger.server.SeparatingHandler;
 import ddproto1.debugger.server.SocketServer;
 import ddproto1.exception.ConfigException;
@@ -49,11 +49,15 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * to operate the abstract entity "Global Agent", including controls to start/stop it and
  * retrieving threads, breakpoints, etcetera. 
  * 
+ * Clients are not intended to subclass, instantiate this class.
+ * Clients are only intended to interact with this class through its IDebugTarget
+ * and INodeManager interfaces.
+ * 
  * @author giuliano
  *
  */
 public class GlobalAgent extends DebugElement implements IDebugTarget, INodeManager, IQueriableConfigurable, IConfigurationConstants{
-    
+
     private static Logger logger = 
         MessageHandler.getInstance().getLogger(GlobalAgent.class);
     
@@ -68,24 +72,29 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     private SocketServer ddwpServer;
     private volatile boolean started = false;
     private volatile boolean starting = false;
+    private volatile boolean stopping = false;
     
+    private ILaunch fLaunch;
+    private IProcess fProcess;
     private PropertyHandler propertyServer = new PropertyHandler();
-    
     private List<IDebugTarget> activeTargets;
+    
+    private String fName;
     
     private final Map<String,String> attributes = 
         Collections.synchronizedMap(new HashMap<String, String>());
     
     public GlobalAgent(IObjectSpec spec) throws AttributeAccessException{
         super(null);
-        setAttribute(GLOBAL_AGENT_ADDRESS, 
-                spec.getAttribute(GLOBAL_AGENT_ADDRESS));
+        String address = spec.getAttribute(GLOBAL_AGENT_ADDRESS);
+        setAttribute(GLOBAL_AGENT_ADDRESS, address);
         setAttribute(MAX_QUEUE_LENGTH,
                 spec.getAttribute(MAX_QUEUE_LENGTH));
         setAttribute(THREAD_POOL_SIZE, 
                 spec.getAttribute(THREAD_POOL_SIZE));
-        setAttribute(CDWP_PORT,
-                spec.getAttribute(CDWP_PORT));
+        String cdwpPort = spec.getAttribute(CDWP_PORT);
+        setAttribute(CDWP_PORT, cdwpPort);
+        setName(IConfigurationConstants.CENTRAL_AGENT_NAME);
     }
     
     /**
@@ -94,9 +103,10 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
      * @param monitor
      * @throws CoreException
      */
-    public void start(IProgressMonitor monitor) throws CoreException{
+    public void start(IProgressMonitor monitor, ILaunch launch, IProcess process) 
+        throws CoreException{
         synchronized(this){
-            if(starting | started)
+            if(starting | started | stopping)
                 return;
             starting = true;
         }
@@ -114,9 +124,10 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
             starting = false;
             GODBasePlugin.throwCoreExceptionWithError(failure, ex);
         }
-        
         started = true;
         starting = false;
+        setLaunch(launch);
+        setProcess(process);
         this.fireCreationEvent();
     }
     
@@ -132,14 +143,16 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
         dtm = new DistributedThreadManager(this);
     }
     
-    public void stop(IProgressMonitor monitor){
+    public void stop(IProgressMonitor monitor) throws DebugException{
         synchronized(this){
             if(!started) return;
-            started = true;
+            started = false;
+            stopping = true;
         }
         /** One day we'll support reconnection, but not now. */
         killActiveProcesses();
         stopDDWPServer();
+        terminated();
     }
     
     public synchronized void addTarget(IDebugTarget target){
@@ -149,6 +162,13 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     
     public synchronized void cancelTarget(IJavaDebugTarget target){
         activeTargets.remove(target);
+    }
+    
+    private void terminated() throws DebugException{
+        stopping = false;
+        if(fProcess.canTerminate())
+            fProcess.terminate();
+        fireTerminateEvent();
     }
     
     private void startDDWPServer() throws CoreException{
@@ -176,7 +196,6 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
             }
             distributor.registerHandler(DebuggerConstants.NOTIFICATION, dtm);
             distributor.registerHandler(DebuggerConstants.REQUEST, propertyServer);
-            
             ddwpServer.start();
         }catch(NumberFormatException ex){
             GODBasePlugin.throwDebugExceptionWithError("Error while parsing global agent parameters - not a number. Check your preferences.", ex);
@@ -186,6 +205,7 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     }
     
     protected synchronized void killActiveProcesses()
+        throws DebugException
     {
         for(IDebugTarget target : activeTargets){
             try{
@@ -194,6 +214,9 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
                 logger.error("Could not terminate an active target. ", ex);
             }
         }
+        
+        if(fProcess.canTerminate())
+            fProcess.terminate();
     }
     
     private void stopDDWPServer(){
@@ -208,13 +231,16 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     }
     
     
-    public boolean isRunning(){
-        return started;
+    public synchronized boolean isRunning(){
+        return started & !stopping;
+    }
+    
+    public void setProcess(IProcess proc){
+        fProcess = proc;
     }
     
     public IProcess getProcess() {
-        // TODO Auto-generated method stub
-        return null;
+        return fProcess;
     }
 
     public IThread[] getThreads() throws DebugException {
@@ -222,106 +248,90 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     }
 
     public boolean hasThreads() throws DebugException {
-        // TODO Auto-generated method stub
-        return false;
+        return dtm.hasThreads();
+    }
+    
+    private synchronized void setLaunch(ILaunch launch){
+        fLaunch = launch;
+    }
+    
+    @Override
+    public synchronized ILaunch getLaunch(){
+        return fLaunch;
+    }
+    
+    @Override
+    public IDebugTarget getDebugTarget(){
+        return this;
     }
 
+    /** Sets the name of the global agent. */
+    private synchronized void setName(String name){
+        fName = name;
+    }
+    
+    /** 
+     * The default name of the global agent.
+     */
     public String getName(){
-        return IConfigurationConstants.CENTRAL_AGENT_CONFIG_NAME;
+        return fName;
     }
 
-    public boolean supportsBreakpoint(IBreakpoint breakpoint) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    public String getModelIdentifier() { return GODBasePlugin.getDefault().getBundle().getSymbolicName(); }
 
-    public String getModelIdentifier() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+    /**
+     * Tells if the global agent can be stopped. If it's running, 
+     * it can be stopped.
+     */
+    public boolean canTerminate() { return isRunning(); }
 
-    public boolean canTerminate() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    /** 
+     * Tells if the global agent has been terminated. It's kind of 
+     * weird that it might ressurrect, but I haven't been able to
+     * come up with anything to solve this yet. Maybe we could
+     * stop making the Global Agent a singleton.
+     */
+    public boolean isTerminated() { return !isRunning(); }
 
-    public boolean isTerminated() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    /**
+     * Just a thin call to GlobalAgent#stop().
+     */
+    public void terminate() throws DebugException { this.stop(new NullProgressMonitor()); }
 
-    public void terminate() throws DebugException {
-        // TODO Auto-generated method stub
-        
-    }
+    // Global suspension/resumption has not yet been implemented.
+    public boolean canResume() { return false; }
+    public boolean canSuspend() { return false; }
+    public boolean isSuspended() { return false; }
 
-    public boolean canResume() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    public void resume() throws DebugException { }
+    public void suspend() throws DebugException { }
 
-    public boolean canSuspend() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    // Global agent doesn't get breakpoints directly.
+    public boolean supportsBreakpoint(IBreakpoint breakpoint) { return false; }
+    public void breakpointAdded(IBreakpoint breakpoint) { }
+    public void breakpointRemoved(IBreakpoint breakpoint, IMarkerDelta delta) { }
+    public void breakpointChanged(IBreakpoint breakpoint, IMarkerDelta delta) { }
 
-    public boolean isSuspended() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+    // We use terminate instead of disconnect.
+    public boolean canDisconnect() { return false; }
+    public void disconnect() throws DebugException { }
+    public boolean isDisconnected() { return false; }
 
-    public void resume() throws DebugException {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void suspend() throws DebugException {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void breakpointAdded(IBreakpoint breakpoint) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void breakpointRemoved(IBreakpoint breakpoint, IMarkerDelta delta) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void breakpointChanged(IBreakpoint breakpoint, IMarkerDelta delta) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public boolean canDisconnect() {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    public void disconnect() throws DebugException {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public boolean isDisconnected() {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
+    // Don't make sense.
     public boolean supportsStorageRetrieval() { return false; }
-
-    public IMemoryBlock getMemoryBlock(long startAddress, long length) throws DebugException {
-    		GODBasePlugin.throwDebugExceptionWithError("This operation is not supported.", null);
-    		return null; // never happens
-    }
+    public IMemoryBlock getMemoryBlock(long startAddress, long length) throws DebugException { return null; }
 
 	public String getAttribute(String key) throws IllegalAttributeException, UninitializedAttributeException {
         if(!attributes.containsKey(key))
             throw new UninitializedAttributeException(key);
         return attributes.get(key);
 	}
+    
+    private String getAttributeQuietly(String key, String returnIfAbsent){
+        String value = attributes.get(key);
+        if(value == null) return returnIfAbsent;
+        return value;
+    }
 
 	public void setAttribute(String key, String val) 
 		throws IllegalAttributeException, InvalidAttributeValueException {

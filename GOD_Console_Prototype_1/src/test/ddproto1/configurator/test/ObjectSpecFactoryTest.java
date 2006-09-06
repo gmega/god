@@ -16,13 +16,14 @@ import ddproto1.configurator.ObjectSpecStringfier;
 import ddproto1.configurator.SpecLoader;
 import ddproto1.configurator.XMLConfigurationParser;
 import ddproto1.util.Base64Encoder;
+import ddproto1.util.MessageHandler;
 import ddproto1.util.TestUtils;
 
 
 public class ObjectSpecFactoryTest extends BasicSpecTest {
+    private static MessageHandler mh = MessageHandler.getInstance();
     public void testFactory(){
         try{
-
             SpecLoader sLoader = getDefaultSpecLoader();
             XMLConfigurationParser cfg = new XMLConfigurationParser(sLoader);
             

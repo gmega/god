@@ -634,6 +634,7 @@ public class ObjectSpecTypeImpl implements IObjectSpecType, ISpecQueryProtocol{
                 value = getValue(key);
                 /** Common value, just return the string. */
                 if(value != IObjectSpec.CONTEXT_VALUE) return value;
+                value = null;
             }catch(IllegalAttributeException ex){ /* Does nothing. Will search context. */ }
             
             /** CONTEXT_VALUE means we should infer the attribute's value 

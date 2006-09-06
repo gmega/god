@@ -39,6 +39,8 @@
 	</launcher>
 	
 	<command-line type="ddproto1.launcher.procserver.LocalAgentCommandLine">
+		<param key="name" value="TestAgent"/>
+		<param key="guid" value="0"/>
 		<command-line type="ddproto1.launcher.procserver.SunVMCommandLine">
 			<param key="main-class" value="ddproto1.launcher.procserver.test.testapp.TestApplication"/>
 			<param key="debug-mode" value="false"/>

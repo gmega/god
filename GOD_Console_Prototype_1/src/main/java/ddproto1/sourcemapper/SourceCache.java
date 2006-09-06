@@ -18,6 +18,7 @@ import java.util.ArrayList;
 /**
  * @author giuliano
  *
+ * @deprecated
  */
 public class SourceCache implements SourceFactory{
             

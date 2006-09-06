@@ -140,7 +140,9 @@ public class LaunchHelper implements IConfigurationConstants{
             IProcess process = l.launchOn(launch, listeners);
             
             nManager.setProcess(process);
+            launch.addProcess(process);
             launch.addDebugTarget((IDebugTarget)nManager.getAdapter(IDebugTarget.class));
+            
             
             /** nManager is ready to connect. */
             return nManager;

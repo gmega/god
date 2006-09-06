@@ -32,7 +32,7 @@ import ddproto1.util.traits.commons.ConversionUtil;
  */
 public class VirtualStackframe extends DebugElement implements IStackFrame{
     
-    public static final int UNDEFINED = -1;
+    public static final Integer UNDEFINED = new Integer(-1);
     
     private static final Logger logger = MessageHandler.getInstance().getLogger(VirtualStackframe.class);
     
@@ -41,8 +41,8 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
     private String fOutputOperation;
     private String fInputOperation;
     
-    private Integer callBase;
-    private Integer callTop;
+    private Integer callBase = UNDEFINED;
+    private Integer callTop = UNDEFINED;
     
     private String fLastError;
     
@@ -58,8 +58,6 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
         super(parentTarget);
         this.fOutputOperation = outOp;
         this.fInputOperation = inOp;
-        this.callBase = new Integer(UNDEFINED);
-        this.callTop = new Integer(UNDEFINED);
         this.fComponentThread = reference;
     }
     
@@ -171,7 +169,14 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
      * as the name of the thread it encompasses.
      */
     public String getName() throws DebugException {
-        return getThreadReference().getName();
+        String baseName = getThreadReference().getName();
+        if(!isDamaged()) return baseName;
+        return baseName + "<damage: " + getDamageReason() + ">";
+    }
+    
+    private String getDamageReason(){
+        if(fLastError != null) return fLastError;
+        return "unknown";
     }
 
     /** Virtual stack frames also have no register groups */
@@ -191,7 +196,7 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
     public Object getAdapter(Class adapter) {
         if(adapter.isAssignableFrom(VirtualStackframe.class))
             return this;
-        return null;
+        return super.getAdapter(adapter);
     }
 
     /** You cannot actually perform any stepping operations
@@ -235,13 +240,7 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
 
     /** Should never be suspended. */
     public boolean isSuspended() {
-        boolean val = getThreadReference().isSuspended();
-        if(val){
-            logger.error("Virtual stack frame queried for " +
-                    "suspension status while suspended.");
-        }
-        
-        return val;
+        return getThreadReference().isSuspended();
     }
 
     public void resume() throws DebugException {

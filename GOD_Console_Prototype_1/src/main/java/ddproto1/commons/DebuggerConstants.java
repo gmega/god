@@ -45,7 +45,8 @@ public interface DebuggerConstants {
     public static final byte MODE_UNKNOWN = 32;
     public static final byte RUNNING = 4;
     public static final byte SUSPENDED = 8;
-    public static final byte ILLUSION = 16;
+    public static final byte TERMINATED = 16;
+    public static final byte ILLUSION = 32;
     
     public static final byte EVENT_TYPE_IDX = 0;
     public static final byte CLIENT_DOWNCALL = 1;
@@ -69,5 +70,5 @@ public interface DebuggerConstants {
     public static final String VMM_KEY = "vmm";
     
     public static final int    ILLEGAL_THREAD_MOVEMENT = 0;
-    public static final int    LOCAL_THREAD_SUSPENDED  = 1;
+    public static final int    LOCAL_THREAD_RESUMED  = 1;
 }

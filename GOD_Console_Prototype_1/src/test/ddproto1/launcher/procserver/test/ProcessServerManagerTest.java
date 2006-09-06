@@ -59,11 +59,6 @@ public class ProcessServerManagerTest extends TestCase
 	private final ProcessServerManager psManager =
 		new ProcessServerManager();
 
-	public void setUp(){
-		BasicConfigurator.configure();
-        MessageHandler.autoConfigure();
-	}
-
 	public void testProcessServerManager()
 		throws Exception
 	{
@@ -163,6 +158,7 @@ public class ProcessServerManagerTest extends TestCase
         remoteProc.writeToSTDIN("giuliano needs beer\n");
         
         vListener.waitForDeath();
+        remoteProc.dispose();
         psManager.stop();
         
         if(vListener.wentWrong())

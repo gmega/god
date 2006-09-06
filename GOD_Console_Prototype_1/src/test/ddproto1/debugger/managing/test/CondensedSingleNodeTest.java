@@ -167,7 +167,6 @@ public class CondensedSingleNodeTest extends AbstractDebuggerTest{
         IStackFrame [] frames = thread.getStackFrames();
         assertTrue(frames.length == stackLength);
         IStackFrame topFrame = thread.getTopStackFrame();
-        assertTrue(topFrame.equals(frames[0]));
         assertTrue(topFrame.getLineNumber() == expectedLine);
     }
     

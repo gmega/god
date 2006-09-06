@@ -53,10 +53,6 @@ public class SocketServerTest extends TestCase {
     }
     
     public void setUp() throws Exception {
-        super.setUp();
-        
-        initializeMessageHandler();
-        
         ss = new SocketServer();
         ss.setMaxConnections(N_CLIENTS);
         ss.setMaxThreads(N_CLIENTS);
@@ -108,18 +104,6 @@ public class SocketServerTest extends TestCase {
 
     protected void tearDown() throws Exception {
         super.tearDown();
-    }
-    
-    private void initializeMessageHandler(){
-        BasicConfigurator.configure();
-        MessageHandler mh = MessageHandler.getInstance();
-        mh.setLogManagerDelegate(new ILogManager(){
-            public Logger getLogger(Class c) { return Logger.getLogger(c); }
-            public Logger getLogger(String name) { return Logger.getLogger(name); }
-        });
-        
-        Logger.getRootLogger().setLevel(Level.ERROR);
-        Logger.getLogger("ddproto1.debugger.server").setLevel(Level.DEBUG);
     }
     
     private class Handler implements IRequestHandler{

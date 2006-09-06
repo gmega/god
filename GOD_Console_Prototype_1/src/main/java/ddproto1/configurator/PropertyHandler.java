@@ -13,7 +13,7 @@ import java.util.NoSuchElementException;
 import ddproto1.util.commons.ByteMessage;
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.commons.IConfigurable;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.INodeManagerRegistry;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.server.IRequestHandler;
 import ddproto1.exception.commons.AttributeAccessException;
@@ -24,7 +24,7 @@ import ddproto1.exception.commons.AttributeAccessException;
  */
 public class PropertyHandler implements IRequestHandler {
    
-    private IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private INodeManagerRegistry vmmf = VMManagerFactory.getInstance();
 
     public PropertyHandler(){ }
     

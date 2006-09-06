@@ -38,8 +38,8 @@ import ddproto1.util.traits.commons.ConversionUtil;
 /**
  * This class represents the actual Distributed Thread.
  * 
- * 15/02 - Lots of complicated locking mechanisms that I can't actually really
- * say are critical.
+ * It currently contains lots of complicated locking mechanisms that 
+ * I can't actually really say are critical.
  * 
  * To add insult to injury, this class isn't even thread-safe. I began fixing
  * it, but it'll probably be a while before I can get it right.
@@ -48,7 +48,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
 
     private static final ConversionUtil cUtil = ConversionUtil.getInstance();
     
-    private static final Logger logger = Logger.getLogger(DistributedThread.class);
+    private static final Logger logger = MessageHandler.getInstance().getLogger(DistributedThread.class);
 
     /* Possible thread states. */
     public static final byte UNKNOWN = DebuggerConstants.MODE_UNKNOWN;
@@ -60,6 +60,8 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
     public static final byte RUNNING = DebuggerConstants.RUNNING;
 
     public static final byte SUSPENDED = DebuggerConstants.SUSPENDED;
+    
+    public static final byte TERMINATED = DebuggerConstants.TERMINATED;
 
     private static final int VIRTUALSTACK_TOPIDX = 1;
 
@@ -68,6 +70,14 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
     /* Global Universally Unique ID for this Distributed thread. */
     private int uuid;
 
+    private void setStepping(byte stepMode){
+        ConversionUtil ct = ConversionUtil.getInstance();
+        MessageHandler.getInstance().getDebugOutput().println(
+                "DT " + ct.uuid2Dotted(this.uuid) + " state set to "
+                        + ct.statusText(stepMode));
+
+        setMode(stepMode);
+    }
     /** Set of suspended elements. */
     private final Set<IThread> suspended = new HashSet<IThread>();
 
@@ -82,6 +92,8 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
 
     /* Virtual stack for this thread. */
     private final VirtualStack vs = new VirtualStack();
+    
+    private final DistributedThreadManager fDTM;
 
     /* Debugger thread currently manipulating this "mirror" */
     private Thread owner;
@@ -135,13 +147,14 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
 
     private String name;
 
-    public DistributedThread(VirtualStackframe root, IThreadManager tm,
+    public DistributedThread(VirtualStackframe root, DistributedThreadManager dtm,
             IDebugTarget parentManager) {
         super(parentManager);
-        this.uuid = root.getLocalThreadId().intValue();
+        uuid = root.getLocalThreadId().intValue();
         vs.pushFrameInternal(root);
         setMode(RUNNING);
-        this.name = cUtil.uuid2Dotted(this.getId());
+        name = cUtil.uuid2Dotted(this.getId());
+        fDTM = dtm;
     }
 
     /**
@@ -236,10 +249,13 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
      * @return
      */
     public boolean isStepping() {
-        IThread head = this.getLockedHead();
-        boolean result = head.isStepping();
-        rsLock.unlock();
-        return result;
+        try{
+            IThread head = this.getLockedHead();
+            boolean result = head.isStepping();
+            return result;
+        }finally{
+            rsLock.unlock();
+        }
     }
 
     /**
@@ -300,7 +316,9 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
             if (!isSuspended())
                 throw new IllegalStateException(
                         "You cannot resume a thread that hasn't been stopped.");
-
+            
+            clearBreakpoints();
+            
             /*
              * This method doesn't have to be synchronized since the hipothesis
              * is that the head thread is already stopped (and hence there's no
@@ -314,14 +332,6 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
             tr.resume();
         } finally {
             rsLock.unlock();
-            try {
-                rsLock.unlock();
-            } catch (IllegalMonitorStateException ex) {
-                /**
-                 * It's all right, just means the thread wasn't suspended
-                 * through DistributedThread#suspend();
-                 */
-            }
         }
     }
 
@@ -341,10 +351,10 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
              * thread, because there might be a pending step over somewhere
              * along the stack.
              */
-            for (VirtualStackframe vsf : (List<VirtualStackframe>) vs.frameStack
-                    .asList()) {
-                vsf.getThreadReference().suspend();
-                vsf.getThreadReference().clearPendingStepRequests();
+            for (Object _vsFrame : vs.frameStack.asList()) {
+                VirtualStackframe vsFrame = (VirtualStackframe)_vsFrame;
+                vsFrame.getThreadReference().suspend();
+                vsFrame.getThreadReference().clearPendingStepRequests();
             }
 
             setMode(SUSPENDED);
@@ -373,15 +383,6 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
         synchronized (suspended) {
             setMode(RUNNING);
         }
-    }
-
-    private void setStepping(byte stepMode){
-        ConversionUtil ct = ConversionUtil.getInstance();
-        MessageHandler.getInstance().getDebugOutput().println(
-                "DT " + ct.uuid2Dotted(this.uuid) + " state set to "
-                        + ct.statusText(stepMode));
-
-        setMode(stepMode);
     }
 
     protected synchronized void checkOwner() throws IllegalStateException {
@@ -422,7 +423,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
              */
             synchronized (suspended) {
                 vsf.setParent(DistributedThread.this);
-                addLocalThread(cThread, cThread
+                addHeadToTables(cThread, cThread
                         .setParentDT(DistributedThread.this));
             }
         }
@@ -435,7 +436,9 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
             return (VirtualStackframe) frameStack.get(tr);
         }
 
-        public VirtualStackframe popFrame() {
+        public VirtualStackframe popFrame() 
+            throws DebugException
+        {
             checkOwner();
             try {
                 /*
@@ -452,7 +455,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
                 VirtualStackframe popped = (VirtualStackframe) frameStack
                         .remove(frameStack.lastKey());
                 ILocalThread tr = popped.getThreadReference();
-                removeLocalThread(tr);
+                removeHeadFromTables(tr);
                 return popped;
             } finally {
                 wsLock.unlock();
@@ -531,6 +534,12 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
             ArrayList<IStackFrame> allFrames = new ArrayList<IStackFrame>(
                     fCount);
 
+            if(logger.isDebugEnabled()){
+                logger.debug("Getting stackframes for distributed thread "
+                        + cUtil.uuid2Dotted(getId()) + ".");
+            }
+
+
             /** For each virtual stack frame... */
             for (int i = 1; i <= fCount; i++) {
                 VirtualStackframe vsf = vs.getVirtualFrame(i-1); // getVirtualFrame is zero-based.
@@ -540,13 +549,14 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
                  * If the thread isn't stopped or it cannot be referenced, adds
                  * a "thread frame" to the stack.
                  */
-                if (!cThread.isSuspended() || !cThread.hasStackFrames()) {
+                IStackFrame[] realFrames;
+                realFrames = cThread.getStackFrames();
+                
+                // length == 0 means no frames or non-stopped thread.
+                if(realFrames.length == 0){
                     allFrames.add(vsf);
                     continue;
                 }
-
-                /** Gets the actual stack frames */
-                IStackFrame[] realFrames = cThread.getStackFrames();
 
                 /**
                  * Extracts the indexes of the real top and base frames
@@ -557,10 +567,16 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
 
                 /* Pushes frames from base to top */
                 for (int k = callTop; k <= callBase; k++)
-                    allFrames.add(realFrames[k]);
+                    allFrames.add(new LocalStackframeWrapper(this, realFrames[k], getDebugTarget()));
             }
 
             IStackFrame[] isf = new IStackFrame[allFrames.size()];
+            
+            if(logger.isDebugEnabled()){
+                logger.debug("Got stackframes (" + isf.length
+                        + ") from distributed thread "
+                        + cUtil.uuid2Dotted(getId()) + ".");
+            }
 
             return allFrames.toArray(isf);
 
@@ -586,7 +602,10 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
     }
 
     public IBreakpoint[] getBreakpoints() {
-        return null;
+        synchronized(breakpoints){
+            IBreakpoint [] bkps = new IBreakpoint[breakpoints.size()];
+            return breakpoints.toArray(bkps);
+        }
     }
 
     public String getModelIdentifier() {
@@ -601,7 +620,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
         if (adapter.isAssignableFrom(this.getClass()))
             return this;
 
-        return null;
+        return super.getAdapter(adapter);
     }
 
     public boolean canResume() {
@@ -613,21 +632,32 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
     }
 
     public boolean canStepInto() {
-        return false;
+        try{
+            return getLockedHead().canStepInto();
+        }finally{
+            rsLock.unlock();
+        }
     }
 
     public boolean canStepOver() {
-        return false;
+        try{
+            return getLockedHead().canStepOver();
+        }finally{
+            rsLock.unlock();
+        }
     }
 
     public boolean canStepReturn() {
-        return false;
+        try{
+            return getLockedHead().canStepReturn();
+        }finally{
+            rsLock.unlock();
+        }
     }
-
+    
     public void stepInto() 
         throws DebugException {
         try {
-            
             getLockedHead().stepInto();
         } finally {
             rsLock.unlock();
@@ -662,7 +692,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
      * terminated.
      */
     public boolean isTerminated() {
-        return false;
+        return getMode() == TERMINATED;
     }
 
     protected int realTopFrame(VirtualStackframe vs, int position,
@@ -691,11 +721,17 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
         else
             return realLength - vs.getCallBase();
     }
+    
+    private void clearBreakpoints(){
+        breakpoints.clear();
+    }
 
-    /***************************************************************************
-     * These methods are called by local threads when they have events to
-     * report. *
-     **************************************************************************/
+    /*
+     ======================================================================
+     - These methods are called by local threads when they have events to -
+     - report.                                                            -
+     ======================================================================
+     */
     /*
      * (non-Javadoc)
      * 
@@ -708,13 +744,14 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
         if (pendingHandler.get() != null
                 && pendingHandler.get().isTargetBreakpoint(bp)) {
             pendingHandler.set(null);
+           // updateThreadBeforeHeadStatus();
             suspended(lt, DebugEvent.STEP_END);
         }else{
             suspended(lt, DebugEvent.BREAKPOINT);
             breakpoints.add(bp);
         }
     }
-
+ 
     /*
      * (non-Javadoc)
      * 
@@ -737,9 +774,10 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
                 markDamage(lt, "Caught event non-head thread. The thread " +
                         "should be suspended but it is not.", true);
             }
-            
+
+            setMode(SUSPENDED);
+
             if (suspended.size() == 1) {
-                setMode(SUSPENDED);
                 fireSuspendEvent(detail);
             }else{
                 fireChangeEvent(DebugEvent.CONTENT);
@@ -760,7 +798,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
                         "> but frame was popped before it could be " +
                         "marked as damaged.");
             }else{
-                vs.flagAsDamaged();
+                vs.flagAsDamaged(reason);
             }
             if(fireEvent)
                 fireChangeEvent(DebugEvent.CONTENT);
@@ -783,6 +821,7 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
             // If it's the head thread that is stepping, then the 
             // distributed thread is also stepping.
             if(isHeadEvent(lt)){
+                clearBreakpoints();
                 if(detail == DebugEvent.STEP_INTO)
                     setMode(STEPPING);
                 else
@@ -806,8 +845,19 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
      * @see ddproto1.debugger.managing.tracker.IDistributedThread#died(ddproto1.debugger.managing.tracker.ILocalThread)
      */
     public void died(ILocalThread lt) {
-        // TODO Auto-generated method stub
-
+        rsLock.lock();
+        try{
+            /** Only predictable case for now. */
+            if(isHeadEvent(lt) && (virtualStack().length() == 1)){
+                setMode(TERMINATED);
+                fDTM.notifyDeath(getId());
+                fireTerminateEvent();
+            }else{
+                markDamage(lt, "Thread is dead.", true);
+            }
+        }finally{
+            rsLock.unlock();
+        }
     }
 
     /**
@@ -847,19 +897,80 @@ public class DistributedThread extends AbstractDebugElement implements IThread, 
         }
     }
 
-    private void addLocalThread(ILocalThread t, boolean isSuspended) {
+    /**
+     * Adds a thread to the internal suspension/component
+     * sets. This method assumes that the virtual stack frame 
+     * won't change while it's in progress. It also assumes that
+     * the thread being removed is the head thread.
+     * 
+     * @param t
+     */
+    private void addHeadToTables(ILocalThread t, boolean isSuspended) {
         synchronized (suspended) {
             actualElements.add(t);
             if(isSuspended) this.suspended(t, DebugEvent.UNSPECIFIED);
         }
     }
 
-    private void removeLocalThread(ILocalThread t) {
-        // We can be a lot less careful with removal.
+    /**
+     * Removes a thread from the internal suspension/component
+     * sets. This method assumes that the virtual stack frame 
+     * won't change while it's in progress. It also assumes that
+     * the thread 't' passed as parameter is the head thread.
+     * 
+     * @param t
+     */
+    private void removeHeadFromTables(ILocalThread t) 
+        throws DebugException
+    {
         synchronized (suspended) {
             suspended.remove(t);
             actualElements.remove(t);
-            fireChangeEvent(DebugEvent.CONTENT);
+            
+            ILocalThread newHead = getHead().getThreadReference();
+            
+            /** A brief note on possible policies when the thread before the 
+             * head is suspended and the current head is being popped. 
+             *
+             * Policy 1: Resume it. It works well, but the user never gets a
+             * chance to see middleware code. 
+             *
+             * Policy 2: Don't resume it, filter middleware frames in the 
+             * distributed thread and show all frames in the local thread.
+             * While this is ideal, it is more cumbersome to implement
+             * because it'd require tracking the size of the stack of local 
+             * thread and synchronizing it with the virtual stackframe that
+             * contains it at each step request. Hum. Doesn't sound difficult
+             * as we already get suspension notifications from the local threads.
+             * All I'd have to do is:
+             * 
+             * onSuspend(LocalThread lt)
+             *  vsf := virtual stackframe which contains lt
+             *  size := size of lt's call stack
+             *  vsf.setCalltop(size);
+             *  
+             * Cool.
+             * 
+             * TODO Implement Policy 2. 
+             */
+            
+            // DT is suspended. GUI updates are required.
+            if(suspended.size() > 0){
+                /** It doesn't matter if the thread is suspended or not.
+                 * What matters is what we know about the thread.
+                 */
+                boolean isSuspended = suspended.contains(newHead);
+//            
+//                if(isSuspended){
+//                    setMode(SUSPENDED);
+                if(isSuspended){
+                    newHead.resume();
+                    fireSuspendEvent((getMode() == STEPPING) ? DebugEvent.STEP_END
+                            : DebugEvent.UNSPECIFIED);
+                }else{
+                    fireChangeEvent(DebugEvent.CONTENT);
+                }
+            }
         }
     }
 

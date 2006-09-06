@@ -21,9 +21,6 @@ public class AbstractMultiMapTest extends TestCase {
     private MultiMap<String, String> omp = new OrderedMultiMap<String, String>(LinkedList.class);
     private MultiMap<String, String> ump = new UnorderedMultiMap<String, String>(HashSet.class);
     
-    public static void main(String[] args) {
-    }
-
     public void setUp() throws Exception{
         super.setUp();
         this.addStuff();

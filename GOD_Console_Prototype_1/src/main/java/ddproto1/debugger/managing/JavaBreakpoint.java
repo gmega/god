@@ -49,7 +49,7 @@ import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImpleme
 public class JavaBreakpoint extends Breakpoint implements IResolutionListener, JDIEventProcessorTraitImplementor {
 
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaBreakpoint.class);
-    private static final IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private static final IJavaNodeManagerRegistry vmmf = VMManagerFactory.getRegistryManagerInstance();
     
 	private volatile String typeName;
 	private volatile int    line;
@@ -204,8 +204,8 @@ public class JavaBreakpoint extends Breakpoint implements IResolutionListener, J
 	public void specializedProcess(Event event) {
 	    BreakpointEvent bevt = (BreakpointEvent)event;
 		
-		IJavaNodeManager _target = (IJavaNodeManager)vmmf.getNodeManager(vmmf
-				.getGidByVM(event.request().virtualMachine())).getAdapter(IJavaNodeManager.class);
+		IJavaNodeManager _target = 
+            vmmf.getJavaNodeManager(event.request().virtualMachine());
 		String targetName = _target.getName();
 		IJavaDebugTarget target = this.getTarget(targetName);
 		

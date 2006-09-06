@@ -44,7 +44,7 @@ public class ThreadInfoGatherer extends AbstractEventProcessor {
             ThreadReference tr = ThreadManager.getThreadFromEvent(e);
             String vmid = (String)e.request().getProperty(DebuggerConstants.VMM_KEY);
             IJavaNodeManager vmm = 
-                (IJavaNodeManager)VMManagerFactory.getInstance().getNodeManager(vmid).getAdapter(IJavaNodeManager.class);
+                (IJavaNodeManager)VMManagerFactory.getRegistryManagerInstance().getNodeManager(vmid).getAdapter(IJavaNodeManager.class);
             IJavaThreadManager vmt = vmm.getThreadManager();
             
             Integer ltid = vmt.getThreadUUID(tr);

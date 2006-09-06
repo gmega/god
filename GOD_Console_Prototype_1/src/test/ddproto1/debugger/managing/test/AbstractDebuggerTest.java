@@ -164,11 +164,10 @@ public class AbstractDebuggerTest extends TestCase implements TestLocationConsta
         throws Exception
     {
         try{
-            GODBasePlugin.getDefault().getProcessServerManager().stop();
+            GODBasePlugin.getDefault().getGlobalAgent().terminate();
         }catch(IllegalStateException ex){ 
             logger.error("Failed to stop the process server manager.", ex);
         }
-        GODBasePlugin.getDefault().getProcessServerManager().start();
     }
     
     public IBreakpoint ensureCreateBreakpoint(IResource res, String typeName, 

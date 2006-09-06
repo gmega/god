@@ -20,17 +20,13 @@ import junit.framework.TestCase;
 
 public class DeferrableRequestQueueTest extends TestCase {
 
-    public static void main(String[] args) {
-        junit.swingui.TestRunner.run(DeferrableRequestQueueTest.class);
-    }
-
     /*
      * Class under test for boolean addEagerlyResolve(IDeferrableRequest)
      */
     public void testAddEagerlyResolveIDeferrableRequest() 
         throws Exception
     {
-        DeferrableRequestQueue drq = new DeferrableRequestQueue("Test VM");
+        DeferrableRequestQueue drq = new DeferrableRequestQueue();
         
         /* Adds some stuff to resolve eagerly. We smuggle some information (namely the name of the
          * class that will resolve the precondition) into the precondition, but this information is

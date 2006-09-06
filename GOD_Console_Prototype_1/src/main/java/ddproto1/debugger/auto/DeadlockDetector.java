@@ -26,7 +26,7 @@ import com.sun.jdi.ObjectReference;
 import com.sun.jdi.ThreadReference;
 
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
 import ddproto1.debugger.managing.VMManagerFactory;
 import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.VirtualStackframe;
@@ -38,7 +38,7 @@ import ddproto1.util.traits.commons.ConversionUtil;
 public class DeadlockDetector {
     
     private static MessageHandler mh = MessageHandler.getInstance();
-    private static IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private static IJavaNodeManagerRegistry vmmf = VMManagerFactory.getInstance();
     private static ConversionUtil ct = ConversionUtil.getInstance();
     
     private Set<DistributedThread> suspendedDTs;
@@ -114,8 +114,7 @@ public class DeadlockDetector {
                         String currentUUID;
                         if(vertex instanceof ThreadReference){
                             ThreadReference tr = (ThreadReference)vertex;
-                            IJavaNodeManager vmm = (IJavaNodeManager)vmmf.
-                                getNodeManager(vmmf.getGidByVM(tr.virtualMachine()));
+                            IJavaNodeManager vmm = vmmf.getJavaNodeManager(tr.virtualMachine());
                             assert vmm != null;
                             currentUUID = ct.uuid2Dotted(vmm.getThreadManager().getThreadUUID(tr));
                         }else if(vertex instanceof DistributedThread){

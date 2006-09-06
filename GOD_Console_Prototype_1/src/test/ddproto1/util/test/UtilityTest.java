@@ -17,10 +17,6 @@ import junit.framework.TestCase;
  */
 public class UtilityTest extends TestCase {
 
-    public static void main(String[] args) {
-        junit.textui.TestRunner.run(UtilityTest.class);
-    }
-
     public void testToHex() {
         ConversionUtil sh = ConversionUtil.getInstance();
         long num1 = 3423234;

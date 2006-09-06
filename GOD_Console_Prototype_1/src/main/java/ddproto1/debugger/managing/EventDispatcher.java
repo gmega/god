@@ -58,7 +58,7 @@ public class EventDispatcher implements IVotingManager {
     
     private static final ProcessingContextManager pcm = ProcessingContextManager.getInstance();
     private static final Logger logger = MessageHandler.getInstance().getLogger(EventDispatcher.class);
-    private static final IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private static final IJavaNodeManagerRegistry vmmf = VMManagerFactory.getRegistryManagerInstance();
 
     private VirtualMachine jvm;
     private EventQueue queue;
@@ -311,16 +311,11 @@ public class EventDispatcher implements IVotingManager {
     private VirtualMachineManager getVMMByVM(VirtualMachine vm)
         throws TargetRequestFailedException
     {
-        
-        Byte gid = vmmf.getGidByVM(vm);
-        if(gid == null)
-            throw new TargetRequestFailedException("Virtual Machine has no associated GID.");
-        
-        VirtualMachineManager vmm = (VirtualMachineManager)vmmf.getNodeManager(gid).getAdapter(VirtualMachineManager.class);
-        if(vmm == null)
+        IJavaNodeManager jnm = vmmf.getJavaNodeManager(vm);
+        if(jnm == null)
             throw new TargetRequestFailedException("Virtual machine GID is invalid or has expired.");
         
-        return vmm;
+        return (VirtualMachineManager)jnm.getAdapter(VirtualMachineManager.class);
     }
     
     private ThreadReference nonReflectiveGetThread(Event e){

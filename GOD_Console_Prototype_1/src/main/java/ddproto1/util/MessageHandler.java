@@ -7,6 +7,7 @@ package ddproto1.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -111,10 +112,14 @@ public class MessageHandler implements ILogManager{
 
     public void printStackTrace(Throwable aThrowable) {
         if (stderr == null) return;
-        final Writer result = new StringWriter();
-        final PrintWriter printWriter = new PrintWriter(result);
-        aThrowable.printStackTrace(printWriter);
+        Writer result = new StringWriter();
+        printStackTraceOn(aThrowable, result);
         this.getErrorOutput().println(result.toString());
+    }
+    
+    public void printStackTraceOn(Throwable aThrowable, Writer writer){
+        PrintWriter printWriter = new PrintWriter(writer);
+        aThrowable.printStackTrace(printWriter);
     }
     
     public void setLogManagerDelegate(ILogManager man){
@@ -138,4 +143,20 @@ public class MessageHandler implements ILogManager{
         if(logManager == null)
             throw new HandlerException("Log manager hasn't been set.");
     }
+    
+    public void logExceptions(List<Exception> exceptions){
+        checkLogManager();
+        logExceptions(getLogger(MessageHandler.class), exceptions);
+    }
+    
+    public void logExceptions(Logger logger, List<Exception> exceptions){
+        if(exceptions.isEmpty()) return;
+        StringWriter sWriter = new StringWriter();
+        for(Exception ex : exceptions){
+            printStackTraceOn(ex, sWriter);
+            sWriter.append('\n');
+        }
+        logger.error(sWriter.getBuffer().toString());
+    }
+
 }

@@ -68,12 +68,14 @@ public class ProcessServerLauncher implements IApplicationLauncher, ProcessServe
         /** Starts by trying to render the commandline and acquiring a reference
          * to the remote executor. */
         String [] commandLine;
+        String localAddress;
         ICommandLine pyExec;
         IRemoteCommandExecutor rcomExe;
         
         IObjectSpec _this; 
         
         try{
+            localAddress = getAttribute(LOCAL_AGENT_ADDRESS);
             _this = getServiceLocator().getMetaobject(this);
             commandLine = getCommandLine(_this).renderCommandLine();
             rcomExe = getExecutor(_this);
@@ -94,7 +96,10 @@ public class ProcessServerLauncher implements IApplicationLauncher, ProcessServe
         }
         
         /** Now we get/generate a label for the process. */
-        String processLabel = getAttribute(this, IConfigurationConstants.NAME_ATTRIB, "<unlabeled>");
+        String processLabel = getAttribute(this, IConfigurationConstants.NAME_ATTRIB, null);
+        if(processLabel == null){
+            processLabel = "Remote process at [" + localAddress + "]";
+        }
         
         /** Attempts to start the process server manager,
          * if not already started.

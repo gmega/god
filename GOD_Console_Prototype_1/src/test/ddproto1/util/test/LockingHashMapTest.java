@@ -15,9 +15,6 @@ import junit.framework.TestCase;
 public class LockingHashMapTest extends TestCase {
 
     private LockingHashMap mp = new LockingHashMap();
-    
-    public static void main(String[] args) {
-    }
 
     public void testLockForReading() {
         Thread tr = new Thread(new Reader());

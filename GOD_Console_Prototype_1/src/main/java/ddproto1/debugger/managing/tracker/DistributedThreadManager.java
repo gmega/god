@@ -4,6 +4,7 @@
  */
 package ddproto1.debugger.managing.tracker;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -142,7 +143,10 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
         ByteMessage ret = null;
         byte mode;
         
-        ILocalNodeManager vmm = VMManagerFactory.getInstance().getNodeManager(gid);
+        // This is the last coupling between java and DTM. Removing this requires
+        // changing the way the debugger gives access to the node manager registries.
+        // An extra level of indirection would surely suffice.
+        ILocalNodeManager vmm = VMManagerFactory.getRegistryManagerInstance().getNodeManager(gid);
         assert vmm != null;
         
         try {
@@ -218,7 +222,7 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
                             if(ilt == null)
                                 vsf.flagAsDamaged("Thread being pushed doesn't exist.");
 
-                            current = new DistributedThread(vsf, vmm.getThreadManager(), parent);
+                            current = new DistributedThread(vsf, this, parent);
                         }else{
                             vsf = new VirtualStackframe(op, null, null, parent);
                             current = new DistributedThread(vsf, null, null);
@@ -711,7 +715,9 @@ public class DistributedThreadManager implements IRequestHandler, IThreadManager
     public IThread[] getThreads() {
         try{
             beginSnapshot();
-            return (IThread[])dthreads.values().toArray(); 
+            Collection <DistributedThread> dThreadsCol = dthreads.values();
+            DistributedThread [] dThreads = new DistributedThread[dThreadsCol.size()];
+            return dthreads.values().toArray(dThreads); 
         }finally{
             endSnapshot();
         }

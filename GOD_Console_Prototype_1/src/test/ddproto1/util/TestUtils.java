@@ -6,13 +6,11 @@
 package ddproto1.util;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -20,7 +18,6 @@ import org.osgi.framework.Bundle;
 
 import ddproto1.GODBasePlugin;
 import ddproto1.configurator.ConfiguratorUtils;
-import ddproto1.launcher.procserver.PyExpectSSHExecutor;
 
 public class TestUtils implements TestConfigurationConstants{
 

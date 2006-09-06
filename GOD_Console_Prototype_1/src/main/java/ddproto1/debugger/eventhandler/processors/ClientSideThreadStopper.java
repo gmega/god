@@ -20,7 +20,7 @@ import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.managing.IJavaNodeManager;
-import ddproto1.debugger.managing.IVMManagerFactory;
+import ddproto1.debugger.managing.IJavaNodeManagerRegistry;
 import ddproto1.debugger.managing.JavaThread;
 import ddproto1.debugger.managing.StepRequestSpec;
 import ddproto1.debugger.managing.VMManagerFactory;
@@ -30,6 +30,9 @@ import ddproto1.exception.commons.UnsupportedException;
  * This class is responsible for implementing the thread resumption protocol that correctly puts
  * the client-side thread at the place it's meant to be. It basically discards a breakpoint 
  * and sets two step requests, one of which should be discarded. 
+ * 
+ * This class will also step return if the thread is detected to step into the instrumented
+ * finally block. 
  * 
  * Can be flyweighted as it strives not to keep any internal, node-specific state. 
  * Does not need synchronization. Extrinsic state comes with the request.
@@ -43,13 +46,13 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
     public static final Object THREAD_TRAP_PROTOCOL = new Object();
     
     private static final Object PROTOCOL_SLOT = new Object();
-    private static final IVMManagerFactory vmmf = VMManagerFactory.getInstance();
+    private static final IJavaNodeManagerRegistry vmmf = VMManagerFactory.getRegistryManagerInstance();
     
     public void specializedProcess(Event e) 
         throws DebugException
     {
-        if(e instanceof BreakpointEvent) processPhaseOne((BreakpointEvent)e);
-        else if(e instanceof StepEvent) processOtherPhases((StepEvent)e);
+        if(e instanceof BreakpointEvent) processBreakpoint((BreakpointEvent)e);
+        else if(e instanceof StepEvent) processStepEvent((StepEvent)e);
         else
             throw new UnsupportedException(ClientSideThreadStopper.class
                     .toString() 
@@ -57,7 +60,7 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
     }
     
         
-    private void processPhaseOne(BreakpointEvent bpe)
+    private void processBreakpoint(BreakpointEvent bpe)
         throws DebugException
     {
         Method method = bpe.location().method();
@@ -68,20 +71,24 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
         }
     }
     
-    private void processOtherPhases(StepEvent se)
+    private void processStepEvent(StepEvent se)
         throws DebugException
     {
         Integer phase = (Integer)se.request().getProperty(PROTOCOL_SLOT);
-        if(phase == null) return;
-        else if ((phase == 2) || (phase == 3)){
+        
+        if(phase == null){
+            if(isAtInstrumentationCode(se.location())){
+                placeQuietStepReturn(se);
+            }
+            return;
+        }else if ((phase == 2) || (phase == 3)){
             advancePhase(se, phase, false);
         } else if (phase == 4){
-            Location loc = se.location();
-            int line = loc.lineNumber();
-            if(line == DebuggerConstants.MAX_SOURCE_LINE){
+            if(isAtInstrumentationCode(se.location())){
                 advancePhase(se, phase, true);
             }else{
-                getJavaThread(se).prepareForRemoteStepReturn();
+                getJavaThread(se).
+                    prepareForRemoteStepReturn();
             }
                 
         }else if (phase == 5){
@@ -90,6 +97,16 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
             throw new UnsupportedException(
                     "Unsupported protocol or protocol error.");
         }
+    }
+    
+    private void placeQuietStepReturn(LocatableEvent le)
+        throws DebugException
+    {
+        JavaThread jt = getJavaThread(le);
+        jt.clearPendingStepRequests();
+        StepRequestSpec srSpec = StepRequestSpec.quietDelayed();
+        jt.step(StepRequest.STEP_OUT, srSpec);
+        voteForResumption();
     }
     
     private void advancePhase(LocatableEvent se, int currentPhase, boolean lastPhase)
@@ -116,16 +133,28 @@ public class ClientSideThreadStopper extends AbstractEventProcessor{
         jThread.clearPendingStepRequests();
         jThread.step(StepRequest.STEP_OUT, srSpec);
         
-        /* Votes for resuming the set. */
-        IProcessingContext ipc = ProcessingContextManager.getInstance().getProcessingContext();
-        ipc.vote(IEventManager.RESUME_SET);
+        voteForResumption();
     }
     
     private JavaThread getJavaThread(LocatableEvent le){
-        IJavaNodeManager nManager = (IJavaNodeManager) vmmf.getNodeManager(
-                vmmf.getGidByVM(le.virtualMachine())).getAdapter(
-                IJavaNodeManager.class);
+        IJavaNodeManager nManager = vmmf
+                .getJavaNodeManager(le.virtualMachine());
         return nManager.getThreadManager().getAdapterForThread(le.thread());
+    }
+    
+    private boolean isAtInstrumentationCode(Location loc){
+        if(loc == null) return false;
+        int line = loc.lineNumber();
+        if(line == DebuggerConstants.MAX_SOURCE_LINE){
+            return true;
+        }
+        return false;
+    }
+    
+    private void voteForResumption(){
+        /* Votes for resuming the set. */
+        IProcessingContext ipc = ProcessingContextManager.getInstance().getProcessingContext();
+        ipc.vote(IEventManager.RESUME_SET);
     }
 
 }

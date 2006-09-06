@@ -6,17 +6,10 @@
 package ddproto1.debugger.managing;
 
 import org.eclipse.debug.core.DebugException;
-import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.model.IValue;
 import org.eclipse.debug.core.model.IVariable;
 
-import com.sun.jdi.ClassNotLoadedException;
 import com.sun.jdi.LocalVariable;
-import com.sun.jdi.StackFrame;
-import com.sun.jdi.Value;
-
-import ddproto1.commons.DebuggerConstants;
-
 
 /**
  * Base functionality for all Java variable classes. 

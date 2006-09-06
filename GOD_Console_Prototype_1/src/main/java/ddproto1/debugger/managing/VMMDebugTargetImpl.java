@@ -24,6 +24,7 @@ import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IBreakpointManager;
+import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IDebugTarget;
@@ -47,7 +48,7 @@ import ddproto1.util.MessageHandler;
 import ddproto1.util.traits.JDIEventProcessorTrait;
 import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
 
-public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTarget, JDIEventProcessorTraitImplementor{
+public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTarget, IDebugEventSetListener{
     
     private static final Logger logger = MessageHandler.getInstance().getLogger(VMMDebugTargetImpl.class);
 
@@ -59,15 +60,13 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
     
     private boolean supportsDisconnect;
     
-    private boolean resumeOnStart;
-    
     private IProcess process;
     
     private List<JavaBreakpoint> installedBreakpoints = new ArrayList<JavaBreakpoint>();
     private BidiMap mappedBreakpoints = new DualHashBidiMap();
     
     public VMMDebugTargetImpl(ILaunch launch, boolean supportTerminate, 
-            boolean supportDisconnect, IProcess process, boolean resume, 
+            boolean supportDisconnect, IProcess process, 
             IJavaNodeManager nManager)
         throws DebugException
     {
@@ -75,7 +74,6 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
         this.setProcess(process);
         setSupportsTerminate(supportTerminate);
         setSupportsDisconnect(supportDisconnect);
-        setResumeOnStartup(resume);
         setProcess(process);
         setLaunch(launch);
         
@@ -86,11 +84,6 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
             // One day I won't need the following line
             // (which is a part of a disgusting hack):
             DeferrableClassPrepareRequest.registerVM(vmm.getName());
-            vmm.getDeferrableRequestQueue().addEagerlyResolve(
-            		new DeferrableHookRequest(vmm.getName(),
-							IEventManager.VM_START_EVENT,
-							new JDIEventProcessorTrait(this), null));
-            
         }catch(Exception ex){
             throw new DebugException(new Status(IStatus.ERROR,
                     GODBasePlugin.getDefault().getBundle().getSymbolicName(), 
@@ -141,13 +134,6 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
     }
 
     /**
-     * @param resumeOnStart The resumeOnStart to set.
-     */
-    protected void setResumeOnStartup(boolean resumeOnStart) {
-        this.resumeOnStart = resumeOnStart;
-    }
-
-    /**
      * @param supportsDisconnect The supportsDisconnect to set.
      */
     protected void setSupportsDisconnect(boolean supportsDisconnect) {
@@ -192,7 +178,8 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
     }
     
     public void terminate() throws DebugException {
-        vmm.terminate();
+        if(!vmm.isTerminated() && !vmm.isTerminating()) vmm.terminate();
+        if(!getProcess().isTerminated()) getProcess().terminate();
     }
 
     public boolean canResume() {
@@ -205,7 +192,6 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
     
     private void initializeBreakpoints(){
         IBreakpointManager manager= DebugPlugin.getDefault().getBreakpointManager();
-        manager.addBreakpointListener(this);
         IBreakpoint[] bps = manager.getBreakpoints(JDIDebugModel.getPluginIdentifier());
         if(bps == null) return;
         for (int i = 0; i < bps.length; i++) {
@@ -213,6 +199,7 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
                 breakpointAdded(bps[i]);
             }
         }
+        manager.addBreakpointListener(this);
     }
     
     public void resume() throws DebugException {
@@ -284,7 +271,7 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
     public void breakpointChanged(IBreakpoint breakpoint, IMarkerDelta delta) { }
 
     public boolean canDisconnect() {
-        return !isDisconnected();
+        return false; // I currently don't support disconnection.
     }
 
     public void disconnect() throws DebugException {
@@ -377,7 +364,7 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
         return adapter;
     }
 
-    public void handleDisconnect() { }
+    public void handleDisconnect() { handleDeath(); }
 
     public void handleSuspend(int detail) {
         fireSuspendEvent(detail);
@@ -387,11 +374,7 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
         fireResumeEvent(detail);
     }
 
-	public void specializedProcess(Event request) {
-		if(!(request instanceof VMStartEvent)){
-			throw new UnsupportedException("VMStartEvents are the only " +
-					"type supported by this handler.");
-		}
+	public void handleVMStarted() {
 		this.fireCreationEvent();
 		launch.addDebugTarget(this);
 	}
@@ -404,4 +387,16 @@ public class VMMDebugTargetImpl extends JavaDebugElement implements IJavaDebugTa
 	public IJDIEventProcessor next()          { return next; }
 	public boolean enabled()                  { return enabled; }
 	public void enabled(boolean newValue)     { this.enabled = newValue; }
+
+    public void handleDebugEvents(DebugEvent[] events) {
+        for(DebugEvent evt : events){
+            if(evt.getSource() == getProcess() && evt.getKind() == DebugEvent.TERMINATE){
+                try{
+                    this.terminate();
+                }catch(DebugException ex){
+                    logger.error(ex);
+                }
+            }
+        }
+    }
 }

@@ -41,7 +41,7 @@ public class DistributedThreadFrameMappingTest extends TestCase {
         // And this one, with one. 
         VirtualStackframe vsf3 = generateStackframe(null, "outCall", -1, 1, t3, target);
         
-        DistributedThread dThread = new DistributedThread(vsf3, tManager, target);
+        DistributedThread dThread = new DistributedThread(vsf3, null, target);
         
         dThread.lock();
         dThread.virtualStack().pushFrame(vsf2);
@@ -73,8 +73,6 @@ public class DistributedThreadFrameMappingTest extends TestCase {
         ILocalThread tr = 
             EasyMock.createMock(ILocalThread.class);
         
-        EasyMock.expect(tr.hasStackFrames()).andReturn(true);
-        
         IStackFrame [] frames = new IStackFrame[nFrames];
         for(int i = 0; i < frames.length; i++){
             frames[i] = EasyMock.createMock(IStackFrame.class);
@@ -83,7 +81,6 @@ public class DistributedThreadFrameMappingTest extends TestCase {
         }
         EasyMock.expect(tr.getGUID()).andReturn(new Integer(ids++)).anyTimes();
         EasyMock.expect(tr.setParentDT(EasyMock.isA(DistributedThread.class))).andReturn(true).atLeastOnce();
-        EasyMock.expect(tr.isSuspended()).andReturn(true).atLeastOnce();
         EasyMock.expect(tr.getStackFrames()).andReturn(frames).atLeastOnce();
         
         return tr;

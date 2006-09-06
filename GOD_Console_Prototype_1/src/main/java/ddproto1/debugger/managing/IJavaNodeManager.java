@@ -13,10 +13,22 @@ import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.exception.TargetRequestFailedException;
 import ddproto1.sourcemapper.ISourceMapper;
 
+/**
+ * Specialized node manager for Java (tm) programs based on our 
+ * debugger.
+ * 
+ * @author giuliano
+ */
 public interface IJavaNodeManager extends Mirror, ILocalNodeManager{
 
+    /**
+     * Terminates the current node manager.
+     */
     public void terminate();
 
+    /**
+     * Disconnects the current node manager.
+     */
     public void disconnect();
 
     public boolean isAvailable();

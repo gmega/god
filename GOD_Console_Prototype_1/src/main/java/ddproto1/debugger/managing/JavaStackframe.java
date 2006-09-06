@@ -38,6 +38,7 @@ import ddproto1.util.MessageHandler;
 public class JavaStackframe extends JavaDebugElement implements IStackFrame{
 
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaStackframe.class);
+    private static final Logger staleframeLogger = MessageHandler.getInstance().getLogger(JavaStackframe.class.getName() + ".staleframeLogger");
     
     private IThread fParentThread;
     private StackFrame fJDIStackframe;
@@ -46,8 +47,8 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     
     public JavaStackframe(JavaThread parent, StackFrame sfDelegate){
         super(parent.getJavaDebugTarget());
-        this.fJDIStackframe = sfDelegate;
-        this.fParentThread = parent;
+        fJDIStackframe = sfDelegate;
+        fParentThread = parent;
     }
     
     public IThread getThread() {
@@ -107,7 +108,9 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
         try{
             return getJDIStackframe().location();
         }catch(InvalidStackFrameException ex){
-            this.requestFailed("Error while inspecting stack frame.", ex);
+            if(staleframeLogger.isDebugEnabled())
+                staleframeLogger.debug("Stale frame: " + getJDIStackframe().toString());
+            GODBasePlugin.throwDebugExceptionWithErrorAndStatus("Frame no longer valid.", ex, DebuggerConstants.LOCAL_THREAD_RESUMED);
             return null; // Shuts up the compiler.
         }
     }
@@ -261,18 +264,22 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
         return fJDIStackframe;
     }
 
-    /** Two "Eclipse model frames" are equivalent
-     * if their underlying frames are also equivalent.
-     */
-    public boolean equals(Object another){
-        if(!(another instanceof JavaStackframe))
-            return false;
-        JavaStackframe other = (JavaStackframe)another;
-        return other.getJDIStackframe().equals(this.getJDIStackframe());
-    }
+// Equality comparison cannot be made when thread is resumed,
+// and the platform doesn't guarantee it won't call stack frame
+// methods once the thread has been resumed.
     
-    public int hashCode(){
-        return getJDIStackframe().hashCode();
-    }
+//    /** Two "Eclipse model frames" are equivalent
+//     * if their underlying frames are also equivalent.
+//     */
+//    public boolean equals(Object another){
+//        if(!(another instanceof JavaStackframe))
+//            return false;
+//        JavaStackframe other = (JavaStackframe)another;
+//        return other.getJDIStackframe().equals(this.getJDIStackframe());
+//    }
+//    
+//    public int hashCode(){
+//        return fHashCode;
+//    }
 
 }

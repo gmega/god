@@ -15,7 +15,4 @@ public interface INodeManagerFactory {
     public ILocalNodeManager createNodeManager(IObjectSpec vmmspec)
         throws ConfigException, AttributeAccessException,
         IncarnationException;
-    
-    public ILocalNodeManager getNodeManager(String id);
-
 }

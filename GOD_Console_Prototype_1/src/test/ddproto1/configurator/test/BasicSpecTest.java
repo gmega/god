@@ -18,47 +18,7 @@ import ddproto1.util.MessageHandler;
 import ddproto1.util.TestUtils;
 
 public class BasicSpecTest extends TestCase{
-    
-    protected MessageHandler mh;
 
-    public void setUp(){
-        // This is required for all test cases.
-        IMessageBox stdout = new IMessageBox(){
-            public void println(String s){
-                System.out.println(s);
-            }
-            
-            public void print(String s){
-                System.out.print(s);
-            }
-        };
-        
-        IMessageBox stderr = new IMessageBox(){
-            public void println(String s){
-                System.err.println(s);
-            }
-            
-            public void print(String s){
-                System.err.print(s);
-            }
-        };
-        
-        mh = MessageHandler.getInstance();
-        mh.setErrorOutput(stderr);
-        mh.setStandardOutput(stdout);
-        
-        BasicConfigurator.configure();
-        
-        mh.setLogManagerDelegate(new ILogManager(){
-            public Logger getLogger(Class c) {
-                return Logger.getLogger(c);
-            }
-            public Logger getLogger(String name) {
-                return Logger.getLogger(name);
-            }
-        });
-    }
-    
     protected SpecLoader getDefaultSpecLoader()
         throws Exception
     {

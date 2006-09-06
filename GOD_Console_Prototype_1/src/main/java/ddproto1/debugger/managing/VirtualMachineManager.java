@@ -26,6 +26,7 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
+import com.sun.jdi.event.VMStartEvent;
 import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.ThreadDeathRequest;
 import com.sun.jdi.request.ThreadStartRequest;
@@ -38,19 +39,18 @@ import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.DelegatingHandler;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IVotingManager;
+import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
-import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.ClassPrepareNotifier;
+import ddproto1.debugger.eventhandler.processors.ClientSideThreadStopper;
 import ddproto1.debugger.eventhandler.processors.ExceptionHandler;
 import ddproto1.debugger.eventhandler.processors.IJDIEventProcessor;
 import ddproto1.debugger.eventhandler.processors.ResumingChainTerminator;
 import ddproto1.debugger.eventhandler.processors.SourcePrinter;
-import ddproto1.debugger.eventhandler.processors.StepRequestClearer;
 import ddproto1.debugger.eventhandler.processors.ThreadInfoGatherer;
 import ddproto1.debugger.eventhandler.processors.ThreadUpdater;
 import ddproto1.debugger.managing.tracker.ComponentBoundaryRecognizer;
 import ddproto1.debugger.request.DeferrableBreakpointRequest;
-import ddproto1.debugger.request.DeferrableHookRequest;
 import ddproto1.debugger.request.DeferrableRequestQueue;
 import ddproto1.debugger.request.IDeferrableRequest;
 import ddproto1.debugger.request.StdPreconditionImpl;
@@ -67,10 +67,8 @@ import ddproto1.exception.commons.NestedRuntimeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.exception.commons.UnsupportedException;
 import ddproto1.sourcemapper.ISourceMapper;
-import ddproto1.util.DelayedResult;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
-import ddproto1.util.PolicyManager;
 import ddproto1.util.traits.JDIEventProcessorTrait;
 import ddproto1.util.traits.JDIEventProcessorTrait.JDIEventProcessorTraitImplementor;
 import ddproto1.util.traits.commons.ConversionUtil;
@@ -82,7 +80,8 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * acts as a façade for placing requests.
  * 
  * Responsible for assembling Dispatchers, Handlers and IJDIEventProcessor
- * chains.
+ * chains. Most of these handlers would be better in a configuration file,
+ * though.
  * 
  * This class should be thread-safe, but it's not. As it is, this class is  
  * a recipe for disaster. There is a lot of legacy code there. I must merge
@@ -111,16 +110,20 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     
     private static final int JVM_EXIT_CODE = 1;
 
-    private DeferrableRequestQueue queue;
-    private EventDispatcher disp = null;
-    private DelegatingHandler handler;
-    private ISourceMapper smapper;
-    private VirtualMachine jvm;
-    private ThreadManager tm;
+    private DeferrableRequestQueue fRequestQueue;
+    private EventDispatcher fEventDispatcher = null;
+    private DelegatingHandler fDelegatingHandler;
+    private ISourceMapper fSourceMapper;
+    private VirtualMachine fVirtualMachine;
+    private ThreadManager fThreadManager;
+    
+    private VMManagerFactory fVMManagerFactory;
+    
+    // Yuck. This has to get out of here.
     private AbstractEventProcessor aed;
     
-    private IJDIEventProcessor _thisProcessor;
-    private IJDIEventProcessor next;
+    private IJDIEventProcessor fProcessorRef;
+    private IJDIEventProcessor fNextProcessor;
    
     private volatile VMMDebugTargetImpl target;
     
@@ -150,22 +153,25 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     {
         synchronized(this){
             setHandler(new DelegatingHandler());
-            setDisp(new EventDispatcher(handler));
+            setDisp(new EventDispatcher(fDelegatingHandler));
             set_thisProcessor(new JDIEventProcessorTrait(this));
+            setDeferrableRequestQueue(new DeferrableRequestQueue(DeferrableRequestQueue.ALLOW_DUPLICATES));
         }
-        /*TODO When code hits beta, enable the disallow duplicates. */
-        //queue = new DeferrableRequestQueue(name, DeferrableRequestQueue.DISALLOW_DUPLICATES);
+    }
+    
+    protected synchronized void setParentVMManagerFactory(VMManagerFactory vmmf){
+        fVMManagerFactory = vmmf;
     }
     
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IJavaNodeManager#getDeferrableRequestQueue()
      */
     public synchronized DeferrableRequestQueue getDeferrableRequestQueue(){
-        return queue;
+        return fRequestQueue;
     }
     
     private synchronized void setDeferrableRequestQueue(DeferrableRequestQueue drq){
-        this.queue = drq;
+        this.fRequestQueue = drq;
     }
     
     /** Returns the associated JVM mirror.
@@ -176,9 +182,9 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     public synchronized VirtualMachine virtualMachine()
     		throws VMDisconnectedException
     {
-        if(jvm == null)
+        if(fVirtualMachine == null)
             throw new VMDisconnectedException("VM proxy not ready.");
-        return jvm;
+        return fVirtualMachine;
     }
     
     /* (non-Javadoc)
@@ -221,21 +227,23 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
         Throwable thrown = null;
         
         // Attempts to attach.
-        try{
-            /** For the target to be eligible for conection,
-             * it cannot be connected, disconnecting, terminating nor
-             * terminated. The only viable state is stopped.
-             */
-            synchronized(this){
-                if(isConnected() || isDisconnecting() || isTerminating() || isTerminated() || isConnecting()){
-                    throw new IllegalStateException("Target is not in a valid state.");
-                }
-                this.connecting();
+        /**
+         * For the target to be eligible for conection, it cannot be connected,
+         * disconnecting, terminating nor terminated. The only viable state is
+         * stopped.
+         */
+        synchronized (this) {
+            if (isConnected() || isDisconnecting() || isTerminating()
+                    || isTerminated() || isConnecting()) {
+                throw new IllegalStateException(
+                        "Target is not in a valid state.");
             }
-
+            this.connecting();
+        }
+        try {
             /** We now create the debug target. */
             VMMDebugTargetImpl dti = 
-            		new VMMDebugTargetImpl(process.getLaunch(), true, false, process, true, this);
+            		new VMMDebugTargetImpl(process.getLaunch(), true, false, process, this);
 
             assembleStartHandlers();
             setJvm(getConn().connect());
@@ -245,7 +253,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             target = dti;
 
             /* This will start the event dispatcher */
-            disp.handleNext();
+            fEventDispatcher.handleNext();
 
         }catch(Throwable t){
             thrown = t;
@@ -327,39 +335,39 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
      */
     public IJavaThreadManager getThreadManager(){
         checkConnected();
-        return tm;
+        return fThreadManager;
     }
     
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IJavaNodeManager#getEventManager()
      */
     public IEventManager getEventManager(){
-        return handler;
+        return fDelegatingHandler;
     }
     
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IJavaNodeManager#getSourceMapper()
      */
     public ISourceMapper getSourceMapper(){
-        if(smapper == null){
+        if(fSourceMapper == null){
             throw new VMDisconnectedException(
                     " Error - SourceMapper is not yet ready.");
         }
-        return smapper;
+        return fSourceMapper;
     }
     
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IJavaNodeManager#getDispatcher()
      */
     public EventDispatcher getDispatcher(){
-        return disp;
+        return fEventDispatcher;
     }
     
     /* (non-Javadoc)
      * @see ddproto1.debugger.managing.IJavaNodeManager#getVotingManager()
      */
     public IVotingManager getVotingManager(){
-        return disp;
+        return fEventDispatcher;
     }
  
     /* (non-Javadoc)
@@ -412,13 +420,14 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
 //        er.setSuspendPolicy(PolicyManager.getInstance().getPolicy("request.exception"));
 //        er.enable();
         
+        
         // Listen to all thread start events
-        ThreadStartRequest tsr = jvm.eventRequestManager().createThreadStartRequest();
+        ThreadStartRequest tsr = fVirtualMachine.eventRequestManager().createThreadStartRequest();
         tsr.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         tsr.enable();
         
         // and thread death events
-        ThreadDeathRequest tdr = jvm.eventRequestManager().createThreadDeathRequest();
+        ThreadDeathRequest tdr = fVirtualMachine.eventRequestManager().createThreadDeathRequest();
         tdr.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         tdr.enable();
         
@@ -476,16 +485,16 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             }
 
             public IVotingManager getVotingManager() {
-                if(disp == null)
+                if(fEventDispatcher == null)
                     throw new IllegalStateException("Cannot retrieve voting manager.");
-                return disp;
+                return fEventDispatcher;
             }
             
         };
         
         // Sets context for event dispatcher
-        disp.setDebugContext(dc);
-        tm = new ThreadManager(dc);
+        fEventDispatcher.setDebugContext(dc);
+        fThreadManager = new ThreadManager(dc);
         
         MessageHandler mh = MessageHandler.getInstance();
         
@@ -495,7 +504,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             // Configures the Source Mapper for this JVM.
             IServiceLocator locator = (IServiceLocator) Lookup.serviceRegistry().locate("service locator");
             IObjectSpec mapperSpec = self.getChildSupporting(ISourceMapper.class);
-            smapper = (ISourceMapper)locator.incarnate(mapperSpec);
+            fSourceMapper = (ISourceMapper)locator.incarnate(mapperSpec);
 
             /* Now the event processors - almost everything that gets done
              * by the debugger gets done at the event processor level. 
@@ -513,7 +522,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             AbstractEventProcessor csts = new ClientSideThreadStopper();
 
             // This one will print source code.
-            AbstractEventProcessor sp = new SourcePrinter(smapper, mh.getStandardOutput());
+            AbstractEventProcessor sp = new SourcePrinter(fSourceMapper, mh.getStandardOutput());
             sp.setDebugContext(dc);
             
             // Exception handler (prints remote unhandled exceptions on-screen)
@@ -544,20 +553,20 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             /* Registers the thread manager as a listener for events regarding
              * non-distributed thread births and deaths. 
              */
-            handler.addEventListener(DelegatingHandler.THREAD_START_EVENT, tm);
-            handler.addEventListener(DelegatingHandler.THREAD_DEATH_EVENT, tm);
+            fDelegatingHandler.addEventListener(DelegatingHandler.THREAD_START_EVENT, fThreadManager);
+            fDelegatingHandler.addEventListener(DelegatingHandler.THREAD_DEATH_EVENT, fThreadManager);
                         
             /* This is part of the complicated mechanism described in the 
              * documentation of the ddproto1.localagent.Tagger class. 
              * Refer to its documentation if you wish to understand the 
              * meaning of the following line: 
              */
-            handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, tm);            
+            fDelegatingHandler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, fThreadManager);            
                         
             /* Gathers thread information for LocatableEvents of interest. */
-            handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, tig);
-            handler.addEventListener(DelegatingHandler.STEP_EVENT, tig);
-            handler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, tig);
+            fDelegatingHandler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, tig);
+            fDelegatingHandler.addEventListener(DelegatingHandler.STEP_EVENT, tig);
+            fDelegatingHandler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, tig);
             
             /* Clears fulfilled step requests. This guy should come before any processors
              * that make step requests. */
@@ -567,60 +576,62 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
                 Set <Integer> policySet = new HashSet<Integer>();
                 policySet.add(new Integer(EventRequest.SUSPEND_ALL));
                 policySet.add(new Integer(EventRequest.SUSPEND_EVENT_THREAD));
-                handler.addEventListener(DelegatingHandler.STEP_EVENT, cbr);
-                handler.setListenerPolicyFilters(cbr, policySet);
+                fDelegatingHandler.addEventListener(DelegatingHandler.STEP_EVENT, cbr);
+                fDelegatingHandler.setListenerPolicyFilters(cbr, policySet);
             }
             
             /* Protocol for resuming threads should be processed just below the
              * thread information gatherer and after the step request clearer.
              */
-            handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, csts);
-            handler.addEventListener(DelegatingHandler.STEP_EVENT, csts);
+            fDelegatingHandler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, csts);
+            fDelegatingHandler.addEventListener(DelegatingHandler.STEP_EVENT, csts);
             
             /* Updates the current thread whenever the JVM might get interrupted */
-            handler.addEventListener(DelegatingHandler.ALL, tu);
-            handler.removeEventListener(DelegatingHandler.VM_DEATH_EVENT, tu);
+            fDelegatingHandler.addEventListener(DelegatingHandler.ALL, tu);
+            fDelegatingHandler.removeEventListener(DelegatingHandler.VM_DEATH_EVENT, tu);
             Set<Integer>onHalt = new HashSet<Integer>();
             onHalt.add(new Integer(EventRequest.SUSPEND_ALL));
-            handler.setListenerPolicyFilters(tu, onHalt);
+            fDelegatingHandler.setListenerPolicyFilters(tu, onHalt);
             
             /* Retries deferred requests whenever a new class is loaded. */
-            handler.addEventListener(DelegatingHandler.CLASSPREPARE_EVENT, dee);
+            fDelegatingHandler.addEventListener(DelegatingHandler.CLASSPREPARE_EVENT, dee);
                                 
             /* Prints source code whenever a breakpoint is hit or when a
                stepping event is commanded. */
-            handler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, sp);
-            handler.addEventListener(DelegatingHandler.STEP_EVENT, sp);
+            fDelegatingHandler.addEventListener(DelegatingHandler.BREAKPOINT_EVENT, sp);
+            fDelegatingHandler.addEventListener(DelegatingHandler.STEP_EVENT, sp);
 
             /* Notifies us so we can reset the event request queue. */
-            handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, _thisProcessor);
-            handler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, _thisProcessor);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, fProcessorRef);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, fProcessorRef);
             
             /* Inserts the application exception detector before our exception
              * printer.
              */
             if(aed != null){
-                handler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, aed);
+                fDelegatingHandler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, aed);
                 aed.setDebugContext(dc);
             }
             
             /* Prints data about caught/uncaught exceptions so we know what's
                happening at the remote JVM. */
-            handler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, eh);
+            fDelegatingHandler.addEventListener(DelegatingHandler.EXCEPTION_EVENT, eh);
             
             
             /** Insert the thread manager as a listener for VMStartEvent */
-            handler.addEventListener(DelegatingHandler.VM_START_EVENT, tm);
-            handler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, tm);
-            handler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, tm);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_START_EVENT, fThreadManager);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, fThreadManager);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_DISCONNECT_EVENT, fThreadManager);
+            
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_START_EVENT, fProcessorRef);
+            this.getVotingManager().declareVoterFor(IEventManager.RESUME_SET);
             
             /* If we don't insert this processor in the chains for handling
              * VMStart and VMDeath events, the VM will remain halted after 
              * dispatching them, because since the chains are empty by default,
              * there's no one there to vote for resuming.
              */
-            handler.addEventListener(DelegatingHandler.VM_START_EVENT, rct);
-            handler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, rct);
+            fDelegatingHandler.addEventListener(DelegatingHandler.VM_DEATH_EVENT, rct);
 
         } catch (Throwable t) { 
             logger.error("Error while setting event handlers! Debugger may not operate correctly.", t);
@@ -656,7 +667,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     }
     
     private void checkConnected() throws VMDisconnectedException{
-        if(!disp.isConnected()){
+        if(!fEventDispatcher.isConnected()){
             throw new VMDisconnectedException(
             	" Error - Connection with remote JVM is not available.");
 
@@ -664,7 +675,13 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     }
 
     public void specializedProcess(Event e) {
-        if(e instanceof VMDisconnectEvent){
+        if(e instanceof VMStartEvent){
+            if(isConnected()){
+                target.handleVMStarted();
+                ProcessingContextManager.getInstance().getProcessingContext().vote(IEventManager.RESUME_SET);
+            }
+            return;
+        }else if(e instanceof VMDisconnectEvent){
         	if(isTerminating()) terminated();
         	else disconnected();
         }else if(e instanceof VMDeathEvent){
@@ -672,13 +689,12 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
         }else{
             throw new UnsupportedException("Can't handle event of type " + e.getClass().toString());
         }
-        
         getDeferrableRequestQueue().reset();
     }
 
-    public void next(IJDIEventProcessor iep) { next = iep; }
+    public void next(IJDIEventProcessor iep) { fNextProcessor = iep; }
     
-    public IJDIEventProcessor next() { return next; }
+    public IJDIEventProcessor next() { return fNextProcessor; }
 
     public void enabled(boolean status) { this.isEnabled = status; }
     
@@ -688,8 +704,6 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     public void setAttribute(String key, String val) throws IllegalAttributeException, InvalidAttributeValueException {
         if(key.equals(IConfigurationConstants.NAME_ATTRIB)){
             name = val;
-            setDeferrableRequestQueue(new DeferrableRequestQueue(name,
-                    DeferrableRequestQueue.ALLOW_DUPLICATES));
         } else if(key.equals(IConfigurationConstants.GUID_ATTRIBUTE)){
             gid = val;
         }
@@ -721,7 +735,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
         try{
             virtualMachine().suspend();
             suspended(true);
-            tm.notifyVMSuspend();
+            fThreadManager.notifyVMSuspend();
             fireSuspended(DebugEvent.CLIENT_REQUEST);
         }catch(Exception ex){
             logger.error("Failed to suspend virtual machine.");
@@ -745,7 +759,7 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     			throw new TargetRequestFailedException("VM is unavailable");
         try{
             virtualMachine().resume();
-            tm.notifyVMResume();
+            fThreadManager.notifyVMResume();
             fireResumed(DebugEvent.CLIENT_REQUEST);
         }catch(Exception ex){
             logger.error("Failed to resume virtual machine.");
@@ -764,11 +778,18 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     }
     
     protected void fireDisconnected(){
+        notifyDeath();
         if(target != null) target.handleDisconnect();
     }
     
     protected void fireTerminated(){
+        notifyDeath();
         if(target != null) target.handleDeath();
+    }
+    
+    private void notifyDeath(){
+        if(fVMManagerFactory != null) fVMManagerFactory.notifyNodeDeath(this);
+        fThreadManager.notifyDeath();
     }
 
 	public synchronized IJavaDebugTarget getDebugTarget()
@@ -844,19 +865,21 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
 	
 	private synchronized void disconnecting(){ 
         performTransition(isConnected(), DISCONNECTING);
+        prepareForShutdown();
 	}
     
 	private synchronized void terminating(){
         performTransition(isConnected(), TERMINATING);
+        prepareForShutdown();
 	}
 
 	private synchronized void disconnected(){
         performTransition(isConnecting() || isDisconnecting(), DISCONNECTED);
+        fireDisconnected();
 	}
 
 	private synchronized void terminated(){
         performTransition(isTerminating() || isConnecting() || isConnected(), TERMINATED);
-	    if(target != null) target.handleDeath();
 	    fireTerminated();
 	}
 	
@@ -868,7 +891,9 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
 	    suspended = stats;
 	}
     
-    private synchronized void connected(){
+    private synchronized void connected()
+        throws DebugException
+    {
         performTransition(isConnecting(), CONNECTED);
         
         /* We've reached a precondition - the VM is now connected and ready. */
@@ -884,8 +909,10 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
             /* Resolves all the events which were waiting for this precondition to
              * be satisfied.
              */
-            queue.resolveForContext(srci);
-        }catch(Exception ex){ }
+            fRequestQueue.resolveForContext(srci);
+        }catch(Exception ex){ 
+            GODBasePlugin.throwDebugExceptionWithError("Error while resolving requests.", ex);
+        }
     }
     
     private void performTransition(boolean condition, int newState){
@@ -909,42 +936,45 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
     }
     
     private synchronized void setHandler(DelegatingHandler handler) {
-        this.handler = handler;
+        this.fDelegatingHandler = handler;
     }
 
     private synchronized void setDisp(EventDispatcher disp) {
-        this.disp = disp;
+        this.fEventDispatcher = disp;
     }
 
     private synchronized void setJvm(VirtualMachine jvm) {
-        this.jvm = jvm;
+        this.fVirtualMachine = jvm;
     }
 
     private synchronized void set_thisProcessor(IJDIEventProcessor processor) {
-        _thisProcessor = processor;
+        fProcessorRef = processor;
     }
 
-    public IBreakpoint setBreakpointFromEvent(ddproto1.util.commons.Event evt) throws DebugException{
-        
-        try{
+    public IBreakpoint setBreakpointFromEvent(ddproto1.util.commons.Event evt)
+            throws DebugException {
+
+        try {
             String brLine = evt.getAttribute("lin");
             String clsName = evt.getAttribute("cls");
             String ltuid = evt.getAttribute("ltid");
-        
-            JavaBreakpoint bkp = new JavaBreakpoint(clsName, Integer.parseInt(brLine), null);
 
-            /** This is really great. 
-             * The two lines of code that follow ensure that:
-             *         
-             * 1) This breakpoint will only halt the correct thread.
-             * 2) This breakpoint will remove itself after serving its purpose,
-             *    without affecting other threads or other user breakpoints. 
+            JavaBreakpoint bkp = new JavaBreakpoint(clsName, Integer
+                    .parseInt(brLine), null);
+
+            /**
+             *
+             * Thanks to JDI:
+             *
+             * 1) This breakpoint will only halt the correct thread. 2) This
+             * breakpoint will remove itself after serving its purpose, without
+             * affecting other threads or other user breakpoints.
              */
             final List<Integer> tFilters = new ArrayList<Integer>(1);
             tFilters.add(0, new Integer(fConversion.hex2Int(ltuid)));
 
             bkp.addToTarget(this.getDebugTarget(),
-                    new JavaBreakpoint.IFilterProvider(){
+                    new JavaBreakpoint.IFilterProvider() {
                         public List<Integer> getThreadFilters() {
                             return tFilters;
                         }
@@ -952,12 +982,17 @@ public class VirtualMachineManager implements JDIEventProcessorTraitImplementor,
                         public boolean isOneShot() {
                             return true;
                         }
-            });
-            
+                    });
+
             return bkp;
-        }catch(Exception ex){
-            GODBasePlugin.throwDebugExceptionWithError("Failed to set breakpoint from event.", ex);
+        } catch (Exception ex) {
+            GODBasePlugin.throwDebugExceptionWithError(
+                    "Failed to set breakpoint from event.", ex);
             return null;
         }
+    }
+    
+    private void prepareForShutdown(){
+        fThreadManager.prepareForShutdown();
     }
 }
