@@ -4,7 +4,7 @@
 	<attribute id="name" default-value="#context"/>
 	<attribute id="guid" default-value="auto"/>
 	<attribute id="log4j-config-url" default-value="auto"/>
-	<attribute id="connection-pool-size" default-value="#context"/>
+	<attribute id="connection-pool-size" default-value="1"/>
 	<attribute id="global-agent-address" default-value="#context"/>
 	<attribute id="cdwp-port" default-value="#context"/>
 
