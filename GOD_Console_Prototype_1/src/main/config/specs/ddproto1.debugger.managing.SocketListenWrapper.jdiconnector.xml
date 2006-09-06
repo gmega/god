@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ASCII"?>
 
 <spec name="JDI Listening Socket Configurable Wrapper" type="connector">
-	<attribute id="connector-type"/>
+	<attribute id="connector-type" default-value="com.sun.jdi.SocketListen"/>
 	<attribute id="listening-interface-ip" default-value="localhost"/>
 	<attribute id="jdwp-port" default-value="#context"/> 
 	<attribute id="connection-timeout" default-value="200000"/>
