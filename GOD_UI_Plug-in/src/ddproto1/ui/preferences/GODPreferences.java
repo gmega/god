@@ -1,12 +1,14 @@
 package ddproto1.ui.preferences;
 
-import org.eclipse.jface.preference.*;
-import org.eclipse.ui.IWorkbenchPreferencePage;
+import java.util.Properties;
+
+import org.eclipse.jface.preference.FieldEditorPreferencePage;
+import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchPreferencePage;
 
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.plugin.ui.DDUIPlugin;
-import ddproto1.plugin.ui.IDebuggerConstantsUI;
 
 /**
  * This class represents a preference page that
@@ -39,22 +41,13 @@ public class GODPreferences
 	 * restore itself.
 	 */
 	public void createFieldEditors() {
-		addField(
-			new StringFieldEditor(IDebuggerConstantsUI.NODE_CONFIG_TYPE, "Roo&t configuration attribute type:", getFieldEditorParent()));
-        addField(
-                new StringFieldEditor(IDebuggerConstantsUI.TOC_SUBPATH, "&Specification directory relative path list:", getFieldEditorParent()));
-        addField(
-                new StringFieldEditor(IDebuggerConstantsUI.SPECS_SUBPATH_LIST, "&TOC relative path:", getFieldEditorParent()));
+        Properties props = DDUIPlugin.getDefault().getPreferencePagesSpec();
         
-        addField(
-                new StringFieldEditor(THREAD_POOL_SIZE, "&Maximum thread pool size:", getFieldEditorParent()));
-        addField(
-                new StringFieldEditor(CDWP_PORT, "CDWP &Port:", getFieldEditorParent()));
-        addField(
-                new StringFieldEditor(MAX_QUEUE_LENGTH, "Maximum &connection queue size:", getFieldEditorParent()));
-        addField(
-                new StringFieldEditor(GLOBAL_AGENT_ADDRESS, "&Global agent IP address:", getFieldEditorParent()));
-
+        for(Object propKey : props.keySet()){
+            String _propKey = (String)propKey;
+            addField(new StringFieldEditor(_propKey, props
+                    .getProperty(_propKey), getFieldEditorParent()));
+        }
 	}
 
 	/* (non-Javadoc)
