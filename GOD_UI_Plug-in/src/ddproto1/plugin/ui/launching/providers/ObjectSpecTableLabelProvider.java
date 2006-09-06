@@ -15,12 +15,12 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.widgets.Display;
 import org.osgi.framework.Bundle;
 
-
 import ddproto1.configurator.IAttribute;
 import ddproto1.exception.commons.AttributeAccessException;
 import ddproto1.exception.commons.IllegalAttributeException;
 import ddproto1.exception.commons.UninitializedAttributeException;
 import ddproto1.plugin.ui.DDUIPlugin;
+import ddproto1.plugin.ui.UIDebuggerConstants;
 
 public class ObjectSpecTableLabelProvider extends LabelProvider implements ITableLabelProvider {
 
@@ -30,7 +30,7 @@ public class ObjectSpecTableLabelProvider extends LabelProvider implements ITabl
     public ObjectSpecTableLabelProvider(ObjectSpecTableContentProvider contentProvider){
         try{
             Bundle bundle = DDUIPlugin.getDefault().getBundle();
-            URL ctxImageURL = bundle.getEntry("images/ctx.png");
+            URL ctxImageURL = bundle.getEntry(UIDebuggerConstants.CONTEXT_ICON);
             if(ctxImageURL != null)
                 ctxImage = new Image(Display.getCurrent(), new ImageData(ctxImageURL.openStream()));
             this.contentProvider = contentProvider;

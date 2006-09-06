@@ -16,6 +16,7 @@ import org.osgi.framework.Bundle;
 
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.plugin.ui.DDUIPlugin;
+import ddproto1.plugin.ui.UIDebuggerConstants;
 
 public class ObjectSpecLabelAdapter extends LabelProvider {
 
@@ -25,7 +26,7 @@ public class ObjectSpecLabelAdapter extends LabelProvider {
         throws IOException
     {
         Bundle bundle = DDUIPlugin.getDefault().getBundle();
-        URL specImageURL = bundle.getEntry("images/spec.png");
+        URL specImageURL = bundle.getEntry(UIDebuggerConstants.SPECIFICATION_ICON);
         if(specImageURL != null)
             spec = new Image(Display.getCurrent(), new ImageData(specImageURL.openStream()));
     }
