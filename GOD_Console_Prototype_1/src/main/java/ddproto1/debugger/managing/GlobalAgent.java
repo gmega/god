@@ -33,6 +33,7 @@ import ddproto1.configurator.PropertyHandler;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.commons.IQueriableConfigurable;
 import ddproto1.debugger.managing.tracker.DistributedThreadManager;
+import ddproto1.debugger.managing.tracker.GODDebugElement;
 import ddproto1.debugger.managing.tracker.NilDistributedThread;
 import ddproto1.debugger.server.SeparatingHandler;
 import ddproto1.debugger.server.SocketServer;
@@ -56,7 +57,7 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * @author giuliano
  *
  */
-public class GlobalAgent extends DebugElement implements IDebugTarget, INodeManager, IQueriableConfigurable, IConfigurationConstants{
+public class GlobalAgent extends GODDebugElement implements IDebugTarget, INodeManager, IQueriableConfigurable, IConfigurationConstants{
 
     private static Logger logger = 
         MessageHandler.getInstance().getLogger(GlobalAgent.class);
@@ -276,8 +277,6 @@ public class GlobalAgent extends DebugElement implements IDebugTarget, INodeMana
     public String getName(){
         return fName;
     }
-
-    public String getModelIdentifier() { return GODBasePlugin.getDefault().getBundle().getSymbolicName(); }
 
     /**
      * Tells if the global agent can be stopped. If it's running, 
