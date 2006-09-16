@@ -71,4 +71,6 @@ public interface DebuggerConstants {
     
     public static final int    ILLEGAL_THREAD_MOVEMENT = 0;
     public static final int    LOCAL_THREAD_RESUMED  = 1;
+    
+    public static final long DEFAULT_PROCSERVER_SHUTDOWN_TIMEOUT = 20000;
 }
