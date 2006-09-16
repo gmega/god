@@ -35,6 +35,7 @@ import javax.rmi.PortableRemoteObject;
 
 import org.apache.log4j.Logger;
 
+import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.commons.IConfigurable;
 import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.configurator.commons.IQueriableConfigurable;
@@ -381,11 +382,11 @@ public class ProcessServerManager implements IConfigurationConstants,
 	public void stop() throws Exception {
 	    if(!startState.compareAndSet(STARTED, STOPPING))
 	        throw new IllegalStateException("You cannot stop a non-started service.");
-		
+
+        shutdownAllServers();
 		getRMIRegistry().unbind(getAttribute(CALLBACK_OBJECT_PATH));
 		PortableRemoteObject.unexportObject(callback);
         stopRMIRegistry();
-        shutdownAllServers();
 		startState.set(STOPPED);
 	}
     
@@ -463,7 +464,7 @@ public class ProcessServerManager implements IConfigurationConstants,
         }
         
         try{
-            pServer.shutdownServer(true);
+            pServer.shutdownServer(true, DebuggerConstants.DEFAULT_PROCSERVER_SHUTDOWN_TIMEOUT);
             return;
         }catch(Throwable t){
             if(meansDeadServer(t)) return;
