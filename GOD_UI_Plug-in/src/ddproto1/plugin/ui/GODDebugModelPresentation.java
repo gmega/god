@@ -26,7 +26,6 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.PartInitException;
-import org.eclipse.ui.ide.IDE;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.tracker.DistributedThread;
