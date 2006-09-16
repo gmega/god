@@ -6,9 +6,10 @@
 package ddproto1.controller.remote.test;
 
 import java.rmi.RemoteException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
 
@@ -16,7 +17,6 @@ import ddproto1.controller.interfaces.IControlClient;
 import ddproto1.controller.interfaces.IProcessServer;
 import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.controller.interfaces.LaunchParametersDTO;
-import junit.framework.TestCase;
 
 /**
  * This is not really a test. It's just a client you may use 
@@ -99,7 +99,7 @@ public class IOStressTest extends TestCase{
         
         Thread.sleep(15000);
         
-        getServer().shutdownServer(true);
+        getServer().shutdownServer(true, 3000);
     }
 
 }
