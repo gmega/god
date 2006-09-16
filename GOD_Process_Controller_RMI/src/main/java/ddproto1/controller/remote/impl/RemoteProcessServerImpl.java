@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,9 +26,9 @@ import ddproto1.controller.constants.IErrorCodes;
 import ddproto1.controller.exception.ServerRequestException;
 import ddproto1.controller.interfaces.IControlClient;
 import ddproto1.controller.interfaces.IProcessServer;
-import ddproto1.controller.interfaces.IRemotable;
 import ddproto1.controller.interfaces.IRemoteProcess;
 import ddproto1.controller.interfaces.LaunchParametersDTO;
+import ddproto1.controller.interfaces.internal.IRemotable;
 
 /**
  * This class is thread-safe (or at least it should be).
@@ -39,20 +40,34 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
 
     private static final int POLLING_THREADS = 10;
     private static final int SHUTDOWN_BACKOFF = 2000;
+    private static final int SHUTDOWN_COUNTER_POLL = 100;
     
     private static final Logger logger = Logger.getLogger(RemoteProcessImpl.class);
     
+    /** List of non-disposed process proxies. */
     private final List<RemoteProcessImpl> processList = new LinkedList<RemoteProcessImpl>();
+    
+    /** Flag that tells whether the process server is shutting down or not. */
+    private final AtomicBoolean fShuttingDown = new AtomicBoolean(false);
+    
+    /** Counter of live processes. */
+    private final AtomicInteger fActiveTasks = new AtomicInteger(0);
+    
+    /** Storage reference for the client-side cookie. */
     private final AtomicReference<String> cookie = new AtomicReference<String>();
+    
+    /** Executor for process polling tasks. */
     private final ScheduledExecutorService poller = new ScheduledThreadPoolExecutor(POLLING_THREADS);
+    
+    /** Reference to the remote client. */
     private IControlClient client;
     
+    /** Reference to our own proxy. */
     private Remote proxy;
 
     public RemoteProcessServerImpl(IControlClient client){
         setControlClient(client);
     }
-        
     
     public IRemoteProcess launch(LaunchParametersDTO parameters)
             throws ServerRequestException {
@@ -111,22 +126,33 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
                     "export remote process proxy.", ex);
         }
         
-        ProcessPollTask ppt = new ProcessPollTask(getControlClient(), proc, handle);
+        ProcessPollTask ppt = new ProcessPollTask(this, getControlClient(), proc, handle);
+        
         ppt.scheduleOnExecutor(poller, pollInterval, TimeUnit.MILLISECONDS);
+        fActiveTasks.incrementAndGet();
 
         rpi.beginDispatchingStreams();
         
         synchronized(processList){
-            processList.add(rpi);
+            if(!fShuttingDown.get()){
+                processList.add(rpi);
+                return rpi;
+            }
         }
-
-        return rpi;
+        
+        // Server is shutting down. Kills process.
+        rpi.dispose();
+        throw new ServerRequestException("Server is shutting down.");
+    }
+    
+    protected void notifyCompletion(ProcessPollTask ppTask){
+        int copy = fActiveTasks.decrementAndGet();
+        assert copy >= 0;
     }
     
     protected void disposeCalled(RemoteProcessImpl rImpl){
         synchronized(processList){
-            boolean removed = processList.remove(rImpl);
-            assert removed;
+            processList.remove(rImpl);
         }
     }
 
@@ -136,23 +162,21 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         PortableRemoteObject.unexportObject(this);
     }
 
-    public synchronized void shutdownServer(boolean shutdownChildProcesses) 
+    public synchronized void shutdownServer(boolean shutdownChildren, 
+            long serverTimeout) 
         throws RemoteException
     {
         logger.info("Shut down signalled.");
         
-        /** Terminates all children processes. */
-        if(shutdownChildProcesses){
-            List plistCopy = null;
+        if(!fShuttingDown.compareAndSet(false, true))
+            throw new ServerRequestException("Server already shutting down.");
         
-            logger.info("Terminating child processess...");
-            synchronized(processList){
-                plistCopy = 
-                    new LinkedList(processList);
-            }
-        
-            for(RemoteProcessImpl rpi : (LinkedList<RemoteProcessImpl>)plistCopy){
-                rpi.dispose();
+        if(shutdownChildren){
+            try{
+                shutdownChildren(serverTimeout);
+            }catch(ServerRequestException ex){
+                fShuttingDown.set(false);
+                throw ex;
             }
         }
         
@@ -172,6 +196,57 @@ public class RemoteProcessServerImpl implements IErrorCodes, IProcessServer, IRe
         
     }
     
+    private void shutdownChildren(long timeout)
+        throws ServerRequestException
+    {
+
+        Runnable runnable = new Runnable(){
+            public void run(){
+                /** Terminates all children processes. */
+                List<RemoteProcessImpl> plistCopy = null;
+
+                synchronized(processList){
+                    plistCopy = 
+                        new LinkedList<RemoteProcessImpl>(processList);
+                }
+        
+                logger.info("Terminating child processess...");
+        
+                for(RemoteProcessImpl rpi : (LinkedList<RemoteProcessImpl>)plistCopy){
+                    rpi.dispose();
+                }
+            }
+        };
+        
+        Thread shutdownThread = new Thread(runnable);
+        shutdownThread.start();
+        
+        // Asynchronous shutdown.
+        if(timeout < 0) return;
+        
+        long realTimeout;
+        
+        if(timeout == 0)
+            realTimeout = Long.MAX_VALUE; // Waits for as long as it has to wait.
+        else 
+            realTimeout = timeout; // Timed shutdown.
+        
+        long initial = System.currentTimeMillis();
+        
+        try{
+            logger.info("Now polling counter (active tasks:" + fActiveTasks.get() + ", timeout: " + realTimeout+ ")");
+            while(fActiveTasks.get() != 0){
+                Thread.sleep(SHUTDOWN_COUNTER_POLL);
+                if(System.currentTimeMillis() - initial > realTimeout)
+                    throw new ServerRequestException("Shutdown sequence timeouted.", null, IErrorCodes.TIMEOUT);
+            }
+            logger.info("Shutdown complete.");
+        }catch(InterruptedException ex){
+            throw new ServerRequestException("Shutdown sequence interrupted");
+        }
+            
+    }
+
     public synchronized Remote getProxyAndActivate() 
         throws RemoteException, NoSuchObjectException
     {
