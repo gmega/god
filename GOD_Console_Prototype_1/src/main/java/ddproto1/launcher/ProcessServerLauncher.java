@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.eclipse.debug.core.ILaunch;
 
 import ddproto1.GODBasePlugin;
+import ddproto1.commons.DebuggerConstants;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.IServiceLocator;
 import ddproto1.configurator.commons.IConfigurable;
@@ -137,7 +138,8 @@ public class ProcessServerLauncher implements IApplicationLauncher, ProcessServe
                 plugin.processGUIDManager().releaseGUID(handleOwner);
             try{
                 if(remoteServer != null)
-                    remoteServer.shutdownServer(true);
+                    remoteServer.shutdownServer(true, 
+                            DebuggerConstants.DEFAULT_PROCSERVER_SHUTDOWN_TIMEOUT);
             }catch(RemoteException ex){
                 logger.error("Failed to shutdown remote server. You might have to login and kill it manually.", ex);
             }
