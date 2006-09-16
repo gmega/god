@@ -34,12 +34,24 @@ public interface IProcessServer extends Remote{
         throws RemoteException;
     
     /**
-     * Shuts down the remote process server. If 'true' is passed on as a
-     * parameter, all controlled processes will be killed as well. Otherwise
-     * they'll be left running.
+     * Shuts down the remote process server with the specified
+     * timeout. A timeout of zero means "wait forever". A negative
+     * timeout means that the server should be shut down 
+     * asynchronously (method returns before server has sucessfuly
+     * shut down).
+     * 
+     * @throws ServerRequestException if the specified timeout 
+     * has ellapsed and the process server wasn't able to shutdown
+     * all children. The exception thrown will have a detail of 
+     * IErrorCodes.TIMEOUT. The process server won't shutdown in
+     * this case.
+     * 
+     * @throws RemoteException if some other failure occurs.
+     * 
+     * @see ddproto1.controller.constants.IErrorCodes
      */
-    public void shutdownServer(boolean shutdownChildProcesses)
-        throws RemoteException;
+    public void shutdownServer(boolean shutdownChildren, long childrenTimeout)
+        throws ServerRequestException, RemoteException;
     
     /**
      * Returns a string cookie that might have been set for this process
