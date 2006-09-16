@@ -19,25 +19,25 @@ public class ProcessPollTask implements Runnable{
     
     private static final Logger logger = Logger.getLogger(ProcessPollTask.class);
     
-    private Process toPoll;
-    private IControlClient controlClient;
+    private final Process fProcess;
+    private final IControlClient controlClient;
+    private final RemoteProcessServerImpl fParent;
+    
     private volatile int handle;
     private final AtomicBoolean notifying = new AtomicBoolean(false);
     
     private ScheduledFuture sf;
         
-    public ProcessPollTask(IControlClient cc, Process toPoll, int handle){
-        setProcess(toPoll);
-        setControlClient(cc);
+    public ProcessPollTask(RemoteProcessServerImpl parent, IControlClient cc, Process toPoll, int handle){
+        fProcess = toPoll;
+        controlClient = cc;
+        fParent = parent;
         this.handle = handle;
     }
     
-    private synchronized IControlClient getControlClient() { return controlClient; }
-    private synchronized void setControlClient(IControlClient controlClient) {
-        this.controlClient = controlClient;
-    }
-    private synchronized void setProcess(Process toPoll){ this.toPoll = toPoll; }
-    private synchronized Process getProcess() { return this.toPoll; }
+    private IControlClient getControlClient() { return controlClient; }
+    private Process getProcess() { return fProcess; }
+    private RemoteProcessServerImpl getParentServer() { return fParent; }
     
     public synchronized void scheduleOnExecutor(ScheduledExecutorService service, long periodicity, TimeUnit tu){
         sf = service.scheduleAtFixedRate(this, 0, periodicity, tu);
@@ -92,6 +92,7 @@ public class ProcessPollTask implements Runnable{
          * should retry delivery for a while if it fails, but currently we just fail 
          * with an error message. */
         ourHandle.cancel(false);
+        if(getParentServer() != null) getParentServer().notifyCompletion(this);
     }
    
 }
