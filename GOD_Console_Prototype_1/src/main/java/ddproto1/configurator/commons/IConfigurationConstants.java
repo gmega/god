@@ -56,6 +56,7 @@ public interface IConfigurationConstants {
     public static final String LOG4J_CONFIG_URL         = "log4j-config-url";
     public static final String INSTANCE_ID              = "instance-id";
     public static final String ROOT_TYPE                = "dd_config";
+    public static final String ASSOCIATED_CONFIG_NAME   = "associated-launch-config";
     
     /** Plugin-exclusive configuration attributes */
     public static final String ID                               = "ddproto1.plugin.core";
@@ -66,7 +67,6 @@ public interface IConfigurationConstants {
     public static final String CENTRAL_AGENT_CONFIG_NAME        = "Distributed System";
     public static final String CENTRAL_AGENT_NAME               = "Global Agent";
 
-    
     /** Attribute value constants. */
     public static final String TRUE                         = "yes";
     public static final String FALSE                        = "no";
@@ -83,8 +83,9 @@ public interface IConfigurationConstants {
     public static final String LOCAL_AGENT_GA_ADDRESS_OPT   = "agent.global.address";
     public static final String LOCAL_AGENT_CONNPOOL_OPT     = "connection.pool.size";
     public static final String LOCAL_AGENT_LOG4J_OPT        = "log4.configuration.url";
-
     
+    public static final String JAVA_DEBUGGER_MODEL_ID       = "br.usp.ime.ddproto1.god.java";
+
     /** Keys into the preferences dictionary. */
     public static final String SPECS_DIR                    = "specs-dir";
     public static final String TOC_DIR                      = "toc-dir";
