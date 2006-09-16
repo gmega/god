@@ -35,7 +35,6 @@ import ddproto1.util.MessageHandler;
 
 public class DistributedThreadControlTest extends AbstractDebuggerTest{
     
-    private static final int NODE_STARTUP = 8000;
     private static final Logger logger = MessageHandler.getInstance().getLogger(DistributedThreadControlTest.class);
     
     private static final String [] machineNames = {
@@ -46,7 +45,6 @@ public class DistributedThreadControlTest extends AbstractDebuggerTest{
     private static volatile DistributedThread fDistributedThread;
     
     public void testSetUp() throws Exception{
-        configureEverything();
         launchGA();
         startDistributedSystem();
     }
@@ -69,36 +67,24 @@ public class DistributedThreadControlTest extends AbstractDebuggerTest{
          * - Bovespa:
          *      Will hit a breakpoint. 
          */
-        try {
-            for (String name : machineNames) {
-
-                launchApplication(name);
-                
-                /** Give some time to get the stuff running. */
-                Thread.sleep(NODE_STARTUP);
-            }
-                        
-        } catch (Throwable t) {
-            logger.error(t);
-            fail();
-        } 
+        launchApplications(machineNames);
         
     }
     
     public void testDistributedStepInto() throws Exception{
         /** Sets the client-side breakpoint at runnable requester. */
         IJavaProject clientProject = getClientProject();
-        IResource sResource = getBreakpointResource(DT_TEST_CLIENT_BKP_CL, clientProject);
+        IResource sResource = getBreakpointResource(CLIENT_BKP_CL, clientProject);
         IBreakpoint clientBkp = JDIDebugModel.createLineBreakpoint(sResource,
-                DT_TEST_CLIENT_BKP_CL, DT_TEST_CLIENT_BKP_LINE, -1, -1, 0,
+                CLIENT_BKP_CL, DT_TEST_CLIENT_BKP_LINE, -1, -1, 0,
                 true, null);
         
         /** Waits until a thread with the given name hits this breakpoint */
         DebugBreakpointThreadNameWaiter waiter = 
-            new DebugBreakpointThreadNameWaiter(DebugEvent.SUSPEND, clientBkp, DT_TEST_STEP_INTO_THREAD_NAME);
+            new DebugBreakpointThreadNameWaiter(DebugEvent.SUSPEND, clientBkp, CLIENT_THREAD1_NAME);
         
         /** Fires the client. */
-        Thread.sleep(NODE_STARTUP); // Safety margin
+        Thread.sleep(LAUNCH_DELAY); // Stalls for safety.
         launchApplication("CORBA Client");
         
         waiter.waitForEvent();
@@ -185,7 +171,7 @@ public class DistributedThreadControlTest extends AbstractDebuggerTest{
         distributedStepEnd.waitForEvent();
         assertNotNull(distributedStepEnd.getEvent());
         assertTrue(distributedStepEnd.getEvent().getDetail() == DebugEvent.STEP_END);
-        verifyLocation(fDistributedThread, 1, DT_TEST_CLIENT_BKP_CL, DT_TEST_CLIENT_EXCEPTIONHANDLER_LINE);
+        verifyLocation(fDistributedThread, 1, CLIENT_BKP_CL, DT_TEST_CLIENT_EXCEPTIONHANDLER_LINE);
     }
     
     public void testDistributedThreadDeath() throws Exception{
@@ -202,12 +188,12 @@ public class DistributedThreadControlTest extends AbstractDebuggerTest{
 //        
 //    }
     
-    public void testDamageDistributedThread(){ }
+    public void testDamageDistributedThread(){  }
     
-    public void testTearDown() throws Exception{
+    public void testShutDown() throws Exception{
         performDistributedShutdown();
     }
-    
+        
     /** PLEASE note that these are coupled to the actual implementation
      * of the test apps. If the implementation changes, this will have
      * to change as well. 
