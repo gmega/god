@@ -11,18 +11,14 @@ import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
+import java.rmi.NoSuchObjectException;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
 
 import javax.rmi.PortableRemoteObject;
 
-import ddproto1.controller.constants.ProcessServerConstants;
 import ddproto1.controller.interfaces.IControlClient;
 import ddproto1.controller.interfaces.IProcessServer;
 import ddproto1.controller.interfaces.IRemoteProcess;
-import ddproto1.remote.controller.MainServer;
 
 public class RMIMultiDeathTest extends MultiDeathTest{
     
@@ -71,8 +67,6 @@ public class RMIMultiDeathTest extends MultiDeathTest{
     private static final int NPROCS = 5;
     
     private Process serverProcess;
-    
-    private static Registry registry;
     
     public void setUp(){
         
@@ -138,7 +132,7 @@ public class RMIMultiDeathTest extends MultiDeathTest{
     
     protected void cleanup(){
         try{
-            getPServerImpl().shutdownServer(true);
+            getPServerImpl().shutdownServer(true, 3000);
             // Have to stall because of the hack we must do
             // to prevent RMI server shutdowns from producing
             // spurious exceptions. If we don't stall, the setUp
@@ -146,6 +140,8 @@ public class RMIMultiDeathTest extends MultiDeathTest{
             // to start the remote server in the same port as 
             // the one that's shutting down.
             Thread.sleep(4000);
+        }catch(NoSuchObjectException ex){
+            // Server was killed by test case.
         }catch(Exception ex){
             ex.printStackTrace();
         }
