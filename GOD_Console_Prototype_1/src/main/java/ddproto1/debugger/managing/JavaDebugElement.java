@@ -12,7 +12,8 @@ import org.eclipse.debug.core.model.DebugElement;
 import org.eclipse.debug.core.model.IDebugTarget;
 
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.debugger.managing.tracker.AbstractDebugElement;
+import ddproto1.configurator.commons.IConfigurationConstants;
+import ddproto1.debugger.managing.tracker.GODDebugElement;
 
 /**
  * Base Java debug element. I'm making an abstract superclass because the JDT
@@ -23,7 +24,7 @@ import ddproto1.debugger.managing.tracker.AbstractDebugElement;
  * @author giuliano
  *
  */
-public abstract class JavaDebugElement extends AbstractDebugElement{
+public abstract class JavaDebugElement extends DebugElement{
     
     private IJavaDebugTarget fJavaDebugTarget;
     
@@ -35,5 +36,12 @@ public abstract class JavaDebugElement extends AbstractDebugElement{
     public IJavaDebugTarget getJavaDebugTarget(){
         return fJavaDebugTarget;
     }
-
+    
+    public String getModelIdentifier(){
+        return IConfigurationConstants.JAVA_DEBUGGER_MODEL_ID;
+    }
+    
+    protected void notSupported(String what) throws DebugException{
+        requestFailed("Not supported - " + what, null);
+    }
 }
