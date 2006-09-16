@@ -25,6 +25,7 @@ import com.sun.jdi.Location;
 import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.StackFrame;
+import com.sun.jdi.VMDisconnectedException;
 
 import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
@@ -40,29 +41,29 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     private static final Logger logger = MessageHandler.getInstance().getLogger(JavaStackframe.class);
     private static final Logger staleframeLogger = MessageHandler.getInstance().getLogger(JavaStackframe.class.getName() + ".staleframeLogger");
     
-    private IThread fParentThread;
-    private StackFrame fJDIStackframe;
+    private final JavaThread fParentThread;
+        
+    private volatile boolean fValid = true;
     
     private IVariable [] fCachedVars;
     
-    public JavaStackframe(JavaThread parent, StackFrame sfDelegate){
+    public JavaStackframe(JavaThread parent){
         super(parent.getJavaDebugTarget());
-        fJDIStackframe = sfDelegate;
         fParentThread = parent;
     }
     
     public IThread getThread() {
-        return fParentThread;
+        return getParentThread();
     }
 
     public IVariable[] getVariables() throws DebugException {
 
         if(fCachedVars != null) return fCachedVars;
+        if(!isValid()) return new IVariable[0];
         
         /** Variables = local variables + this. */
         List<AbstractJavaVariable> varList = new ArrayList<AbstractJavaVariable>();
-        Location loc = this.getLocation();
-        Method enclosing = loc.method();
+        Method enclosing = getLocation().method();
         
         /** Is this method static? */
         if (enclosing.isStatic()) {
@@ -96,17 +97,27 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     }
 
     public boolean hasVariables() throws DebugException {
-        return this.getVariables().length != 0;
+        return isValid() && this.getVariables().length != 0;
     }
 
     public int getLineNumber() throws DebugException {
         Location loc = this.getLocation();
+        if(loc == null) return -1;
         return loc.lineNumber();
     }
     
+    /**
+     * Returns the JDI location object associated to this JavaStackframe,
+     * or null if this stack frame is no longer valid. 
+     * 
+     * @return
+     * @throws DebugException
+     */
     public Location getLocation() throws DebugException{
         try{
-            return getJDIStackframe().location();
+            StackFrame sFrame = getJDIStackframe();
+            if(sFrame == null) return null;
+            return sFrame.location();
         }catch(InvalidStackFrameException ex){
             if(staleframeLogger.isDebugEnabled())
                 staleframeLogger.debug("Stale frame: " + getJDIStackframe().toString());
@@ -126,12 +137,18 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     }
 
     public String getName() throws DebugException {
-        StringBuffer name = new StringBuffer();
-        Method m = this.getLocation().method();
-        renderMethodNameOn(name, m);
-        renderParameterListOn(name, m);
-        renderLocationOn(name, this.getLocation());
-        return name.toString();
+        try{
+            if(!isValid()) return "<invalid>";
+            StringBuffer name = new StringBuffer();
+            Location loc = getLocation();
+            Method m = loc.method();
+            renderMethodNameOn(name, m);
+            renderParameterListOn(name, m);
+            renderLocationOn(name, loc);
+            return name.toString();
+        }catch(VMDisconnectedException ex){
+            return "<disconnected>";
+        }
     }
     
     private void renderMethodNameOn(StringBuffer target, Method m){
@@ -169,24 +186,29 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
         return false;
     }
 
-    public String getModelIdentifier() {
-        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
-    }
-
     public boolean canStepInto()  {
         return this.isTopFrame();
     }
     
     private boolean isTopFrame(){
         try{
+            if(!isValid()) return false;
             /** Only top frames are allowed. It doesn't make any sense
              * to allow non-top frames since they're already "going into". */
-            IStackFrame sFrame = fParentThread.getTopStackFrame();
+            IStackFrame sFrame = getParentThread().getTopStackFrame();
             return sFrame == this; 
         }catch(DebugException ex){
             logger.error("Failed to acquire top stack frame.", ex);
             return false;
         }
+    }
+    
+    public boolean isValid(){
+        return fValid;
+    }
+    
+    public void invalidate(){
+        fValid = false;
     }
 
     public boolean canStepOver() {
@@ -200,7 +222,7 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
     }
 
     public boolean isStepping() {
-        return fParentThread.isStepping();
+        return getParentThread().isStepping();
     }
     
     private void clearVarCache(){
@@ -209,60 +231,67 @@ public class JavaStackframe extends JavaDebugElement implements IStackFrame{
 
     public void stepInto() throws DebugException {
         if(!canStepInto()) this.requestFailed("This stack frame cannot step into.", null); 
-        fParentThread.stepInto();
+        getParentThread().stepInto();
         this.clearVarCache();
     }
 
     public void stepOver() throws DebugException {
         if(!canStepOver()) this.requestFailed("This stack frame cannot step over.", null);
-        fParentThread.stepOver();
+        getParentThread().stepOver();
         this.clearVarCache();
     }
 
     public void stepReturn() throws DebugException {
         if(!canStepInto()) this.requestFailed("This stack frame cannot step return.", null);
-        fParentThread.stepReturn();
+        getParentThread().stepReturn();
         this.clearVarCache();
     }
 
     public boolean canResume() {
-        return fParentThread.canResume();
+        return getParentThread().canResume();
     }
 
     public boolean canSuspend() {
-        return fParentThread.canSuspend();
+        return getParentThread().canSuspend();
     }
 
     public boolean isSuspended() {
-        return fParentThread.isSuspended();
+        return getParentThread().isSuspended();
     }
 
     public void resume() throws DebugException {
         if(!canResume()) this.requestFailed("Cannot resume this stack frame.", null);
-        fParentThread.resume();
+        getParentThread().resume();
     }
 
     public void suspend() throws DebugException {
         if(!canSuspend()) this.requestFailed("Cannot suspend this stack frame.", null);
-        fParentThread.suspend();
+        getParentThread().suspend();
     }
 
     public boolean canTerminate() {
-        return fParentThread.canTerminate();
+        return getParentThread().canTerminate();
     }
 
     public boolean isTerminated() {
-        return fParentThread.isTerminated();
+        return getParentThread().isTerminated();
     }
 
     public void terminate() throws DebugException {
-        if(!fParentThread.canTerminate()) this.requestFailed("Cannot terminate.", null);
-        fParentThread.terminate();
+        if(!getParentThread().canTerminate()) this.requestFailed("Cannot terminate.", null);
+        getParentThread().terminate();
     }
     
-    private StackFrame getJDIStackframe(){
-        return fJDIStackframe;
+    private StackFrame getJDIStackframe()
+        throws DebugException
+    {
+        return getParentThread().getJDIStackFrame(this);
     }
+
+    private JavaThread getParentThread() {
+        return fParentThread;
+    }
+    
 
 // Equality comparison cannot be made when thread is resumed,
 // and the platform doesn't guarantee it won't call stack frame
