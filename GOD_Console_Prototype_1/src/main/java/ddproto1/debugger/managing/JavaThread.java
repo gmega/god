@@ -36,19 +36,16 @@ import com.sun.jdi.request.StepRequest;
 
 import ddproto1.GODBasePlugin;
 import ddproto1.commons.DebuggerConstants;
-import ddproto1.configurator.commons.IConfigurationConstants;
 import ddproto1.debugger.eventhandler.IEventManager;
 import ddproto1.debugger.eventhandler.IProcessingContext;
 import ddproto1.debugger.eventhandler.ProcessingContextManager;
 import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
-import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.IDistributedThread;
 import ddproto1.debugger.managing.tracker.ILocalThread;
 import ddproto1.debugger.managing.tracker.NilDistributedThread;
-import ddproto1.exception.commons.IllegalAttributeException;
-import ddproto1.util.JDIMiscUtil;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
+import ddproto1.util.traits.commons.ConversionUtil;
 
 /**
  * 
@@ -71,11 +68,11 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
 
     /** Suspend-resume and stackframe logger. */
     private static final Logger srsfLogger = MessageHandler.getInstance().getLogger(JavaThread.class.getName() + ".stackAndSuspensionLogger");
+    
+    private static final ConversionUtil cUtil = ConversionUtil.getInstance();
 
     /** Static mapping between JDI step modes and Eclipse step modes */
     private static final Map<Integer, Integer> stepMap;
-    
-    private static final IStackFrame[] NO_CALLSTACK = new IStackFrame[0];
     
     static{
         Map <Integer, Integer> sMap = new HashMap<Integer, Integer>();
@@ -92,7 +89,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     
     private final AtomicBoolean fSuspending = new AtomicBoolean(false);
 
-    private final AtomicBoolean fResumedByRS = new AtomicBoolean();
+    private final AtomicBoolean fResumedByRS = new AtomicBoolean(false);
 
     private final AtomicReference<StepHandler> fPendingHandler = new AtomicReference<StepHandler>();
     
@@ -101,6 +98,9 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     private volatile boolean fTerminated = false;
     
     private volatile boolean fTerminating = false;
+    
+    private volatile Map<JavaStackframe, Integer> fCurrentFrames = null;
+    private volatile IStackFrame[] fSortedFrames = null;
     
     private volatile Integer fGUID = null;
     
@@ -130,48 +130,101 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
 
     public IStackFrame[] getStackFrames() throws DebugException {
         
-        boolean locked = false;
-        /** Creates wrappers for each frame. 
-         * Yeah it's wasteful. I'll pool those in the near future (after I decipher
-         * the weird rules that JDT adopts for pooling, which is suspect are that weird
-         * because of concurrency issues.)  */
         try{
         	/** Locks so no one can resume this thread while we're looking at it's stack. */
             fStackRead.lock();
-            locked = true;
-            
-            if(srsfLogger.isDebugEnabled())
-                srsfLogger.debug("Getting frames from thread " + getNameSafe());
             
             if(isRunning()) 
-                return NO_CALLSTACK;
-
-            try{
-                if(fJDIThread.frameCount() == -1) return null; 
-                List<StackFrame> frames = fJDIThread.frames();
-                List<IStackFrame> nFrames = new ArrayList<IStackFrame>();
-                for(StackFrame sf : frames)
-                    nFrames.add(new JavaStackframe(this, sf));
-                fStackRead.unlock();
-                locked = false;
-                if(srsfLogger.isDebugEnabled())
-                    srsfLogger.debug("Got " + nFrames.size() + " frames from thread " + getNameSafe());
-
-                return nFrames.toArray(new IStackFrame[nFrames.size()]);
-                
-            }catch(IncompatibleThreadStateException ex){
-                this.requestFailed("Error while acquiring thread frames. ", ex);
-                return null; // Line is never reached.
-            }catch(VMDisconnectedException ex){
-                if(terminationWarnIssued()){
-                    return NO_CALLSTACK;
-                }else{
-                    this.requestFailed("Error while acquiring thread frames. ", ex);
-                    return null;
-                }
-            }
+                return INodeManager.NO_CALLSTACK;
+            
+            if(hasCachedFrames())
+                return getCachedFrames();
+            
+            computeAndCacheFrames();
+            return getCachedFrames();
+           
         }finally{
-            if(locked) fStackRead.unlock();
+            fStackRead.unlock();
+        }
+    }
+    
+    /* -------------------------------------------------------------
+       --- Careful with these methods, they aren't synchronized. ---
+       ------------------------------------------------------------- */
+    private boolean hasCachedFrames(){
+        return fCurrentFrames != null;
+    }
+    
+    private void computeAndCacheFrames()
+        throws DebugException
+    {
+        if(srsfLogger.isDebugEnabled())
+            srsfLogger.debug("Getting frames from thread " + getNameSafe());
+
+        Map<JavaStackframe, Integer> frameCache = new HashMap<JavaStackframe, Integer>();
+        try{
+            int jdiFrameCount = fJDIThread.frameCount();
+            if(jdiFrameCount == -1) return;
+
+            IStackFrame[] sortedCache = new IStackFrame[jdiFrameCount];
+
+            for(int i = 0; i < jdiFrameCount; i++){
+                JavaStackframe frame = new JavaStackframe(this);
+                frameCache.put(frame, i);
+                sortedCache[i] = frame;
+            }
+            
+            if(srsfLogger.isDebugEnabled())
+                srsfLogger.debug("Got " + frameCache.size() + " frames from thread " + getNameSafe());
+            
+            assert fCurrentFrames == null; // Should be null.
+            fCurrentFrames = Collections.unmodifiableMap(frameCache);
+            fSortedFrames = sortedCache;
+
+        }catch(IncompatibleThreadStateException ex){
+            this.requestFailed("Error while acquiring thread frames. ", ex);
+        }catch(VMDisconnectedException ex){
+            if(terminationWarnIssued()){
+                return;
+            }else{
+                this.requestFailed("Error while acquiring thread frames. ", ex);
+            }
+        }
+    }    
+    
+    private IStackFrame[] getCachedFrames(){
+        IStackFrame [] sortedFrames = fSortedFrames;
+        if(sortedFrames == null) return new IStackFrame[0];
+        IStackFrame [] sortedFramesCopy = new IStackFrame[sortedFrames.length];
+        System.arraycopy(sortedFrames, 0, sortedFramesCopy, 0, sortedFrames.length);
+        return sortedFramesCopy;
+    }
+    
+    private void invalidateStackframes(){
+        if(fCurrentFrames == null) return; // No cached frames to invalidate.
+        for(JavaStackframe frame : fCurrentFrames.keySet()){
+            frame.invalidate();
+        }
+        fCurrentFrames = null;
+    }
+    
+    /* -------------------------------------------------------------
+       ------------------------------------------------------------- */
+    
+    /**
+     *  
+     */
+    protected StackFrame getJDIStackFrame(JavaStackframe sFrame)
+    {
+        Map<JavaStackframe, Integer> localCopy = fCurrentFrames;
+        if(localCopy == null)
+            return null;
+        Integer frameIndex = localCopy.get(sFrame);
+        if(frameIndex == null) return null;
+        try{
+            return getJDIThread().frame(frameIndex);
+        }catch(IncompatibleThreadStateException ex){
+            return null;
         }
     }
     
@@ -230,10 +283,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             fStackRead.lock();
             locked = true;
             if(fRunning) return null;
-            if(fJDIThread.frameCount() <= 0) return null;
-            return new JavaStackframe(this, fJDIThread.frame(0));
-        }catch(IncompatibleThreadStateException ex){
-            requestFailed("Error while acquiring top stack frame.", ex);
+            IStackFrame[] frames = getStackFrames();
+            if(frames.length != 0) return frames[0];
             return null;
         }finally{
             if(locked) fStackRead.unlock();
@@ -294,10 +345,6 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         }
     }
 
-    public String getModelIdentifier() {
-        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
-    }
-
     public boolean canResume() {
         return !isRunning();
     }
@@ -326,6 +373,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         try{
             fStackWrite.lock();
             clearBreakpoints();
+            invalidateStackframes();
+            
             setRunning(true);
             
             fireResumeEvent(resumeDetail, fireEclipse, fireParent);
@@ -848,5 +897,18 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
 
     public boolean resumedByRemoteStepping() {
         return fResumedByRS.getAndSet(false);
+    }
+    
+    public String toString(){
+        StringBuffer sBuffer = new StringBuffer();
+        Integer guid = getGUID();
+        if(guid != null){
+            sBuffer.append("[guid: ");
+            sBuffer.append(cUtil.uuid2Dotted(guid));
+            sBuffer.append("] - ");
+        }
+        
+        sBuffer.append(getJDIThread().toString());
+        return sBuffer.toString();
     }
 }
