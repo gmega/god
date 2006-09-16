@@ -172,9 +172,9 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
              */  
 
             if((stats&DebuggerConstants.STEPPING) != 0){
-                tagger.setStepping(ltgid);
+                tagger.setStepping();
             }else{
-                tagger.unsetStepping(ltgid);
+                tagger.unsetStepping();
             }
             
              
@@ -231,9 +231,9 @@ public class CDebugInterceptor extends LocalObject implements ClientRequestInter
                 	if(requestLogger.isDebugEnabled()){
                 		debugBuffer.append("Marked thread for halt. ");
                 	}
-                    tagger.setStepping(ltgid);
+                    tagger.setStepping();
                 }else{
-                    tagger.unsetStepping(ltgid);
+                    tagger.unsetStepping();
                 }
             }catch(BAD_PARAM bp){ 
 
