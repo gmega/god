@@ -27,6 +27,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2000"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -90,6 +91,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2001"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -147,6 +149,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2002"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -205,6 +208,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2003"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -271,6 +275,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2004"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -334,6 +339,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2002"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -392,6 +398,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2005"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -450,6 +457,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2006"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -514,7 +522,8 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2007"/>
-						
+			<param key="associated-launch-config" value="none"/>
+			
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
 					<param key="ssh-port" value="22"/>
@@ -572,6 +581,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2008"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -630,6 +640,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2009"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -689,6 +700,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2010"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -752,6 +764,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2011"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
@@ -811,6 +824,7 @@
 			
 			<param key="local-agent-address" value="localhost"/>
 			<param key="jdwp-port" value="2002"/>
+			<param key="associated-launch-config" value="none"/>
 						
 			<launcher type="ddproto1.launcher.JVMShellLauncher">
 				<shell-tunnel type="ddproto1.launcher.ExpectSSHTunnel">
