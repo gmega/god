@@ -120,7 +120,6 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
     public void performApply(ILaunchConfigurationWorkingCopy configuration) {
         GODBasePlugin plugin = GODBasePlugin.getDefault();
         IConfigurationManager icm = plugin.getConfigurationManager();
-        Preferences prefs = plugin.getPluginPreferences();
         
         IObjectSpec spec = panel.getObjectSpecRoot();
         if(spec == null){
@@ -130,11 +129,14 @@ public class ComponentConfiguratorTab extends AbstractLaunchConfigurationTab imp
        
         try{
             configuration.setAttribute(IConfigurationConstants.NAME_ATTRIBUTE, spec.getAttribute(IConfigurationConstants.NAME_ATTRIBUTE));
+            configuration.setAttribute(IConfigurationConstants.ASSOCIATED_CONFIG_NAME, spec.getAttribute(IConfigurationConstants.ASSOCIATED_CONFIG_NAME));
+            this.setErrorMessage(null);
         }catch(AttributeAccessException ex){
-            String error = "Cannot apply name attribute - unnamed configuration."; 
-            logger.error(error, ex);
+            String error = configuration.getName() + ": Cannot apply name attribute or associated configuration attribute - " +
+                    "please fill in these attributes."; 
             this.setErrorMessage(error);
         }
+        
         configuration.setAttribute(UIDebuggerConstants.ROOT_ATTRIBUTE, icm.getEncoder().makeFromObjectSpec(spec));
 
         try{
