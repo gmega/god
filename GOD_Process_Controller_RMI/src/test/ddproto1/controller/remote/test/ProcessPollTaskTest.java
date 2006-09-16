@@ -26,10 +26,6 @@ public class ProcessPollTaskTest extends TestCase{
     private final ScheduledExecutorService executor = 
         new ScheduledThreadPoolExecutor(POLL_THREADS);
     
-    private ScheduledFuture sf;
-    
-    private volatile boolean notified = false;
-    
     /**
      * Please note that this test might not terminate. This should be considered a failure
      * as well.
@@ -50,7 +46,7 @@ public class ProcessPollTaskTest extends TestCase{
         EasyMock.replay(cClient);
         
         ProcessPollTask ppTask = new
-            ProcessPollTask(cClient, Runtime.getRuntime().exec(lp.getCommandLine()), 0);
+            ProcessPollTask(null, cClient, Runtime.getRuntime().exec(lp.getCommandLine()), 0);
         
         synchronized(this){
             ppTask.scheduleOnExecutor(executor, 100, TimeUnit.MILLISECONDS);
