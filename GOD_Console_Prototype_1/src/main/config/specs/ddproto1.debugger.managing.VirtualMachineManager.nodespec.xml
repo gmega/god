@@ -5,6 +5,7 @@
 	<attribute id="guid" default-value="auto"/>
 	<attribute id="jdwp-port"/>	
 	<attribute id="local-agent-address"/>
+	<attribute id="associated-launch-config"/>
 
 	<extension-attribute id="CORBA-enabled" action="yes:loadspec(CORBAJava);no:nop()"/>
 	<!-- This dependency is not actually quite accurate because in the current implemention
