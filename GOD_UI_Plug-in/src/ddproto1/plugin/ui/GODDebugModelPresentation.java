@@ -8,24 +8,31 @@ package ddproto1.plugin.ui;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.log4j.Logger;
 import org.eclipse.debug.core.DebugException;
+import org.eclipse.debug.core.model.DebugElement;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.debug.core.model.IThread;
 import org.eclipse.debug.core.model.IValue;
+import org.eclipse.debug.ui.DebugUITools;
 import org.eclipse.debug.ui.IDebugModelPresentation;
 import org.eclipse.debug.ui.IValueDetailListener;
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.ide.IDE;
 
 import ddproto1.commons.DebuggerConstants;
 import ddproto1.debugger.managing.tracker.DistributedThread;
 import ddproto1.debugger.managing.tracker.IDistributedThread;
 import ddproto1.debugger.managing.tracker.ILocalThread;
+import ddproto1.debugger.managing.tracker.LocalStackframeWrapper;
 import ddproto1.debugger.managing.tracker.VirtualStackframe;
 import ddproto1.util.traits.commons.ConversionUtil;
 
@@ -38,6 +45,9 @@ public class GODDebugModelPresentation extends LabelProvider implements IDebugMo
     
     private final Map<String, Object> fAttributes =
         new HashMap<String, Object>();
+    
+    private final ConcurrentHashMap<String, IDebugModelPresentation> fModelTable =
+        new ConcurrentHashMap<String, IDebugModelPresentation>();
     
     private volatile Image fVFImage;
     private volatile Image fVFDamageImage;
@@ -172,17 +182,45 @@ public class GODDebugModelPresentation extends LabelProvider implements IDebugMo
     }
 
     public void dispose() {
-        fDTImage.dispose();
-        fVFImage.dispose();
-        fVFDamageImage.dispose();
+        disposeOfModelTable();
+        if(fDTImage != null) fDTImage.dispose();
+        if(fVFImage != null) fVFImage.dispose();
+        if(fVFDamageImage != null) fVFDamageImage.dispose();
+    }
+    
+    private void disposeOfModelTable(){
+        // I'm assuming that no new models will be added to the table
+        // after dispose() is called.
+        for(String modelId : fModelTable.keySet()){
+            fModelTable.get(modelId).dispose();
+        }
     }
     
     public IEditorInput getEditorInput(Object element) {
+        IDebugModelPresentation presentation = getModelPresentationFor(element);
+        if(presentation != null)
+            return presentation.getEditorInput(element);
         return null;
     }
 
     public String getEditorId(IEditorInput input, Object element) {
+        IDebugModelPresentation presentation = getModelPresentationFor(element);
+        if(presentation != null)
+            return presentation.getEditorId(input, element);
         return null;
     }
-
+    
+    private IDebugModelPresentation getModelPresentationFor(Object element){
+        if(!(element instanceof DebugElement)) return null;
+        
+        DebugElement debugElement = (DebugElement)element;
+        return getModelPresentationFor(debugElement.getModelIdentifier());
+    }
+    
+    private IDebugModelPresentation getModelPresentationFor(String modelId){
+        if(!fModelTable.containsKey(modelId)){
+            fModelTable.putIfAbsent(modelId, DebugUITools.newDebugModelPresentation(modelId));
+        }
+        return fModelTable.get(modelId);
+    }
 }
