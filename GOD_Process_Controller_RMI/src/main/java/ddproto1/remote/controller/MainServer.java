@@ -7,7 +7,6 @@ package ddproto1.remote.controller;
 
 import java.io.IOException;
 import java.net.URL;
-import java.rmi.RMISecurityManager;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.HashMap;
