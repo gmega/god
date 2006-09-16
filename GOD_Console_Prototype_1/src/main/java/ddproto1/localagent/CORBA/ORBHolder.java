@@ -298,7 +298,7 @@ public class ORBHolder {
             int stepStats;
             
             /* Unbinds the current thread from the current distributed thread.*/
-            tagger.unmakePartOf(_dtid);
+            tagger.unmakePartOf();
             
             /* This seems innocuous, but it's important to avoid catastrophic
              * behavior when for some reason two calls are dispatched to the

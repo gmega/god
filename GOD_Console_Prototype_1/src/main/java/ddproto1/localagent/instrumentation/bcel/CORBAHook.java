@@ -378,14 +378,10 @@ public class CORBAHook implements IClassLoadingHook, DebuggerConstants{
         
         // TAGGER
         finallyBl.append(new ALOAD(1));
-        // TAGGER TAGGER
-        finallyBl.append(new ALOAD(1));
-        // TAGGER (TAGGER currentTag) --> TAGGER INT
-        finallyBl.append(iFactory.createInvoke(TAGGER_CLASS_NAME, UUID_GETTER, Type.INT, Type.NO_ARGS, Constants.INVOKEVIRTUAL));
-        // (TAGGER INT isStepping) --> BOOLEAN
-        finallyBl.append(iFactory.createInvoke(TAGGER_CLASS_NAME, STEP_GETTER, Type.BOOLEAN, new Type[] {Type.INT}, Constants.INVOKEVIRTUAL));
+        // (TAGGER isStepping) --> BOOLEAN
+        finallyBl.append(iFactory.createInvoke(TAGGER_CLASS_NAME, STEP_GETTER, Type.BOOLEAN, Type.NO_ARGS, Constants.INVOKEVIRTUAL));
 
-        // if(tagger.isStepping(tagger.currentTag()){ tagger.stepMeOut(); } return;
+        // if(tagger.isStepping(){ tagger.stepMeOut(); } return;
         BranchInstruction toEnd = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
         finallyBl.append(toEnd);
         finallyBl.append(new ALOAD(1));
