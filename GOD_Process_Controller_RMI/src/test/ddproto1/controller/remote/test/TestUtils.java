@@ -47,6 +47,7 @@ public class TestUtils {
     private static final String CONTROLLER_REGISTRY_PORT = "3000";
     private static final String CONTROLLER_OBJNAME = "ControlClient";
     private static final String PROTOCOL = "tcp";
+    private static final String PROCSERVER_ID = "testServer";
     private static Registry registry;
 
     public static void publishControlClient(IControlClient cc)
@@ -84,7 +85,9 @@ public class TestUtils {
         /** The transport protocol to be adopted. */
         al.add(makeAttribute(ProcessServerConstants.TRANSPORT_PROTOCOL, 
                 PROTOCOL));
-
+        /** The server ID. */
+        al.add(makeAttribute(ProcessServerConstants.PROCSERVER_IDENTIFIER, 
+                PROCSERVER_ID));
         /** And tells it that it should start a new registry. */
         al.add(makeAttribute(ProcessServerConstants.LR_INSTANTIATION_POLICY, 
                 ProcessServerConstants.SHOULD_START_NEW));
