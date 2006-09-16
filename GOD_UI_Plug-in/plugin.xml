@@ -71,6 +71,11 @@
              class = "ddproto1.plugin.ui.GODDebugModelPresentation"
              id = "br.usp.ime.ddproto1.god">
 		 </debugModelPresentation> 
-</extension>
+		
+		<debugModelPresentation
+			class = "ddproto1.plugin.ui.java.JavaDebugModelPresentation"
+			id = "br.usp.ime.ddproto1.god.java">
+		</debugModelPresentation>
+	</extension>
 		  
 </plugin>
