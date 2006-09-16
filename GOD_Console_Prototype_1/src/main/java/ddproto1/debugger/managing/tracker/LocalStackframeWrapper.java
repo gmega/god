@@ -136,4 +136,8 @@ public class LocalStackframeWrapper extends DebugElement implements IStackFrame 
         
         return fLocalFrame.getAdapter(adaptee);
     }
+    
+    public IStackFrame getUnderlyingFrame(){
+        return fLocalFrame;
+    }
 }
