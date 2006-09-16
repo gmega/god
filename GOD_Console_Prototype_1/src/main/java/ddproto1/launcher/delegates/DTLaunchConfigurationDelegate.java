@@ -19,6 +19,7 @@ import ddproto1.GODBasePlugin;
 import ddproto1.debugger.managing.GlobalAgent;
 import ddproto1.debugger.managing.GlobalAgentProcess;
 import ddproto1.launcher.procserver.IProcessServerManager;
+import ddproto1.sourcemapper.generic.DelegatingSourceLocator;
 
 public class DTLaunchConfigurationDelegate implements ILaunchConfigurationDelegate{
 
@@ -48,6 +49,7 @@ public class DTLaunchConfigurationDelegate implements ILaunchConfigurationDelega
         IProcess gaProcess = new GlobalAgentProcess(launch, "Global Agent", psManager);
         launch.addProcess(gaProcess);
         launch.addDebugTarget(ga);
+        launch.setSourceLocator(new DelegatingSourceLocator());
         ga.start(monitor, launch, gaProcess);
     }
     
