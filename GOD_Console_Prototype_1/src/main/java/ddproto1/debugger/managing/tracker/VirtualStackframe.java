@@ -30,7 +30,7 @@ import ddproto1.util.traits.commons.ConversionUtil;
  * @author giuliano
  *
  */
-public class VirtualStackframe extends DebugElement implements IStackFrame{
+public class VirtualStackframe extends GODDebugElement implements IStackFrame{
     
     public static final Integer UNDEFINED = new Integer(-1);
     
@@ -186,11 +186,6 @@ public class VirtualStackframe extends DebugElement implements IStackFrame{
 
     public boolean hasRegisterGroups() throws DebugException {
         return false;
-    }
-
-    /** Model identifier is the same as for the rest of the plug-in */
-    public String getModelIdentifier() {
-        return GODBasePlugin.getDefault().getBundle().getSymbolicName();
     }
 
     public Object getAdapter(Class adapter) {
