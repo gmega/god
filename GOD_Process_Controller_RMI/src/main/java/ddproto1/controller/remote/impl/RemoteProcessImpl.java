@@ -22,8 +22,8 @@ import org.apache.log4j.Logger;
 import ddproto1.controller.constants.IErrorCodes;
 import ddproto1.controller.exception.ServerRequestException;
 import ddproto1.controller.interfaces.IControlClient;
-import ddproto1.controller.interfaces.IRemotable;
 import ddproto1.controller.interfaces.IRemoteProcess;
+import ddproto1.controller.interfaces.internal.IRemotable;
 
 /**
  *
@@ -57,6 +57,8 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
     private volatile int timeout;
     private volatile int bufferlength;
     
+    private boolean fDisposed;
+    
     public RemoteProcessImpl(Process underlying, int bufferlength, int timeout, final int pHandle,
             IControlClient listener, RemoteProcessServerImpl parent){
         
@@ -80,7 +82,6 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
             initStreamGobblers();
         }
     }
-    
 
     protected void initStreamGobblers(){
         
@@ -134,14 +135,19 @@ public class RemoteProcessImpl implements IErrorCodes, IRemoteProcess, IRemotabl
     {
         logger.info("Dispose called on process " + pHandle + "." 
                 + " Terminating and unexporting remote proxy.");
-        getProcess().destroy();
         synchronized(this){
-            try{
-                PortableRemoteObject.unexportObject(this); 
-            }catch(NoSuchObjectException ex){
-                logger.error("Error while deactivating object - NoSuchObjectException", ex);
+            if(fDisposed) return;
+            getProcess().destroy();
+            synchronized(this){
+                try{
+                    PortableRemoteObject.unexportObject(this); 
+                }catch(NoSuchObjectException ex){
+                    logger.error("Error while deactivating object - NoSuchObjectException", ex);
+                }
             }
+            fDisposed = true;
         }
+        
         parent.disposeCalled(this);
     }
     
