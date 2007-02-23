@@ -8,12 +8,18 @@
 
 package ddproto1.configurator.test;
 
+import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 
 import org.xml.sax.SAXParseException;
 
+import ddproto1.configurator.ConfiguratorUtils;
 import ddproto1.configurator.IObjectSpec;
 import ddproto1.configurator.SpecLoader;
 import ddproto1.configurator.XMLConfigurationParser;
@@ -35,25 +41,27 @@ public class XMLParserTest extends BasicSpecTest {
     
     private IObjectSpec root;
     
-    private static final String DD_CONFIG_FILENAME = "dd_config.xml";
-    private static final String DD_CONFIG_TEMPLATED_FILENAME = "dd_config_tpl.xml";
-    
     public void testParseConfig() {
         
         try{
 
             XMLConfigurationParser cfg = new XMLConfigurationParser(getDefaultSpecLoader());
             
-            String baseConfigURL = TestUtils.getProperty(TestUtils.BASEDIR_URL) + "/" + 
-                                    TestUtils.getProperty(TestUtils.MAIN_DIR) + "/" + 
-                                    TestUtils.getProperty(TestUtils.CONFIG_DIR) + "/";
+            URL url = Thread.currentThread().getContextClassLoader().getResource(
+                    TestUtils.getProperty(TestUtils.TESTS_DIR) + "/" + 
+                    TestUtils.getProperty(TestUtils.RESOURCES_DIR) + "/" +
+                    DD_CONFIG_FILENAME);
             
             /** Parses the configuration file */
-            IObjectSpec root = cfg.parseConfig(new URL(baseConfigURL + DD_CONFIG_FILENAME)); 
+            IObjectSpec root = cfg.parseConfig(url); 
         
             System.out.println(" -- Info Summary --");
             String h1 = XMLParserTest.stringHierarchy(root, "","");
             mh.getStandardOutput().print(h1);
+            Writer writer = new OutputStreamWriter(new FileOutputStream("/home/giuliano/l1"));
+            writer.write(h1);
+            writer.flush();
+            writer.close();
             
             this.root = root;
             
@@ -62,14 +70,22 @@ public class XMLParserTest extends BasicSpecTest {
             List<IObjectSpec> children = root.getChildren();
             IObjectSpec launcher = children.get(0).getChildOfType("launcher");
             try{
-                launcher.getAttribute("cdwp-port");
+                launcher.getAttribute("callback-object-path");
             }catch(UninitializedAttributeException ex){ }
+
+            url = Thread.currentThread().getContextClassLoader().getResource(
+                    TestUtils.getProperty(TestUtils.TESTS_DIR) + "/" + 
+                    TestUtils.getProperty(TestUtils.RESOURCES_DIR) + "/" +
+                    DD_CONFIG_TEMPLATED_FILENAME);
             
-            Properties props = getProperties();
-            root = cfg.parseConfig(new URL(baseConfigURL + DD_CONFIG_TEMPLATED_FILENAME), getProperties());
+            root = cfg.parseConfig(url, getProperties());
             
             String h2 = stringHierarchy(root, "", "");
             System.out.println(h2);
+            writer = new OutputStreamWriter(new FileOutputStream("/home/giuliano/l2"));
+            writer.write(h2);
+            writer.flush();
+            writer.close();
             
             assertTrue(h1.equals(h2));
             
@@ -126,17 +142,21 @@ public class XMLParserTest extends BasicSpecTest {
     private Properties getProperties() throws Exception {
         Properties props = new Properties();
         props.load(TestUtils.getResource(
-                        IConfigurationConstants.BOOTSTRAP_PROPERTIES_FILE)
-                        .openStream());
-        
-        Properties extra = new Properties();
-        extra.load(TestUtils.getResource(
                 TestUtils.getProperty(TestConfigurationConstants.TESTS_DIR) + "/" +
                 TestUtils.getProperty(TestConfigurationConstants.RESOURCES_DIR) + "/" + 
-                "absolute.test.properties").openStream());
+                PARSER_TEST_ABS_PROPS_FILENAME).openStream());
         
-        props.putAll(extra);
+        InputStream iStream = TestUtils
+                .getResource(
+                        TestUtils.getProperty(TestConfigurationConstants.TESTS_DIR) + "/" + 
+                        TestUtils.getProperty(TestConfigurationConstants.RESOURCES_DIR) + "/" + 
+                        PARSER_TEST_REL_PROPS_FILENAME).openStream();
         
-        return props;
+        String replaced = ConfiguratorUtils.tokenReplace(iStream, props);
+        Properties fullProps = new Properties();
+        fullProps.load(new ByteArrayInputStream(replaced.getBytes()));
+        fullProps.putAll(props);
+        
+        return fullProps;
     }
 }
