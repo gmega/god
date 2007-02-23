@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -43,6 +44,7 @@ import ddproto1.debugger.eventhandler.processors.AbstractEventProcessor;
 import ddproto1.debugger.managing.tracker.IDistributedThread;
 import ddproto1.debugger.managing.tracker.ILocalThread;
 import ddproto1.debugger.managing.tracker.NilDistributedThread;
+import ddproto1.util.DelayedResult;
 import ddproto1.util.MessageHandler;
 import ddproto1.util.PolicyManager;
 import ddproto1.util.traits.commons.ConversionUtil;
@@ -99,7 +101,8 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     
     private volatile boolean fTerminating = false;
     
-    private volatile Map<JavaStackframe, Integer> fCurrentFrames = null;
+    private final AtomicReference<DelayedResult<Map<JavaStackframe, Integer>>> fCurrentFrames = 
+        new AtomicReference<DelayedResult<Map<JavaStackframe, Integer>>>();
     private volatile IStackFrame[] fSortedFrames = null;
     
     private volatile Integer fGUID = null;
@@ -131,18 +134,22 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     public IStackFrame[] getStackFrames() throws DebugException {
         
         try{
-        	/** Locks so no one can resume this thread while we're looking at it's stack. */
+        	/** Locks so no one can resume this thread 
+             * while we're looking at it's stack. */
             fStackRead.lock();
-            
+
+            // Okay, so it's not running.
             if(isRunning()) 
                 return INodeManager.NO_CALLSTACK;
             
-            if(hasCachedFrames())
-                return getCachedFrames();
-            
-            computeAndCacheFrames();
-            return getCachedFrames();
-           
+            while(true){
+                // Check-then-act is safe, as frames can't 
+                // be invalidated without a resume being issued.
+                if(hasCachedFrames())
+                    return getSortedFrames();
+                computeAndCacheFrames();
+            }
+                                   
         }finally{
             fStackRead.unlock();
         }
@@ -152,12 +159,22 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
        --- Careful with these methods, they aren't synchronized. ---
        ------------------------------------------------------------- */
     private boolean hasCachedFrames(){
-        return fCurrentFrames != null;
+        DelayedResult dr = fCurrentFrames.get();
+        if(fCurrentFrames.get() == null) return false;
+        try{
+            dr.get();
+            return true;
+        }catch(Exception ex){ return false; }
     }
     
     private void computeAndCacheFrames()
         throws DebugException
     {
+        DelayedResult<Map<JavaStackframe, Integer>> dr = new DelayedResult<Map<JavaStackframe, Integer>>();
+        
+        if(!fCurrentFrames.compareAndSet(null, dr))
+            return;
+        
         if(srsfLogger.isDebugEnabled())
             srsfLogger.debug("Getting frames from thread " + getNameSafe());
 
@@ -177,13 +194,20 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             if(srsfLogger.isDebugEnabled())
                 srsfLogger.debug("Got " + frameCache.size() + " frames from thread " + getNameSafe());
             
-            assert fCurrentFrames == null; // Should be null.
-            fCurrentFrames = Collections.unmodifiableMap(frameCache);
+            assert fCurrentFrames.get() == dr;
+
             fSortedFrames = sortedCache;
+            dr.set(Collections.unmodifiableMap(frameCache));
 
         }catch(IncompatibleThreadStateException ex){
+            dr.setException(ex);
+            fCurrentFrames.set(null);
+            
             this.requestFailed("Error while acquiring thread frames. ", ex);
         }catch(VMDisconnectedException ex){
+            dr.setException(ex);
+            fCurrentFrames.set(null);
+            
             if(terminationWarnIssued()){
                 return;
             }else{
@@ -192,7 +216,7 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
         }
     }    
     
-    private IStackFrame[] getCachedFrames(){
+    private IStackFrame[] getSortedFrames(){
         IStackFrame [] sortedFrames = fSortedFrames;
         if(sortedFrames == null) return new IStackFrame[0];
         IStackFrame [] sortedFramesCopy = new IStackFrame[sortedFrames.length];
@@ -201,11 +225,25 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
     }
     
     private void invalidateStackframes(){
-        if(fCurrentFrames == null) return; // No cached frames to invalidate.
-        for(JavaStackframe frame : fCurrentFrames.keySet()){
-            frame.invalidate();
+        DelayedResult <Map<JavaStackframe, Integer>>dr = fCurrentFrames.get();
+        if(dr == null) return; // No cached frames to invalidate.
+        
+        try{
+            // dr.get() may block if computeAndCacheFrames 
+            // hasn't yet completed, but that's okay, as 
+            // we don't expect computeAndCacheFrames to block
+            // indefinitely. Also, if computation of cached
+            // frames fail, we'll get a side-effect exception,
+            // which just means there's nothing to invalidate, 
+            // as the computation that would lead to the frames
+            // we have to invalidate just failed.
+            for(JavaStackframe frame : dr.get().keySet()){
+                frame.invalidate();
+            }
+            fCurrentFrames.set(null);
+        }catch(Exception ex){ 
+            // Nothing to do.
         }
-        fCurrentFrames = null;
     }
     
     /* -------------------------------------------------------------
@@ -216,7 +254,15 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
      */
     protected StackFrame getJDIStackFrame(JavaStackframe sFrame)
     {
-        Map<JavaStackframe, Integer> localCopy = fCurrentFrames;
+        Map<JavaStackframe, Integer> localCopy = null;
+        try{
+            localCopy = fCurrentFrames.get().get();
+        }catch(Exception ex){ 
+            // Nothing to do. If we got an exception,
+            // the assignment of localCopy didn't complete
+            // and we'll return null.
+        }
+        
         if(localCopy == null)
             return null;
         Integer frameIndex = localCopy.get(sFrame);
@@ -392,11 +438,11 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             srsfLogger.debug("Resuming thread " + getNameSafe() + " with opts "
                     + (fireEclipse?"fireEclipse":"") + (fireParent?"fireParent":""));
         }
-        
-        if(fireParent)
-            fDTParent.resumed(this, de);
+
         if(fireEclipse)
             super.fireResumeEvent(de);
+        if(fireParent)
+            fDTParent.resumed(this, de);
     }
 
     public synchronized void suspend() throws DebugException {
@@ -465,12 +511,12 @@ public class JavaThread extends JavaDebugElement implements ILocalThread{
             srsfLogger.debug("Thread " + getNameSafe() + " suspended.");
         }
 
-        if(fireParent)
-            fDTParent.suspended(this, de);
         if(fireEclipse)
             super.fireSuspendEvent(de);
+        if(fireParent)
+            fDTParent.suspended(this, de);
+
     }
-    
    
     public void suspendedByVM(){
         this.setRunning(false);
