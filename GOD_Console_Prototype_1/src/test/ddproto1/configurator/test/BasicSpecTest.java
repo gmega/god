@@ -19,6 +19,11 @@ import ddproto1.util.TestUtils;
 
 public class BasicSpecTest extends TestCase{
 
+    protected static final String DD_CONFIG_FILENAME = "parser.test_node_config.substituted.xml";
+    protected static final String DD_CONFIG_TEMPLATED_FILENAME = "parser.test_node_config.xml";
+    protected static final String PARSER_TEST_ABS_PROPS_FILENAME = "parser.absolute.test.properties";
+    protected static final String PARSER_TEST_REL_PROPS_FILENAME = "parser.test.properties";
+    
     protected SpecLoader getDefaultSpecLoader()
         throws Exception
     {
