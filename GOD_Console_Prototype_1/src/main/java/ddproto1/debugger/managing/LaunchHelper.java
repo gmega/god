@@ -44,6 +44,8 @@ import ddproto1.launcher.procserver.ProcessEventAdapter;
 import ddproto1.util.DelayedResult;
 import ddproto1.util.Lookup;
 import ddproto1.util.MessageHandler;
+import ddproto1.util.collection.IUndoAction;
+import ddproto1.util.collection.UndoList;
 
 public class LaunchHelper implements IConfigurationConstants{
     
@@ -94,12 +96,20 @@ public class LaunchHelper implements IConfigurationConstants{
     {
         final IGUIDManager dgManager = GODBasePlugin.getDefault().debuggeeGUIDManager();
         
+        //TODO Rollback code hasn't been tested. Write a test that exercises at least a part of it.
+        UndoList<IUndoAction> uList = new UndoList<IUndoAction>();
         
         try{
             INodeManagerFactory factory = this.getFactory(nodeSpec.getType().getConcreteType());
             
             /** Begins by leasing a GUID to this node manager. */
             String intendedGuid = nodeSpec.getAttribute(GUID_ATTRIBUTE);
+            final IUndoAction leaseGUID = new IUndoAction(){
+                public void undo() throws Exception {
+                    dgManager.releaseGUID(nodeSpec);
+                }
+            };
+            uList.registerForRollback(leaseGUID, leaseGUID);
             
             if(intendedGuid.equals(AUTO))
                 dgManager.leaseGUID(nodeSpec);
@@ -109,16 +119,25 @@ public class LaunchHelper implements IConfigurationConstants{
             /** Now the ID has been leased, we can instantiate the node 
              * manager.
              */
-            ILocalNodeManager nManager = factory.createNodeManager(nodeSpec);
+            final ILocalNodeManager nManager = factory.createNodeManager(nodeSpec);
+            IUndoAction createNodeManager = new IUndoAction(){
+                public void undo() throws Exception {
+                    // Don't know how to undo this in a decent way. 
+                }
+            };
+            uList.registerForRollback(createNodeManager, createNodeManager);
             
             /** 
              * Signals the node proxy that it should prepare to 
              * receive a remote connection. This remote connection 
              * may be attempted during launch, and it should block
              * until client calls connect on the node proxy.
+             * 
+             * We don't need to register this for rollback, because the 
+             * createNodeManager undo action will already rollback it.
              */
-            nManager.prepareForConnecting();
-            
+            nManager.prepareForConnecting();  
+                        
             IServiceLocator locator = 
                 (IServiceLocator)Lookup.serviceRegistry().locate(IConfigurationConstants.SERVICE_LOCATOR);
             IObjectSpec launcherSpec = nodeSpec.getChildSupporting(IApplicationLauncher.class);
@@ -132,22 +151,26 @@ public class LaunchHelper implements IConfigurationConstants{
                 @Override
                 public void notifyProcessKilled(int exitValue) {
                     /** Release it's GUID. */
-                    dgManager.releaseGUID(nodeSpec);
+                    try{
+                        leaseGUID.undo();
+                    }catch(Exception ex) { 
+                        logger.error("Failed to release GUID.");
+                    }
                 }
             });
 
-            /** We now launch the process. */
-            IProcess process = l.launchOn(launch, listeners);
-            
+            /** We now launch the process. No need to rollback as well,
+             * since the other actions we registered earlier will take 
+             * care of it. */
+            final IProcess process = l.launchOn(launch, listeners);
             nManager.setProcess(process);
             launch.addProcess(process);
             launch.addDebugTarget((IDebugTarget)nManager.getAdapter(IDebugTarget.class));
-            
-            
+                        
             /** nManager is ready to connect. */
             return nManager;
         }catch(Throwable ex){
-            GODBasePlugin.getDefault().debuggeeGUIDManager().releaseGUID(nodeSpec);
+            uList.rollback(logger);
             throw new LauncherException("Unable to launch.", ex);
         }	
     }
