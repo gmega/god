@@ -28,12 +28,12 @@ public class ObjectSpecFactoryTest extends BasicSpecTest {
             XMLConfigurationParser cfg = new XMLConfigurationParser(sLoader);
             
             String mainConfBaseURL = 
-                TestUtils.getProperty(TestUtils.MAIN_DIR) + "/" +
-                TestUtils.getProperty(TestUtils.CONFIG_DIR) + "/";
+                TestUtils.getProperty(TestUtils.TESTS_DIR) + "/" +
+                TestUtils.getProperty(TestUtils.RESOURCES_DIR) + "/";
             
             /** Parses the configuration file */
             IObjectSpec root = cfg.parseConfig(TestUtils.getResource(
-                    mainConfBaseURL + "dd_config.xml"));
+                    mainConfBaseURL + DD_CONFIG_FILENAME));
             assertTrue(root.equals(root));
             ObjectSpecStringfier osFactory = new ObjectSpecStringfier(sLoader, new Base64Encoder());
             
